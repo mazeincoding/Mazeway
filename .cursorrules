@@ -1,0 +1,11 @@
+# Tech stack
+
+* Use TailwindCSS for styling
+* Use Shadcn UI for components
+* Use Next.js for core framework
+
+# Rules
+
+* Use the "no-filter, just truth" style for text throughout the project. No BS. All text should seem genuine and authentic.
+* Always use space-y and space-x classes for spacing for non-flex elements and gap for flex elements.
+* At the start of each message, use a chain-of-thought process to think about the best way to implement the request.

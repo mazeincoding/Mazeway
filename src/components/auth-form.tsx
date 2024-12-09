@@ -14,20 +14,32 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FaGoogle } from "react-icons/fa";
 import Link from "next/link";
+import { login, signup } from "@/actions/auth/email";
+import { useFormStatus } from "react-dom";
+import { toast } from "@/hooks/use-toast";
 
 interface AuthFormProps {
   type: "login" | "signup";
 }
 
 export function AuthForm({ type }: AuthFormProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string>();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: Implement auth logic
-    console.log({ email, password });
-  };
+  async function handleSubmit(formData: FormData) {
+    setError(undefined);
+
+    const response =
+      type === "login" ? await login(formData) : await signup(formData);
+
+    if (response.error) {
+      setError(response.error);
+      toast({
+        title: "Error",
+        description: response.error,
+        variant: "destructive",
+      });
+    }
+  }
 
   return (
     <Card className="w-full max-w-md">
@@ -45,32 +57,41 @@ export function AuthForm({ type }: AuthFormProps) {
         <SocialButtons />
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form action={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="name@example.com"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="••••••••"
               required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <Button type="submit" className="w-full">
-            {type === "login" ? "Log in" : "Create account"}
-          </Button>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <SubmitButton type={type} />
+          {type === "signup" && (
+            <Link href="/login-help">
+              <Button
+                variant="outline"
+                type="button"
+                className="w-full text-sm"
+              >
+                Can't log in?
+              </Button>
+            </Link>
+          )}
         </form>
       </CardContent>
       <CardFooter className="flex flex-col gap-2 border-t p-5">
@@ -93,6 +114,25 @@ export function AuthForm({ type }: AuthFormProps) {
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+function SubmitButton({ type }: { type: "login" | "signup" }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? (
+        <span className="flex items-center gap-2">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          {type === "login" ? "Logging in..." : "Creating account..."}
+        </span>
+      ) : type === "login" ? (
+        "Log in"
+      ) : (
+        "Create account"
+      )}
+    </Button>
   );
 }
 

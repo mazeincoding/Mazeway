@@ -5,7 +5,7 @@ export default function Signup() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow flex items-center justify-center flex-col gap-5 px-8">
+      <main className="flex-grow flex items-center justify-center flex-col gap-5 px-8 py-10">
         <AuthForm type="signup" />
       </main>
     </div>

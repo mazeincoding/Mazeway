@@ -17,6 +17,7 @@ import Link from "next/link";
 import { login, signup } from "@/actions/auth/email";
 import { useFormStatus } from "react-dom";
 import { toast } from "@/hooks/use-toast";
+import { GradientText } from "@/components/gradient-text";
 
 interface AuthFormProps {
   type: "login" | "signup";
@@ -45,8 +46,10 @@ export function AuthForm({ type }: AuthFormProps) {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center space-y-4">
         <div className="flex flex-col gap-1">
-          <CardTitle className="text-2xl font-bold bg-gradient-to-t from-foreground/50 to-foreground bg-clip-text text-transparent">
-            {type === "login" ? "Welcome back" : "Create your account"}
+          <CardTitle className="text-2xl font-bold">
+            <GradientText>
+              {type === "login" ? "Welcome back" : "Create your account"}
+            </GradientText>
           </CardTitle>
           <CardDescription className="text-foreground/35">
             {type === "login"
@@ -81,7 +84,7 @@ export function AuthForm({ type }: AuthFormProps) {
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <SubmitButton type={type} />
-          {type === "signup" && (
+          {type === "login" && (
             <Link href="/login-help">
               <Button
                 variant="outline"

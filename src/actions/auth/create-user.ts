@@ -1,12 +1,12 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { AuthProvider } from "@/types/user";
+import { TAuthProvider } from "@/types/auth";
 
 interface CreateUserData {
   id: string;
   email: string;
-  auth_method: AuthProvider;
+  auth_method: TAuthProvider;
 }
 
 export async function createUser(
@@ -17,6 +17,8 @@ export async function createUser(
   // Use email as name if name not provided
   const name = userData.email.split("@")[0];
 
+  console.log("Attempting to create user with ID:", userData.id);
+
   try {
     const { error } = await supabase.from("users").insert({
       id: userData.id,
@@ -26,11 +28,14 @@ export async function createUser(
       auth_method: userData.auth_method,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.log("Error occurred with ID:", userData.id);
+      throw error;
+    }
 
     return {};
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating user:", error);
-    return { error: "Failed to create user profile" };
+    return { error: error.message };
   }
 }

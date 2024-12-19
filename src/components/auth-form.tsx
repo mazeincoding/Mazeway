@@ -16,20 +16,20 @@ import { FaGoogle } from "react-icons/fa";
 import Link from "next/link";
 import { login, signup } from "@/actions/auth/email";
 import { useFormStatus } from "react-dom";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { GradientText } from "@/components/gradient-text";
 import {
   validatePassword,
   validateEmail,
 } from "@/utils/validation/auth-validation";
 import { Confirm } from "./auth-confirm";
+import { signInWithGoogle } from "@/actions/auth/google";
 
 interface AuthFormProps {
   type: "login" | "signup";
 }
 
 export function AuthForm({ type }: AuthFormProps) {
-  const [error, setError] = useState<string>();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -38,18 +38,16 @@ export function AuthForm({ type }: AuthFormProps) {
   const emailValidation = validateEmail(email);
 
   async function handleSubmit(formData: FormData) {
-    setError(undefined);
-
     const response =
       type === "login" ? await login(formData) : await signup(formData);
 
     if (response.error) {
-      setError(response.error);
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description: response.error,
-        variant: "destructive",
+        duration: 3000,
       });
+    } else if (type === "signup") {
+      setShowConfirm(true);
     }
   }
 
@@ -102,7 +100,7 @@ export function AuthForm({ type }: AuthFormProps) {
 
             <SubmitButton type={type} disabled={!isFormValid} />
             {type === "login" && (
-              <Link href="/login-help">
+              <Link href="/auth/login-help">
                 <Button
                   variant="outline"
                   type="button"
@@ -120,7 +118,7 @@ export function AuthForm({ type }: AuthFormProps) {
               <>
                 Don't have an account?{" "}
                 <Link
-                  href="/signup"
+                  href="/auth/signup"
                   className="text-foreground hover:underline"
                 >
                   Sign up
@@ -129,7 +127,10 @@ export function AuthForm({ type }: AuthFormProps) {
             ) : (
               <>
                 Already have an account?{" "}
-                <Link href="/login" className="text-foreground hover:underline">
+                <Link
+                  href="/auth/login"
+                  className="text-foreground hover:underline"
+                >
                   Log in
                 </Link>
               </>
@@ -172,11 +173,46 @@ function SubmitButton({
 }
 
 export function SocialButtons() {
+  const [isPending, setIsPending] = useState(false);
+
+  async function handleGoogleSignIn() {
+    try {
+      setIsPending(true);
+      console.log("Starting Google sign in...");
+      const response = await signInWithGoogle();
+      console.log("Response:", response);
+
+      if (response.error) {
+        toast.error("Error", {
+          description: response.error,
+          duration: 3000,
+        });
+      } else if (response.url) {
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      console.error("Google sign in error:", error);
+      toast.error("Error", {
+        description: "Failed to sign in with Google",
+        duration: 3000,
+      });
+    } finally {
+      setIsPending(false);
+    }
+  }
+
   return (
     <div className="flex gap-2">
-      <Button variant="outline" className="w-full">
-        <FaGoogle className="w-4 h-4" />
-        Continue with Google
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={handleGoogleSignIn}
+        disabled={isPending}
+      >
+        <>
+          <FaGoogle className="w-4 h-4" />
+          Continue with Google
+        </>
       </Button>
     </div>
   );

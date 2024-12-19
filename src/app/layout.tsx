@@ -3,7 +3,9 @@ import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
+import { UserProvider } from "@/components/user-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -32,9 +34,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-          <Analytics />
-          <Toaster />
+          <TooltipProvider>
+            <UserProvider>
+              {children}
+              <Analytics />
+              <Toaster />
+            </UserProvider>
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

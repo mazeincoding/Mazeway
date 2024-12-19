@@ -23,7 +23,7 @@ const helpOptions: HelpOption[] = [
 export default function LoginHelp() {
   return (
     <div className="flex flex-col">
-      <Header />
+      <Header isInitiallyLoggedIn={false} />
       <main className="flex-grow flex justify-center gap-5 px-8 py-10 mt-6">
         <div className="w-full max-w-md space-y-4">
           <div className="text-center space-y-4">

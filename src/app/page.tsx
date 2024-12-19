@@ -6,7 +6,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
+      <Header isInitiallyLoggedIn={false} />
       <main className="flex-grow flex items-center justify-center flex-col gap-5 px-8 text-center">
         <div className="flex flex-col gap-2 max-w-xl mx-auto">
           <h1 className="text-4xl font-bold text-center text-pretty">
@@ -17,10 +17,10 @@ export default function Home() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/login">
+          <Link href="/auth/login">
             <Button variant="secondary">Log in</Button>
           </Link>
-          <Link href="/signup">
+          <Link href="/auth/signup">
             <Button>Sign up</Button>
           </Link>
         </div>

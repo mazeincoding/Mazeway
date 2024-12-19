@@ -29,3 +29,23 @@ export const validateEmail = (email: string) => {
     error: !result.success ? result.error.issues[0]?.message : undefined,
   };
 };
+
+export const profileSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name cannot be longer than 50 characters"),
+  email: authSchema.shape.email,
+});
+
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: authSchema.shape.password,
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export type ProfileSchema = z.infer<typeof profileSchema>;
+export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;

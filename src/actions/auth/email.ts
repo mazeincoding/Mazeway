@@ -1,11 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { authSchema } from "@/utils/validation/auth-validation";
 import { z } from "zod";
-import { createUser } from "@/actions/auth/create-user";
 
 type AuthResponse = {
   error?: string;
@@ -46,8 +44,7 @@ export async function login(formData: FormData): Promise<AuthResponse> {
     return { error: authError.message };
   }
 
-  revalidatePath("/", "layout");
-  redirect("/");
+  redirect(`/api/auth/callback?provider=email&next=/`);
 }
 
 export async function signup(formData: FormData): Promise<AuthResponse> {
@@ -56,27 +53,38 @@ export async function signup(formData: FormData): Promise<AuthResponse> {
     return { error: validation.error || "Invalid input" };
 
   const supabase = await createClient();
-  const { data: authData, error: authError } = await supabase.auth.signUp(
+  const { data, error: authError } = await supabase.auth.signUp(
     validation.data
   );
+
+  // Debug log
+  console.log("Signup response:", { data, error: authError });
+
+  // Check for existing user
+  if (data?.user?.identities?.length === 0) {
+    return {
+      error: "This email is already registered. Please try logging in instead.",
+    };
+  }
 
   if (authError) {
     return { error: authError.message };
   }
 
-  // Create user profile after successful auth
-  if (authData.user) {
-    const { error: createError } = await createUser({
-      id: authData.user.id,
-      email: authData.user.email!,
-      auth_method: "email",
-    });
+  return {};
+}
 
-    if (createError) {
-      return { error: createError };
-    }
+export async function resendConfirmation(email: string): Promise<AuthResponse> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: email,
+  });
+
+  if (error) {
+    return { error: error.message };
   }
 
-  revalidatePath("/", "layout");
-  redirect("/");
+  return {};
 }

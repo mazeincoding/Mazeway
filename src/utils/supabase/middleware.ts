@@ -37,19 +37,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const protectedPaths = ["/dashboard", "/account"];
+  const protectedPaths = ["/dashboard", "/account", "/api/send-email-alert"];
   const authPaths = ["/", "/auth/login", "/auth/signup"];
 
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
-
   const isAuthPath = authPaths.some(
     (path) => request.nextUrl.pathname === path
   );
+  const isApiPath = request.nextUrl.pathname.startsWith("/api/");
 
   // Redirect to login if accessing protected route while not authenticated
   if (!user && isProtectedPath) {
+    if (isApiPath) {
+      return NextResponse.json(
+        { message: "Unauthorized access" },
+        { status: 401 }
+      );
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);

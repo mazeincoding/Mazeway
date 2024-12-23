@@ -122,14 +122,33 @@ export async function GET(request: Request) {
       },
     });
 
-    // 4. Send email notification (we'll implement this next)
+    // 4. Send email notification (if Resend is configured)
     if (!sessionError) {
-      // await sendLoginAlert({
-      //   user,
-      //   device: currentDevice,
-      //   confidenceLevel,
-      //   needsVerification
-      // });
+      if (!process.env.RESEND_API_KEY) {
+        console.log(
+          "RESEND_API_KEY not configured. Login notification emails are disabled."
+        );
+      } else {
+        try {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/send-email-alert`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(`Failed to send email: ${error.message}`);
+          }
+        } catch (emailError) {
+          // Log error but don't block auth flow
+          console.error("Failed to send login notification:", emailError);
+        }
+      }
     }
   }
 

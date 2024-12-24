@@ -328,7 +328,7 @@ You won't even need to touch the Supabase dashboard to do it.
 10. Select the domain you just added
 11. Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
 12. Update your `.env.local` file:
-    ```
+    ```diff
     NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
     NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
     + RESEND_API_KEY=your-resend-api-key

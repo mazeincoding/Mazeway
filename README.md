@@ -40,6 +40,8 @@ The project uses modern tech:
 > Note: The project is very new, so expect even more sign-in methods and other cool stuff in the future. This README is complete, so you can follow it without worrying about anything being incomplete.
 >
 > This is not like a Zed AI documentation where it's full of "this section isn't complete" and you just know there's gonna be a million issues along the way.
+>
+> Though I have to be honest, I did build Zed AI some time ago with no issues. But no dev wants to read "The instructions are not yet complete".
 
 ## The project comes with:
 - Sign-in options:

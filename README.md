@@ -1,8 +1,45 @@
-# Auth starterpack
+# Auth Starterpack (Supabase, Next.js, Resend, Shadcn UI)
 
-Start building your next.js app, not authentication. This project gives you absolutely everything you need for a real-world app. All edge cases are handled, so you don't have to. Built with Supabase.
+You just opened the door to the complete authentication starter pack your users will **love**.
 
-> Note: The project is very new, so expect even more sign-in methods and other cool shit in the near future. This README is complete, so you can follow it without worrying about if anything is incomplete.
+I see a lot of new apps having only 5% of authentication. Including:
+- Missing login page
+- No "forgot password" option
+- Missing crucial security (2FA, device sessions, email alerts, and more)
+- Weird UI glitches with auth
+- No way to connect account to multiple providers (or delete some)
+
+These are the kind of things users expect to see in your app. And when they don't, they think:
+- Not complete app
+- Unprofessional
+- Sketchy
+
+Talking from experience, a few years ago before I was a dev.
+
+This starter pack includes all of that. But that's not the best part.
+
+> Clerk and other services already solve this?
+
+Remember:
+- Bootstrap
+- Material UI
+- Chakra UI
+- Ant Design
+
+They all solved the same problem, but created yet another one... **lack of customization**. They were very limited. Then Shadcn UI came around, and solved that problem by focusing on copy-paste components. You owned all the code, and you could customize it exactly how you wanted. It was like the ultimate UI starter pack that you could just build on.
+
+That's exactly the difference between Clerk and this starter pack: you own all the code. It's yours! You can do whatever you want, scale it, add more things. It's the ultimate foundation of your app's authentication.
+
+The project uses modern tech:
+- Next.js 15
+- Tailwind CSS
+- Shadcn UI
+- Supabase
+- Resend
+
+> Note: The project is very new, so expect even more sign-in methods and other cool stuff in the future. This README is complete, so you can follow it without worrying about anything being incomplete.
+>
+> This is not like a Zed AI documentation where it's full of "this section isn't complete" and you just know there's gonna be a million issues along the way.
 
 ## The project comes with:
 - Sign-in options:
@@ -13,24 +50,30 @@ Start building your next.js app, not authentication. This project gives you abso
   - Password reset
   - Email verification
   - Sign-in confirmation
+  - Two-factor authentication (2FA)
 - User settings dashboard
   - Profile management
   - Change password
+  - Device session management
+    - View active sessions
+    - Revoke device access
+    - Email alerts for new logins
 
-> PS: All the setup docs were written while actually doing them myself.
-> 
-> The docs were written as I was making the project. So I set up Supabase, wrote that, created some tables, added that to the README.
+> PS: The docs were written as I was making the project. So I set up Supabase, wrote that, created some tables, added that to the README. So even if you're the first to follow along, someone has technically already followed it and ensured it works.
   
 ## Setup
 Just a few steps and your authentication is **production ready**. Let's set everything up using the steps below:
+
 ### 1. Create Supabase project
 Create a Supabase project and get your ANON key and Supabase project URL.
+
 ### 2. Set up Supabase in your project
 Open the .env.example file and replace `NEXT_PUBLIC_SUPABASE_URL` with your project URL and `NEXT_PUBLIC_SUPABASE_ANON_KEY` with your ANON key. Example:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
+
 ### 3. Rename the `.env.example` file to `.env.local`
 > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys) 
 
@@ -251,9 +294,11 @@ So you can totally ignore this step for now and set it up later.
 
 Especially since Resend requires you to have bought a domain.
 
-The project does use Resend directly specifically for sending a security email (someone logged in to your account) and you won't see that email until you set up Resend. But everything else will work just fine.
+The project does use Resend specifically for sending a security email (someone logged in to your account) and you won't see that email until you set up Resend. But everything else will work just fine.
 
-Here's how to do it anyway:
+I do recommended you set it up when you go in production.
+
+Here's how to do it when you need it:
 
 **Luckily...**
 Resend makes it REALLY straightforward to integrate with Supabase.
@@ -262,12 +307,11 @@ You won't even need to touch the Supabase dashboard to do it.
 
 1. Go to the [Resend website](https://resend.com)
 2. Create an account/login
-3. You'll see some onboarding page that says `Send your first email`. Just ignore that.
-4. So instead, in the left sidebar, go to `Domains` and add a domain here
+3. In the left sidebar, go to `Domains` and add a domain here
    
     > Note: You will need a paid domain for this as mentioned above.
     
-    > You can add any domain by the way. I'm on the Resend free tier so I added my personal domain (mazecoding.com). You know why? The free tier only gives you 1 domain, so by using my personal domain, I can re-use it for all of my apps and it still makes sense.
+    > You can add any domain by the way. I'm on the Resend free tier so I added my personal domain (mazewinther.com). You know why? Because the free tier only gets you 1 domain, so by using my personal domain, I can re-use it for all of my apps and it still makes sense.
     >
     > If I were to add my app's domain, it'd only really make sense to use for that one app.
     >
@@ -275,20 +319,30 @@ You won't even need to touch the Supabase dashboard to do it.
     >
     > Though Resend is really amazing, and I'd probably subscribe just to support the service itself.
 
-5. Follow the steps by Resend. Hit me up on [X (Twitter)](https://x.com/mazewinther1) or [Email](mailto:hi@mazecoding.com) if you're having trouble and I'll personally help you.
-6. Now, again in the left sidebar, go to `Settings`
-7. Then, go to `Integrations` (this is where the magic is)
-8.  You should see Supabase listed. Click `Connect to Supabase`
-9.  Resend will request access to your Supabase organization. Click `Authorize Resend`
-10. Select your Supabase project
-11. Select the domain you just added
-12. Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
+4. Follow the steps by Resend. From experience, verifying the domain might be the most painful part, especially when it doesn't work no matter what you do. It's really like rolling a dice. If it lands on 6, everything verifies! Otherwise, try again. Hit me up on [X (Twitter)](https://x.com/mazewinther1) or send me an [Email](mailto:support@mazewinther.com) if you're having trouble and I'll personally help you.
+5. Now, again in the left sidebar, go to `Settings`
+6. Then, go to `Integrations` (this is where the magic is)
+7. You should see Supabase listed. Click `Connect to Supabase`
+8. Resend will request access to your Supabase organization. Click `Authorize Resend`
+9. Select your Supabase project
+10. Select the domain you just added
+11. Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
+12. Update your `.env.local` file:
+    ```
+    NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+    + RESEND_API_KEY=your-resend-api-key
+    + RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
+    NEXT_PUBLIC_SITE_URL=http://localhost:3000
+    ```
 
 That's literally it. You just set up an entire authentication system (that users will appreciate) probably in minutes.
 
 Go ahead and run the app with `npm run dev`. Head over to `http://localhost:3000` and you're done! 🎉
 
-> Pro tip: if you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
+Pro tip: if you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
+
+If anyone at Supabase is reading, a "fork" feature (like GitHub) would push this project even further into it's direction of making complete authentication more accessible. When a Supabase project is forked, it'd be like duplicating that project to another user.
 
 ## Who is behind this?
 I'm Maze. I love authentication so much that I decided to build this, so I never have to do auth again. If you hit any issues, DM me on [X](https://x.com/mazewinther1) and I'll help you out or just open a GitHub issue. Whatever works best for you.

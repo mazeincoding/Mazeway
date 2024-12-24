@@ -61,7 +61,7 @@ The project uses modern tech:
     - Revoke device access
     - Email alerts for new logins
 
-> PS: The docs were written as I was making the project. So I set up Supabase, wrote that, created some tables, added that to the README. So even if you're the first to follow along, someone has technically already followed it and ensured it works.
+> Unlike many docs written after-the-fact, the following steps were created in real-time as I built the project. Each step was immediately documented after being successfully completed. I'd do one step at a time and then add that step.
   
 ## Setup
 Just a few steps and your authentication is **production ready**. Let's set everything up using the steps below:

@@ -8,7 +8,6 @@ import {
   Section,
   Heading,
   Text,
-  Hr,
 } from "@react-email/components";
 
 interface EmailAlertTemplateProps {

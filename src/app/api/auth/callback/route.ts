@@ -122,6 +122,14 @@ export async function GET(request: Request) {
       },
     });
 
+    // TODO: Security Gap - Device Verification Not Enforced
+    // Currently, users are logged in directly even when device verification is required.
+    // Should implement:
+    // 1. Redirect to verification page when needsVerification is true
+    // 2. Send verification code via email
+    // 3. Only grant full access after successful verification
+    // 4. Probably implementing in middleware to enforce across all routes
+
     // 4. Send email notification (if Resend is configured)
     if (!sessionError) {
       if (!process.env.RESEND_API_KEY) {

@@ -342,6 +342,15 @@ That's literally it. You just set up an entire authentication system (that users
 
 Go ahead and run the app with `npm run dev`. Head over to `http://localhost:3000` and you're done! 🎉
 
+## Get to know the project better
+Gonna implement this section later.
+
+This is where we're gonna explain how everything works.
+
+So people know what they're working with.
+
+We should write it in simple terms, breaking complex things into things that just makes sense.
+
 Pro tip: if you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
 
 If anyone at Supabase is reading, a "fork" feature (like GitHub) would push this project even further into it's direction of making complete authentication more accessible. When a Supabase project is forked, it'd be like duplicating that project to another user.

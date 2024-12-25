@@ -351,9 +351,15 @@ So people know what they're working with.
 
 We should write it in simple terms, breaking complex things into things that just makes sense.
 
-Pro tip: if you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
+---
+
+**Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
 
 If anyone at Supabase is reading, a "fork" feature (like GitHub) would push this project even further into it's direction of making complete authentication more accessible. When a Supabase project is forked, it'd be like duplicating that project to another user.
 
 ## Who is behind this?
-I'm Maze. I love authentication so much that I decided to build this, so I never have to do auth again. If you hit any issues, DM me on [X](https://x.com/mazewinther1) and I'll help you out or just open a GitHub issue. Whatever works best for you.
+I'm Maze, a developer whose X bio still reads "My worst enemy is authentication :)". That bio exists for a reason - nobody wants to build complete auth for every project, even when using great tools like Supabase. There's still a lot of code to write, edge cases to handle, and features to implement.
+
+So I thought: "What if there was a starter pack that could just give me complete auth, problem solved?" 
+
+That's exactly what I built. If you hit any issues, open a GitHub issue. Alternatively, hit me up on [X (Twitter)](https://x.com/mazewinther1).

@@ -358,7 +358,7 @@ We should write it in simple terms, breaking complex things into things that jus
 If anyone at Supabase is reading, a "fork" feature (like GitHub) would push this project even further into it's direction of making complete authentication more accessible. When a Supabase project is forked, it'd be like duplicating that project to another user.
 
 ## Who is behind this?
-I'm Maze, a developer whose X bio still reads "My worst enemy is authentication :)". That bio exists for a reason - nobody wants to build complete auth for every project, even when using great tools like Supabase. There's still a lot of code to write, edge cases to handle, and features to implement.
+I'm Maze, a developer whose X bio still reads "authentication is my only enemy". That bio exists for a reason - nobody wants to build complete auth for every project, even when using great tools like Supabase. There's still a lot of code to write, edge cases to handle, and features to implement.
 
 So I thought: "What if there was a starter pack that could just give me complete auth, problem solved?" 
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { GradientText } from "@/components/gradient-text";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,12 +39,12 @@ export default function ForgotPassword() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
+      <Header isInitiallyLoggedIn={false} />
       <main className="flex-grow flex justify-center items-center px-8 py-10">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">
-              <GradientText>Reset your password</GradientText>
+              Reset your password
             </CardTitle>
             <CardDescription>
               Enter your email and we'll send you instructions to reset your

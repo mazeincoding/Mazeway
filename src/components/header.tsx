@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Button } from "./ui/button";
-import { GradientText } from "./gradient-text";
 import { UserDropdown } from "./user-dropdown";
 
 interface HeaderProps {
@@ -13,9 +12,7 @@ export function Header({ isInitiallyLoggedIn }: HeaderProps) {
   return (
     <header className="flex items-center justify-between p-4 px-6 backdrop-blur-xl border-b sticky top-0 z-10">
       <h1 className="text-2xl font-bold">
-        <Link href="/">
-          <GradientText>Auth</GradientText>
-        </Link>
+        <Link href="/">Auth</Link>
       </h1>
       {isInitiallyLoggedIn ? (
         <UserDropdown />

@@ -1,4 +1,3 @@
-import { GradientText } from "@/components/gradient-text";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -28,9 +27,7 @@ export default function LoginHelp() {
         <div className="w-full max-w-md space-y-4">
           <div className="text-center space-y-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-bold">
-                <GradientText>Need help logging in?</GradientText>
-              </h1>
+              <h1 className="text-3xl font-bold">Need help logging in?</h1>
               <p className="text-foreground/35">
                 We'll make it easy. What do you need help with?
               </p>

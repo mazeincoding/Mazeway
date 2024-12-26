@@ -1,5 +1,4 @@
 import { LucideIcon } from "lucide-react";
-import { GradientText } from "@/components/gradient-text";
 import {
   Card,
   CardContent,
@@ -31,7 +30,7 @@ export function SettingCard({
           <Icon className="size-6" />
         </div>
         <div className="flex flex-col gap-1">
-          <GradientText className="text-2xl font-bold">{title}</GradientText>
+          <h1 className="text-2xl font-bold">{title}</h1>
           <CardDescription>{description}</CardDescription>
         </div>
       </CardHeader>

@@ -17,7 +17,6 @@ import Link from "next/link";
 import { login, signup } from "@/actions/auth/email";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
-import { GradientText } from "@/components/gradient-text";
 import {
   validatePassword,
   validateEmail,
@@ -59,9 +58,7 @@ export function AuthForm({ type }: AuthFormProps) {
         <CardHeader className="text-center space-y-4">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-2xl font-bold">
-              <GradientText>
-                {type === "login" ? "Welcome back" : "Create your account"}
-              </GradientText>
+              {type === "login" ? "Welcome back" : "Create your account"}
             </CardTitle>
             <CardDescription className="text-foreground/35">
               {type === "login"

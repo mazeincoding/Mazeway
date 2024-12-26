@@ -45,7 +45,19 @@ export async function GET(request: Request) {
     }
   }
 
-  // At this point we have a valid session (either from OAuth or email login)
+  // Get the actual Supabase session after exchange
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session) {
+    return NextResponse.redirect(
+      `${origin}/auth/error?error=failed_to_get_session`
+    );
+  }
+
+  // Get user after confirming we have a valid session
   const {
     data: { user },
     error: userError,
@@ -112,7 +124,7 @@ export async function GET(request: Request) {
     // 3. Create session with these settings
     const { error: sessionError } = await createDeviceSession({
       user_id: user.id,
-      session_id: code!,
+      session_id: session.access_token,
       device: currentDevice,
       security: {
         accessLevel,

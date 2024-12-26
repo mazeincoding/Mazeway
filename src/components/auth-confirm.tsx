@@ -57,6 +57,12 @@ const ERROR_CONFIGS: Record<string, ErrorConfig> = {
     message: "There was a problem signing in with Google. Please try again.",
     canResend: false,
   },
+  failed_to_get_session: {
+    title: "Session error",
+    message:
+      "We couldn't establish your login session. This could happen if your session expired or was invalid.",
+    canResend: false,
+  },
 };
 
 function getButtonConfig(
@@ -95,6 +101,12 @@ function getButtonConfig(
       return {
         text: "Try again",
         action: () => (window.location.href = "/auth/signup"),
+      };
+
+    case "failed_to_get_session":
+      return {
+        text: "Try again",
+        action: () => (window.location.href = "/auth/login"),
       };
 
     default:

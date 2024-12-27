@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next") ?? "/";
 
   if (!token_hash || !type) {
-    redirect(`/auth/error?error=missing_params`);
+    redirect(
+      `/auth/error?error=missing_params&message=${encodeURIComponent("Missing token_hash or type parameter")}`
+    );
   }
 
   const supabase = await createClient();
@@ -21,8 +23,10 @@ export async function GET(request: NextRequest) {
   });
 
   if (!error) {
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (user) {
       const { error: createError } = await createUser({
         id: user.id,
@@ -32,7 +36,9 @@ export async function GET(request: NextRequest) {
 
       if (createError) {
         console.error("Error creating user profile:", createError);
-        redirect(`/auth/error?error=profile_creation_failed`);
+        redirect(
+          `/auth/error?error=profile_creation_failed&message=${encodeURIComponent(createError)}`
+        );
       }
     }
 
@@ -40,5 +46,7 @@ export async function GET(request: NextRequest) {
   }
 
   const errorType = error.message.includes("expired") ? "expired" : "invalid";
-  redirect(`/auth/error?error=confirm_${errorType}`);
+  redirect(
+    `/auth/error?error=confirm_${errorType}&message=${encodeURIComponent(error.message)}`
+  );
 }

@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       return NextResponse.redirect(
-        `${origin}/auth/error?error=google_callback_error`
+        `${origin}/auth/error?error=google_callback_error&message=${encodeURIComponent(error.message)}`
       );
     }
   }
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
   if (sessionError || !session) {
     return NextResponse.redirect(
-      `${origin}/auth/error?error=failed_to_get_session`
+      `${origin}/auth/error?error=failed_to_get_session&message=${encodeURIComponent(sessionError?.message || "No session found")}`
     );
   }
 
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
 
   if (userError || !user) {
     return NextResponse.redirect(
-      `${origin}/auth/error?error=failed_to_get_user`
+      `${origin}/auth/error?error=failed_to_get_user&message=${encodeURIComponent(userError?.message || "No user found")}`
     );
   }
 
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
   // 3. Supabase handles the provider linking securely, ensuring the email matches
   if (createError && !createError.includes("duplicate key")) {
     return NextResponse.redirect(
-      `${origin}/auth/error?error=failed_to_create_user`
+      `${origin}/auth/error?error=failed_to_create_user&message=${encodeURIComponent(createError)}`
     );
   }
 

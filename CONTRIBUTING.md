@@ -4,24 +4,35 @@ First off, you're awesome for wanting to contribute! 🎉
 
 ## Important notice - 27th December 2024
 
-Hey there! Quick heads up - we're in the middle of some intense authentication work. Like, really deep into the security stuff. To keep things safe and avoid any wasted effort, here's what's happening:
+Hey there! The core authentication system is currently going through some deep architectural decisions. We're talking:
+- Device trust models
+- Session management complexity
+- Security implications
+- Confidence calculations
+- Verification flows
 
-### Currently off-limits
-I'm heads down working on:
-- Core authentication flow
-- Security implementation
-- Critical auth decisions
+### Why is this off-limits?
+Authentication requires a single, focused mind making interconnected decisions. Just today:
+1. I redesigned how device trust works
+2. Questioned how sessions should persist
+3. Rethought device verification
+4. Discovered new security implications
+5. Changed core approaches multiple times
 
-Why? Because these parts are getting major updates and I don't want you working on code that'll be outdated in a few days anyways.
+### What this means
+I need to keep the core auth work isolated until these decisions are final. Otherwise:
+```
+PR: "Added verification levels!"
+Me: "Actually we don't need those..."
 
-### What you can help with right now
-There's still plenty of awesome stuff to work on:
-- Documentation improvements (always needed!)
-- UI improvements
-- Finding bugs
-- Anything that doesn't touch the core auth functionality
+PR: "Updated session management!"
+Me: "Just realized sessions should work differently..."
+```
 
-This is temporary - once the core security work is solid, everything opens back up. Thanks for understanding! 🙏
+Don't worry! Once the core auth is solid and decisions are final, there will be plenty of ways to contribute. For now, this helps avoid you working on code that might be completely different tomorrow.
+
+### What you can work on
+Anything that's not touching the core auth. You can always check the Issues tab too.
 
 This isn't just another auth project. We're building the Shadcn UI of authentication - fully customizable code that developers actually own and can build on. No more being locked into specific ways of doing things.
 

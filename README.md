@@ -2,29 +2,13 @@
 
 You just opened the door to the complete authentication starter pack your users will **love**.
 
-I see a lot of new apps having only 5% of authentication. Including:
-- Missing login page
-- No "forgot password" option
-- Missing crucial security (2FA, device sessions, email alerts, and more)
-- Weird UI glitches with auth
-- No way to connect account to multiple providers (or delete some)
-
-These are the kind of things users expect to see in your app. And when they don't, they think:
-- Not complete app
-- Unprofessional
-- Sketchy
-
-Talking from experience, a few years ago before I was a dev.
-
-This starter pack includes all of that. But that's not the best part.
-
-> Clerk and other services already solve this?
+> How is this project different from Clerk and other auth solutions?
 
 Remember:
-- Bootstrap
-- Material UI
-- Chakra UI
-- Ant Design
+- Bootstrap?
+- Material UI?
+- Chakra UI?
+- Ant Design?
 
 They all solved the same problem, but created yet another one... **lack of customization**. They were very limited. Then Shadcn UI came around, and solved that problem by focusing on copy-paste components. You owned all the code, and you could customize it exactly how you wanted. It was like the ultimate UI starter pack that you could just build on.
 
@@ -42,6 +26,20 @@ The project uses modern tech:
 > This is not like a Zed AI documentation where it's full of "this section isn't complete" and you just know there's gonna be a million issues along the way.
 >
 > Though I have to be honest, I did build Zed AI some time ago with no issues. But no dev wants to read "The instructions are not yet complete".
+
+I see a lot of new apps having only 5% of authentication. Including:
+- Missing login page
+- No "forgot password" option
+- Missing crucial security (2FA, device sessions, email alerts, and more)
+- Weird UI glitches with auth
+- No way to connect account to multiple providers (or delete some)
+
+These are the kind of things users expect to see in your app. And when they don't, they think:
+- "This app is not complete"
+- "It's unprofessional"
+- "Seems sketchy"
+
+This starter pack includes all of that.
 
 ## The project comes with:
 - Sign-in options:

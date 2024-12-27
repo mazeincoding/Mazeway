@@ -2,26 +2,28 @@
 
 First off, you're awesome for wanting to contribute! 🎉
 
+## Important notice - 27th December 2024
+
+Hey there! Quick heads up - we're in the middle of some intense authentication work. Like, really deep into the security stuff. To keep things safe and avoid any wasted effort, here's what's happening:
+
+### Currently off-limits
+I'm heads down working on:
+- Core authentication flow
+- Security implementation
+- Critical auth decisions
+
+Why? Because these parts are getting major updates and I don't want you working on code that'll be outdated in a few days anyways.
+
+### What you can help with right now
+There's still plenty of awesome stuff to work on:
+- Documentation improvements (always needed!)
+- UI improvements
+- Finding bugs
+- Anything that doesn't touch the core auth functionality
+
+This is temporary - once the core security work is solid, everything opens back up. Thanks for understanding! 🙏
+
 This isn't just another auth project. We're building the Shadcn UI of authentication - fully customizable code that developers actually own and can build on. No more being locked into specific ways of doing things.
-
-## What can you help with?
-
-### 1. Add more sign-in methods
-Right now we have:
-- Email/password
-- Google
-
-But there's so much more we could add:
-- GitHub (developers would love this)
-- Apple (crucial for iOS apps)
-- Microsoft (perfect for enterprise)
-- Twitter/X (great for social apps)
-
-### 2. Make it even more secure
-Security is never "done". Here are some ideas:
-- Add authenticator app support for 2FA
-- Implement biometric authentication
-- Add more security checks during sign-in
 
 ### 3. Found a bug?
 Here's how to report it:
@@ -32,12 +34,6 @@ Here's how to report it:
    - What actually happens
    - Screenshots if you can
    - Your browser (Chrome, Safari, etc)
-
-### 4. Make the docs even better
-The goal is to have docs that developers actually enjoy reading:
-- Add video demos (seeing is believing)
-- Explain how things work under the hood
-- Share tips and tricks for customization
 
 ## Want to contribute code?
 
@@ -79,6 +75,8 @@ We focus purely on authentication. That means:
 - ❌ User profiles (usernames, bios, profile pages, etc)
 
 This keeps the project focused while giving developers a solid foundation they can extend.
+
+We also like simple solutions. That way, the project is easier to pick up on.
 
 ## Be awesome to each other
 

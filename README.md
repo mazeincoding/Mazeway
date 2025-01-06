@@ -184,7 +184,12 @@ USING (auth.uid() = user_id);
 CREATE POLICY "Allow users to update their own device sessions"
 ON device_sessions
 FOR UPDATE
-USING (auth.uid() = user_id);
+USING (auth.uid() = user_id)
+WITH CHECK (
+  -- Can never modify security columns through client-side queries
+  (is_trusted IS NOT DISTINCT FROM OLD.is_trusted) AND
+  (needs_verification IS NOT DISTINCT FROM OLD.needs_verification)
+);
 
 -- Allow users to delete their own device sessions
 CREATE POLICY "Allow users to delete their own device sessions"

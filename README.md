@@ -21,7 +21,7 @@ The project uses modern tech:
 - Supabase
 - Resend
 
-> Note: The project is not done yet! See the `issues` tab the repo to see what needs to be done. This README is complete, so you can follow it without worrying about anything being incomplete.
+> Note: The project is not done yet! It's not recommended to use in production until security gaps are the core auth feature are implemented fully.
 >
 > This is not like a Zed AI documentation where it's full of "this section isn't complete" and you just know there's gonna be a million issues along the way.
 >
@@ -78,7 +78,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys) 
 
 ### 4. Set up Supabase tables
-Head over to Supabase and within your project, click `SQL Editor` in the sidebar. Run all the following code snippets (this will set up the necessary tables, RLS policies, etc for te app to work)
+Head over to Supabase and within your project, click "SQL Editor" in the sidebar. Run all the following code snippets (this will set up the necessary tables, RLS policies, etc for te app to work)
 
 **Create update_updated_at function**
 ```sql
@@ -146,17 +146,15 @@ EXECUTE FUNCTION update_updated_at_column();
 
 **Create device sessions table**
 ```sql
--- Step 1: Create the device_sessions table
 CREATE TABLE device_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES users(id) ON DELETE CASCADE,
   session_id uuid NOT NULL,
   -- We'll add the device_id column later.
   -- This is because we need to create the devices table first, in order to reference it.
-  access_level text CHECK (access_level IN ('full', 'verified', 'restricted')) DEFAULT 'restricted',
-  verification_level text CHECK (verification_level IN ('none', 'light', 'full')) DEFAULT 'none',
-  confidence_score integer DEFAULT 0,
+  is_trusted boolean DEFAULT false,
   needs_verification boolean DEFAULT false,
+  confidence_score integer DEFAULT 0,  -- Keep this!
   last_verified timestamp with time zone,
   last_active timestamp with time zone DEFAULT now(),
   created_at timestamp with time zone DEFAULT now(),
@@ -246,16 +244,16 @@ BEFORE UPDATE ON devices
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 ```
-**Add device_id column to device_sessions table**
+**Add device_id column to device_sessions table** (now we can run this because we have the devices table)
 ```sql
 ALTER TABLE device_sessions ADD COLUMN device_id uuid REFERENCES devices(id) ON DELETE CASCADE;
 ```
 
 ### 5. Change the confirm signup in Supabase
-1. Go to Supabase and click `Authentication` in the sidebar.
-2. The template should already be set to `Confirm signup`. If it's not, click it.
+1. Go to Supabase and click "Authentication" in the sidebar.
+2. The template should already be set to "Confirm signup". If it's not, click it.
 3. In the code, change `{{ .ConfirmationURL }}` to `{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup`
-4. Scroll down and click `Save`
+4. Scroll down and click "Save"
 
 ### 6. Enable Google OAuth
 > Note: The project comes with Google OAuth out of the box. This is done as it's becoming increasingly popular. If you don't want it at all, you can remove it from the codebase.
@@ -266,30 +264,29 @@ ALTER TABLE device_sessions ADD COLUMN device_id uuid REFERENCES devices(id) ON 
 **Enable Google OAuth in Supabase**
 1. Create/select project in console
 2. Go to: [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
-3. Choose `External`. (`Internal` may be enabled)
-4. Write your app name in the `App name` field
-5. On the `user support email` dropdown, select your email here
-6. You can upload a logo if you want. The auth will work either way (though imagine it didn't)
-7. Scroll down to the `Authorized domains` heading and click the `ADD DOMAIN` button. Enter your Supabase project URL here. It's the same URL as the one you got earlier which you put into your `.env.local` file. Should look like `<PROJECT_ID>.supabase.co`.
+3. Choose "External". ("Internal" might be disabled)
+4. Enter your app name in the "App name" field (ex: auth-starter)
+5. Click the "user support email" dropdown and select your email here
+6. You can upload a logo if you want. The auth will work either way
+7. Scroll down to the "Authorized domains" heading and click the "ADD DOMAIN" button. Enter your Supabase project URL here. It's the same URL as the one you got earlier which you put into your `.env.local` file. Should look like `<PROJECT_ID>.supabase.co`.
 
     > Note: The URL shouldn't include the `https://` part
 
-8. Scroll down to the `Developer contact information` heading and add your email.
+8. Scroll down to the "Developer contact information" heading and add your email.
 9. Go to: [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
-10. Click `create credentials`
-11. choose `OAuth Client ID`.
-12. For `Application type`, choose `Web application`.
-13. Under `Authorized JavaScript origins`, add your site URL. That's `http://localhost:3000`.
-
-14. Under `Authorized redirect URLs`, enter the `callback URL` from the Supabase dashboard. To get it, follow these steps:
+10. Click "create credentials"
+11. Choose "OAuth Client ID".
+12. For "Application type", choose "Web application".
+13. Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000`.
+14. Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
     1. Go to your Supabase dashboard
-    2. In the sidebar, click "Authentication" and then click "Providers" to the left side and scroll down until you see `Google`
-    3. Click to expand Google. Here, you'll find a field labeled `Callback URL (for OAuth)`.
+    2. In the sidebar, click "Authentication" and then click "Providers" to the left side and scroll down until you see "Google"
+    3. Click to expand Google. Here, you'll find a field labeled "Callback URL (for OAuth)"".
 
-15. Hit `create` in the Google console and you will be shown your `Client ID` and `Client secret`
-16. Copy the `Client ID` and `Client secret`, go back to Supabbase and paste those. Then click `Save`
+15. Hit "create" in the Google console and you will be shown your "Client ID" and "Client secret"
+16. Copy those, go back to Supabbase and paste those. Then click "Save"
 
-If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google).
+If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue, or just contact me directly [X](https://x.com/mazewinther1) [Email](emailto:hi@mazecoding.com)
 
 ### Set up Resend (optional)
 
@@ -312,7 +309,7 @@ You won't even need to touch the Supabase dashboard to do it.
 
 1. Go to the [Resend website](https://resend.com)
 2. Create an account/login
-3. In the left sidebar, go to `Domains` and add a domain here
+3. In the left sidebar, go to "Domains" and add a domain here
    
     > Note: You will need a paid domain for this as mentioned above.
     
@@ -324,26 +321,25 @@ You won't even need to touch the Supabase dashboard to do it.
     >
     > Though Resend is really amazing, and I'd probably subscribe just to support the service itself.
 
-4. Follow the steps by Resend. From experience, verifying the domain might be the most painful part, especially when it doesn't work no matter what you do. It's really like rolling a dice. If it lands on 6, everything verifies! Otherwise, try again. Hit me up on [X (Twitter)](https://x.com/mazewinther1) or send me an [Email](mailto:support@mazewinther.com) if you're having trouble and I'll personally help you.
-5. Now, again in the left sidebar, go to `Settings`
-6. Then, go to `Integrations` (this is where the magic is)
-7. You should see Supabase listed. Click `Connect to Supabase`
-8. Resend will request access to your Supabase organization. Click `Authorize Resend`
-9. Select your Supabase project
-10. Select the domain you just added
-11. Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
-12. Update your `.env.local` file:
+4. If you already have a domain here (that you wanna use) you can skip this. But if you don't got one (or want a new one) follow the steps by Resend. From experience, verifying the domain might be the most painful part, especially when it doesn't work no matter what you do. It's really like rolling a dice. If it lands on 6, everything verifies! Otherwise, try again. Hit me up on [X (Twitter)](https://x.com/mazewinther1) or send me an [Email](mailto:hi@mazecoding.com) if you're having trouble and I'll personally help you. You can also open a GitHub issue.
+5. In the left sidebar again, go to "API Keys" and click "Create API key"
+6. Just enter a name for the API key (like your app name), then change "permission" to "Sending access" and click the "Domain" field to change it to the one you just added
+7. Now, again in the left sidebar, go to "Settings"
+8. Then, go to "Integrations" (this is where the magic is)
+9. You should see Supabase listed. Click "Connect to Supabase"
+10. Resend will request access to your Supabase organization. Click "Authorize Resend"
+11. Select your Supabase project
+12. Select the domain you just added
+13. Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
+14. Update your `.env.local` file to add these:
     ```diff
-    NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
     + RESEND_API_KEY=your-resend-api-key
     + RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
-    NEXT_PUBLIC_SITE_URL=http://localhost:3000
     ```
 
-That's literally it. You just set up an entire authentication system (that users will appreciate) probably in minutes.
-
-Go ahead and run the app with `npm run dev`. Head over to `http://localhost:3000` and you're done! 🎉
+That's literally it. You just set up an entire authentication system (that users will appreciate) probably in minutes. You can:
+- Go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
+- Or check out the auth flow section. It really explains how the project works.
 
 ## Get to know the project better
 Gonna implement this section later.

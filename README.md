@@ -21,11 +21,8 @@ The project uses modern tech:
 - Supabase
 - Resend
 
-> Note: The project is not done yet! It's not recommended to use in production until security gaps are the core auth feature are implemented fully.
->
-> This is not like a Zed AI documentation where it's full of "this section isn't complete" and you just know there's gonna be a million issues along the way.
->
-> Though I have to be honest, I did build Zed AI some time ago with no issues. But no dev wants to read "The instructions are not yet complete".
+### ⚠️ Important notice
+The project is not done yet! It's not recommended to use in production until security gaps are fixed and the core auth feature are implemented fully. Changes are still being made to this README (like database updates, setup changes). You can come back to this repo and soon enough, it should be ready.
 
 I see a lot of new apps having only 5% of authentication. Including:
 - Missing login page

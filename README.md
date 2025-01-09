@@ -424,6 +424,8 @@ Also, a thought: we should probably explain why some are server actions and why 
 API routes: for external apps that need to access the endpoints (eg: for OAuth)
 Server actions: endpoints that you only use in this Next.js project
 
+If you're gonna have a mobile app or something else where you'll be using the server actions, you'll need to make them an API endpoint. This way, you can use the routes outside of this Next.js app.
+
 ---
 
 **Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.

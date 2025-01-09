@@ -245,6 +245,71 @@ EXECUTE FUNCTION update_updated_at_column();
 ```sql
 ALTER TABLE device_sessions ADD COLUMN device_id uuid REFERENCES devices(id) ON DELETE CASCADE;
 ```
+**Create verification codes table**
+```sql
+-- Create verification_codes table
+CREATE TABLE verification_codes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_session_id uuid REFERENCES device_sessions(id) ON DELETE CASCADE,
+  code text NOT NULL,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+CREATE POLICY "Allow users to insert verification codes for their devices"
+ON verification_codes
+FOR INSERT
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM device_sessions
+    WHERE device_sessions.id = verification_codes.device_session_id
+    AND device_sessions.user_id = auth.uid()
+  )
+);
+
+-- Allow users to view their own verification codes
+CREATE POLICY "Allow users to view their own verification codes"
+ON verification_codes
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM device_sessions
+    WHERE device_sessions.id = verification_codes.device_session_id
+    AND device_sessions.user_id = auth.uid()
+  )
+);
+
+-- Allow users to delete their own verification codes
+CREATE POLICY "Allow users to delete their own verification codes"
+ON verification_codes
+FOR DELETE
+USING (
+  EXISTS (
+    SELECT 1 FROM device_sessions
+    WHERE device_sessions.id = verification_codes.device_session_id
+    AND device_sessions.user_id = auth.uid()
+  )
+);
+
+-- Create trigger for updated_at
+CREATE TRIGGER update_verification_codes_updated_at
+BEFORE UPDATE ON verification_codes
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+-- Create index for faster lookups
+CREATE INDEX idx_verification_codes_device_session_id 
+ON verification_codes(device_session_id);
+
+-- Create index for faster expiry cleanup
+CREATE INDEX idx_verification_codes_expires_at 
+ON verification_codes(expires_at);
+```
 
 ### 5. Change the confirm signup in Supabase
 1. Go to Supabase and click "Authentication" in the sidebar.
@@ -353,6 +418,11 @@ You might notice in the types (`/types`) we define interfaces and types with a p
 Examples:
 `TUser`
 `TAuthError`
+
+Also, a thought: we should probably explain why some are server actions and why others are API routes. So the reason is very simple:
+
+API routes: for external apps that need to access the endpoints (eg: for OAuth)
+Server actions: endpoints that you only use in this Next.js project
 
 ---
 

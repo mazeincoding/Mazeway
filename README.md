@@ -21,9 +21,6 @@ The project uses modern tech:
 - Supabase
 - Resend
 
-### ⚠️ Important notice
-The project is not done yet! It's not recommended to use in production until security gaps are fixed and the core auth feature are implemented fully. Changes are still being made to this README (like database updates, setup changes). You can come back to this repo and soon enough, it should be ready.
-
 I see a lot of new apps having only 5% of authentication. Including:
 - Missing login page
 - No "forgot password" option
@@ -57,6 +54,19 @@ This starter pack includes all of that.
     - Email alerts for new logins
 
 > Unlike many docs written after-the-fact, the following steps were created in real-time as I built the project. Each step was immediately documented after being successfully completed. I'd do one step at a time and then add that step.
+
+### ⚠️ Important notice
+The project is not done yet! It's not recommended to use in production until security gaps are fixed and the core auth feature are implemented fully. Changes are still being made to this README (like database updates, setup changes). You can come back to this repo and soon enough, it should be ready.
+
+### 2025 Name change
+Changed the GitHub repo name from Auth-Starter to Mazeway because:
+- More specific
+- Easier to remember
+- It's an actual name
+- Auth is a maze:
+    - Multiple paths to navigate (email, social, 2FA)
+    - Easy to get lost (forgot password, security)
+    - Need a clear route for users to follow
   
 ## Setup
 Just a few steps and your authentication is **production ready**. Let's set everything up using the steps below:

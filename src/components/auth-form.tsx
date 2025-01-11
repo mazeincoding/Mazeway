@@ -69,7 +69,7 @@ export function AuthForm({ type }: AuthFormProps) {
           <SocialButtons />
         </CardHeader>
         <CardContent>
-          <form action={handleSubmit} className="flex flex-col gap-4">
+          <form action={handleSubmit} className="flex flex-col gap-6">
             <div className="flex flex-col gap-3">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -95,18 +95,20 @@ export function AuthForm({ type }: AuthFormProps) {
               />
             </div>
 
-            <SubmitButton type={type} disabled={!isFormValid} />
-            {type === "login" && (
-              <Link href="/auth/login-help">
-                <Button
-                  variant="outline"
-                  type="button"
-                  className="w-full text-sm"
-                >
-                  Can't log in?
-                </Button>
-              </Link>
-            )}
+            <div className="flex flex-col gap-4">
+              <SubmitButton type={type} disabled={!isFormValid} />
+              {type === "login" && (
+                <Link href="/auth/login-help">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full text-sm"
+                  >
+                    Can't log in?
+                  </Button>
+                </Link>
+              )}
+            </div>
           </form>
         </CardContent>
         <CardFooter className="flex flex-col gap-2 border-t p-5">

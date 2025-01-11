@@ -2,7 +2,6 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { createUser } from "@/actions/auth/create-user";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -23,26 +22,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (!error) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      const { error: createError } = await createUser({
-        id: user.id,
-        email: user.email!,
-        auth_method: "email",
-      });
-
-      if (createError) {
-        console.error("Error creating user profile:", createError);
-        redirect(
-          `/auth/error?error=profile_creation_failed&message=${encodeURIComponent(createError)}`
-        );
-      }
-    }
-
-    redirect(next);
+    redirect(`/api/auth/complete?provider=email&next=${next}`);
   }
 
   const errorType = error.message.includes("expired") ? "expired" : "invalid";

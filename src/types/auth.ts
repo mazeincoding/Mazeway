@@ -9,20 +9,16 @@ export type TAccessLevel = "full" | "verified" | "restricted";
 
 export type TVerificationLevel = "none" | "light" | "full";
 
-export interface TSecurityContext {
-  accessLevel: TAccessLevel;
-  verificationLevel: TVerificationLevel;
-  confidenceScore: number;
-  needsVerification: boolean;
-  lastVerified?: Date;
-}
-
 export interface TDeviceSession {
   id: string;
   user_id: string;
   session_id: string;
+  device_id: string;
   device: TDeviceInfo;
-  security: TSecurityContext;
+  is_trusted: boolean;
+  needs_verification: boolean;
+  confidence_score: number;
+  last_verified: Date | null;
   last_active: Date;
   created_at: Date;
   updated_at: Date;

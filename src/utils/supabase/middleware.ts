@@ -37,6 +37,49 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (user) {
+    const deviceSessionId = request.cookies.get("device_session_id");
+
+    if (!deviceSessionId) {
+      // No device session, redirect to logout
+      const url = request.nextUrl.clone();
+      url.pathname = "/api/auth/logout";
+      return NextResponse.redirect(url);
+    }
+
+    // Query device session by ID
+    const { data: deviceSession } = await supabase
+      .from("device_sessions")
+      .select("needs_verification")
+      .eq("session_id", deviceSessionId.value)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!deviceSession) {
+      // Device session not found in DB, redirect to logout
+      const url = request.nextUrl.clone();
+      url.pathname = "/api/auth/logout";
+      return NextResponse.redirect(url);
+    }
+
+    // Redirect to verification if needed
+    if (deviceSession.needs_verification) {
+      const verificationPaths = [
+        "/auth/verify-device",
+        "/api/auth/verify-device",
+      ];
+      const isVerificationPath = verificationPaths.some((path) =>
+        request.nextUrl.pathname.startsWith(path)
+      );
+
+      if (!isVerificationPath) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/verify";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   const protectedPaths = ["/dashboard", "/account", "/api/send-email-alert"];
   const authPaths = ["/", "/auth/login", "/auth/signup"];
 

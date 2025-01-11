@@ -98,7 +98,7 @@ export function Confirm({ email, show, onClose }: ConfirmProps) {
       <button
         onClick={onClose}
         className="bg-transparent absolute top-6 right-6 group h-auto w-auto"
-      >
+  >
         <X className="text-muted-foreground group-hover:text-foreground size-6" />
       </button>
     </div>

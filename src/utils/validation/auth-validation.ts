@@ -30,6 +30,22 @@ export const validateEmail = (email: string) => {
   };
 };
 
+export const validateFormData = (
+  data: any
+): {
+  error: string | null;
+  data: AuthSchema | null;
+} => {
+  const result = authSchema.safeParse(data);
+
+  if (!result.success) {
+    const error = result.error.issues[0]?.message || "Invalid input";
+    return { error, data: null };
+  }
+
+  return { error: null, data: result.data };
+};
+
 export const profileSchema = z.object({
   name: z
     .string()
@@ -38,14 +54,16 @@ export const profileSchema = z.object({
   email: authSchema.shape.email,
 });
 
-export const passwordChangeSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: authSchema.shape.password,
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+export const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: authSchema.shape.password,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 export type ProfileSchema = z.infer<typeof profileSchema>;
 export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;

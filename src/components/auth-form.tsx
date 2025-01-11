@@ -175,9 +175,7 @@ export function SocialButtons() {
   async function handleGoogleSignIn() {
     try {
       setIsPending(true);
-      console.log("Starting Google sign in...");
       const response = await signInWithGoogle();
-      console.log("Response:", response);
 
       if (response.error) {
         toast.error("Error", {

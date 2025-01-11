@@ -429,12 +429,20 @@ Examples:
 `TUser`
 `TAuthError`
 
-Also, a thought: we should probably explain why some are server actions and why others are API routes. So the reason is very simple:
+Also, a thought: we should probably explain why we choose API routes over server actions. So the reason:
 
-API routes: for external apps that need to access the endpoints (eg: for OAuth)
-Server actions: endpoints that you only use in this Next.js project
+Server actions are just HTTP post requests. They seem "locked down" but they aren't entirely.
 
-If you're gonna have a mobile app or something else where you'll be using the server actions, you'll need to make them an API endpoint. This way, you can use the routes outside of this Next.js app.
+When this project started, I actually went with server actions for most things because I thought they were locked down to this Next.js app only. And I get it, it's not as straightforward as a simple API call but with enough digging, you could call the server actions.
+
+What does that mean for security? They would need to have the same security checks as API routes (authorization)
+
+So at this point, server actions end up with more downsides:
+- Can't use routes outside of Next.js app (for mobile app etc)
+- The `/auth/callback` and `/auth/confirm` routes need to be API routes because they're used by external services (OAuth)
+- At that point, we'd end up with inconsistency
+
+Pretty simple: we can't ONLY use server actions because of the OAuth routes. We CAN use only API routes though, and they allow us to use them from anywhere outside the Next.js app in the future.
 
 ---
 

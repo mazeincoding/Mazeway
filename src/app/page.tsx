@@ -6,13 +6,14 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header isInitiallyLoggedIn={false} />
-      <main className="flex-grow flex items-center justify-center flex-col gap-5 px-8 text-center">
-        <div className="flex flex-col gap-2 max-w-xl mx-auto">
+      <main className="flex-grow flex items-center justify-center flex-col gap-6 px-8 text-center">
+        <div className="flex flex-col gap-3 max-w-xl mx-auto">
           <h1 className="text-4xl font-bold text-center text-pretty">
-            Building authentication sucks.
+            Clerk but you own the code
           </h1>
-          <p className="block text-lg text-foreground/35 text-pretty">
-            Well, not anymore. The best auth is the one you don't have to build.
+          <p className="block text-lg text-muted-foreground text-pretty">
+            Production-ready auth you can actually customize. Built with modern
+            tech you already know and love. Created with security in mind.
           </p>
         </div>
         <div className="flex gap-2">

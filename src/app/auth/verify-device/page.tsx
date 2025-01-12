@@ -1,5 +1,5 @@
 "use client";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -8,29 +8,157 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputOTP, InputOTPSlot } from "@/components/ui/input-otp";
 import { Button } from "@/components/ui/button";
+import { AlertCircle, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { createClient } from "@/utils/supabase/client";
+import type { TDeviceSession } from "@/types/auth";
 
 export default function VerifyPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  // const token = searchParams.get("token");
-  const token = "1234567890";
+  const session = searchParams.get("session");
+  const next = searchParams.get("next") || "/";
+  const error = searchParams.get("error");
+  const message = searchParams.get("message");
+  const [showDetails, setShowDetails] = useState(false);
+  const [code, setCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+
+  const handleVerify = async () => {
+    setIsVerifying(true);
+    try {
+      const response = await fetch("/api/auth/verify-device", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session_id: session,
+          code,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        // Stay on same page but with error
+        router.push(
+          `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=${error.error}&message=${encodeURIComponent(error.message)}`
+        );
+        return;
+      }
+
+      // Redirect to next URL on success
+      router.push(next);
+    } catch (error) {
+      router.push(
+        `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=network_error`
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsSendingCode(true);
+    try {
+      // Get device info first
+      const supabase = createClient();
+      const { data: deviceSession, error: deviceError } = await supabase
+        .from("device_sessions")
+        .select(
+          `
+          session_id,
+          device:devices (
+            device_name
+          )
+        `
+        )
+        .eq("session_id", session)
+        .single<TDeviceSession>();
+
+      if (deviceError || !deviceSession?.device?.device_name) {
+        router.push(
+          `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=device_not_found&message=${encodeURIComponent(deviceError?.message || "Device session not found")}`
+        );
+        return;
+      }
+
+      // Send verification code
+      const response = await fetch("/api/auth/verify-device/send-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session_id: session,
+          device_name: deviceSession.device.device_name,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        router.push(
+          `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=${error.error}&message=${encodeURIComponent(error.message)}`
+        );
+        return;
+      }
+
+      // Reset error state and code input
+      router.push(
+        `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}`
+      );
+    } catch (error) {
+      router.push(
+        `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=network_error`
+      );
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  if (!session) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-dvh py-8">
+        <Alert variant="destructive" className="max-w-md mx-auto">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Invalid request</AlertTitle>
+          <AlertDescription>No verification session provided</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh py-8">
-      {token ? (
-        <Card className="max-w-sm w-full mx-auto">
-          <CardHeader>
-            <CardTitle className="text-3xl font-bold">
-              Enter verification code from email
-            </CardTitle>
-            <CardDescription className="text-base">
-              Please enter the verification code we sent to hi@example.com.
-            </CardDescription>
-          </CardHeader>
+      <Card
+        className={cn(
+          "max-w-sm w-full mx-auto",
+          error && "border-destructive/35"
+        )}
+      >
+        <CardHeader className="space-y-0 gap-3">
+          <CardTitle className="text-2xl font-bold">
+            {error ? "Verification failed" : "Verify this device"}
+          </CardTitle>
+          <CardDescription className="text-base">
+            {!error
+              ? "Please enter the verification code we sent to your email."
+              : "We couldn't verify your device. Your code might have expired or be invalid."}
+          </CardDescription>
+        </CardHeader>
+        {!error && (
           <CardContent>
-            <InputOTP maxLength={6}>
+            <InputOTP
+              maxLength={6}
+              className="gap-2"
+              value={code}
+              onChange={setCode}
+            >
               <InputOTPSlot index={0} />
               <InputOTPSlot index={1} />
               <InputOTPSlot index={2} />
@@ -39,18 +167,67 @@ export default function VerifyPage() {
               <InputOTPSlot index={5} />
             </InputOTP>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button className="w-full">Verify Code</Button>
-            <Button variant="ghost" className="w-full">
-              Resend code
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <Alert variant="destructive" className="max-w-md mx-auto mt-8">
-          <AlertDescription>No verification token provided</AlertDescription>
-        </Alert>
-      )}
+        )}
+        <CardFooter className="flex flex-col gap-4">
+          {!error ? (
+            <>
+              <Button
+                className="w-full"
+                onClick={handleVerify}
+                disabled={code.length !== 6 || isVerifying || isSendingCode}
+              >
+                {isVerifying ? "Verifying..." : "Verify Code"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={handleResendCode}
+                disabled={isVerifying || isSendingCode}
+              >
+                {isSendingCode ? "Sending..." : "Resend code"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                className="w-full"
+                onClick={handleResendCode}
+                disabled={isVerifying || isSendingCode}
+              >
+                {isSendingCode ? "Sending..." : "Get new code"}
+              </Button>
+              {(error || message) && (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    {showDetails ? "Hide error details" : "See error details"}
+                    <ChevronRight
+                      className={`h-4 w-4 ${showDetails ? "rotate-90" : ""}`}
+                    />
+                  </Button>
+                  {showDetails && (
+                    <pre className="p-4 bg-muted rounded-lg text-left text-sm overflow-auto w-full">
+                      <code>
+                        {JSON.stringify(
+                          {
+                            error,
+                            message,
+                          },
+                          null,
+                          2
+                        )}
+                      </code>
+                    </pre>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 }

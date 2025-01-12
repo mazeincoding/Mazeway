@@ -122,12 +122,14 @@ export async function GET(request: Request) {
   const confidenceLevel = getConfidenceLevel(score);
 
   // Decide if verification for the device is needed
-  const needsVerification =
-    confidenceLevel === "low" ||
-    (confidenceLevel === "medium" && provider === "email");
+  const needsVerification = process.env.RESEND_API_KEY
+    ? confidenceLevel === "low" ||
+      (confidenceLevel === "medium" && provider === "email")
+    : false;
 
-  // A device is trusted if it has high confidence or medium confidence from OAuth
+  // A device is trusted if Resend isn't configured OR has high confidence OR medium confidence from OAuth
   const isTrusted =
+    !process.env.RESEND_API_KEY ||
     confidenceLevel === "high" ||
     (confidenceLevel === "medium" && provider !== "email");
 

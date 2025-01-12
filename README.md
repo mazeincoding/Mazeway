@@ -362,17 +362,30 @@ If you have trouble following along, you can check the official docs [here](http
 
 ### Set up Resend (optional)
 
-Supabase (as of now) does give you 2 free emails per hour!
+Supabase (as of now) does give you 2 free emails per hour BUT:
 
-So you can totally ignore this step for now and set it up later.
+- The project does use Resend for other stuff
+- Like login alert emails
+- And verifying device (eg: when logging in from an untrusted device, user needs to verify it through email)
 
-Especially since Resend requires you to have bought a domain.
+You're probably thinking "shit we need to handle trusted devices too?" and no you don't. It's already done! All you need for that to work is set up Resend. That's exactly why this project exists.
 
-The project does use Resend specifically for sending a security email (someone logged in to your account) and you won't see that email until you set up Resend. But everything else will work just fine.
+Good news:
+- You can ignore this step for now
+- Just during development
+- When you go in production, please set it up. I promise, it's nothing crazy. Takes a few minutes.
 
-I do recommended you set it up when you go in production.
+Though I get why you wouldn't wanna set it up right away, you:
+- Wanna try this project, and see it working
+- Maybe don't have a domain yet?
+- Or other cool reasons
 
-Here's how to do it when you need it:
+So **if you don't set it up**, here's what will happen:
+- The code won't attempt to use Resend at all
+- All devices will be "trusted" by default (this is the concern for production)
+- Supabase might hate you for using their free email service, but that's their own fault
+
+With that out the way, here's how to do it:
 
 **Luckily...**
 Resend makes it REALLY straightforward to integrate with Supabase.

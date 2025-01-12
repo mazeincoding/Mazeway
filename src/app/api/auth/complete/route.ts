@@ -164,6 +164,43 @@ export async function GET(request: Request) {
     );
   }
 
+  // If verification is needed, send verification code
+  if (needsVerification) {
+    try {
+      const sendCodeResponse = await fetch(
+        `${origin}/api/auth/verify-device/send-code`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: request.headers.get("cookie") || "",
+          },
+          body: JSON.stringify({
+            device_session_id: session_id,
+            device_name: deviceName,
+          }),
+        }
+      );
+
+      if (!sendCodeResponse.ok) {
+        const error = await sendCodeResponse.json();
+        return NextResponse.redirect(
+          `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}&error=send_failed&message=${encodeURIComponent(error.error || "We couldn't send you a verification code right now.")}`
+        );
+      }
+
+      // Redirect to verification page
+      return NextResponse.redirect(
+        `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}`
+      );
+    } catch (error) {
+      console.error("Failed to send verification code:", error);
+      return NextResponse.redirect(
+        `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}&error=network_error`
+      );
+    }
+  }
+
   // Send email notification (if Resend is configured)
   if (!process.env.RESEND_API_KEY) {
     console.log(

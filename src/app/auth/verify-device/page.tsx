@@ -39,12 +39,9 @@ export default function VerifyPage() {
               <InputOTPSlot index={5} />
             </InputOTP>
           </CardContent>
-          <CardFooter className="flex flex-col gap-6">
+          <CardFooter className="flex flex-col gap-4">
             <Button className="w-full">Verify Code</Button>
-            <Button
-              variant="link"
-              className="h-auto w-auto p-0 text-muted-foreground hover:text-foreground transition-none"
-            >
+            <Button variant="ghost" className="w-full">
               Resend code
             </Button>
           </CardFooter>

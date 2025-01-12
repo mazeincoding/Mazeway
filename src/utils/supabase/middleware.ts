@@ -74,7 +74,7 @@ export async function updateSession(request: NextRequest) {
 
       if (!isVerificationPath) {
         const url = request.nextUrl.clone();
-        url.pathname = "/auth/verify";
+        url.pathname = "/auth/verify-device";
         return NextResponse.redirect(url);
       }
     }

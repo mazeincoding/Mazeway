@@ -38,7 +38,7 @@ export default function VerifyPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          session_id: session,
+          device_session_id: session,
           code,
         }),
       });
@@ -95,7 +95,7 @@ export default function VerifyPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          session_id: session,
+          device_session_id: session,
           device_name: deviceSession.device.device_name,
         }),
       });

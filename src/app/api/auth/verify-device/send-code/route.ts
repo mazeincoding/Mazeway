@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { Resend } from "resend";
-import DeviceVerificationEmail from "@/components/emails/device-verification";
+import DeviceVerificationEmail from "@emails/templates/device-verification";
 import { randomBytes } from "crypto";
 import type { TDeviceSession, TUser } from "@/types/auth";
 

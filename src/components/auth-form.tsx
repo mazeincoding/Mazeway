@@ -14,15 +14,12 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FaGoogle } from "react-icons/fa";
 import Link from "next/link";
-import { login, signup } from "@/actions/auth/email";
-import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
 import {
   validatePassword,
   validateEmail,
 } from "@/utils/validation/auth-validation";
 import { Confirm } from "./auth-confirm";
-import { signInWithGoogle } from "@/actions/auth/google";
 
 interface AuthFormProps {
   type: "login" | "signup";
@@ -32,21 +29,47 @@ export function AuthForm({ type }: AuthFormProps) {
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isPending, setIsPending] = useState(false);
 
   const passwordValidation = validatePassword(password);
   const emailValidation = validateEmail(email);
 
   async function handleSubmit(formData: FormData) {
-    const response =
-      type === "login" ? await login(formData) : await signup(formData);
+    try {
+      setIsPending(true);
+      const response = await fetch(`/api/auth/email/${type}`, {
+        method: "POST",
+        body: JSON.stringify({
+          email: formData.get("email"),
+          password: formData.get("password"),
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-    if (response.error) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error("Error", {
+          description: data.error,
+          duration: 3000,
+        });
+        return;
+      }
+
+      // For signup, show confirmation dialog
+      // For login, the server handles redirect to /api/auth/complete
+      if (type === "signup") {
+        setShowConfirm(true);
+      }
+    } catch (error) {
       toast.error("Error", {
-        description: response.error,
+        description: "An unexpected error occurred",
         duration: 3000,
       });
-    } else if (type === "signup") {
-      setShowConfirm(true);
+    } finally {
+      setIsPending(false);
     }
   }
 
@@ -96,7 +119,22 @@ export function AuthForm({ type }: AuthFormProps) {
             </div>
 
             <div className="flex flex-col gap-4">
-              <SubmitButton type={type} disabled={!isFormValid} />
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={!isFormValid || isPending}
+              >
+                {isPending ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    {type === "login" ? "Logging in..." : "Creating account..."}
+                  </span>
+                ) : type === "login" ? (
+                  "Log in"
+                ) : (
+                  "Create account"
+                )}
+              </Button>
               {type === "login" && (
                 <Link href="/auth/login-help">
                   <Button
@@ -146,46 +184,36 @@ export function AuthForm({ type }: AuthFormProps) {
   );
 }
 
-function SubmitButton({
-  type,
-  disabled,
-}: {
-  type: "login" | "signup";
-  disabled: boolean;
-}) {
-  const { pending } = useFormStatus();
-
-  return (
-    <Button type="submit" className="w-full" disabled={disabled || pending}>
-      {pending ? (
-        <span className="flex items-center gap-2">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          {type === "login" ? "Logging in..." : "Creating account..."}
-        </span>
-      ) : type === "login" ? (
-        "Log in"
-      ) : (
-        "Create account"
-      )}
-    </Button>
-  );
-}
-
 export function SocialButtons() {
   const [isPending, setIsPending] = useState(false);
 
+  /**
+   * Handles Google sign-in flow:
+   * 1. Calls our API to initiate OAuth
+   * 2. API returns Google's consent URL
+   * 3. Redirects client to Google (needs to be client-side for OAuth flow)
+   * 4. After consent, Google redirects back to our callback URL
+   */
   async function handleGoogleSignIn() {
     try {
       setIsPending(true);
-      const response = await signInWithGoogle();
+      const response = await fetch("/api/auth/google/signin", {
+        method: "POST",
+      });
 
-      if (response.error) {
+      const data = await response.json();
+
+      if (!response.ok) {
         toast.error("Error", {
-          description: response.error,
+          description: data.error,
           duration: 3000,
         });
-      } else if (response.url) {
-        window.location.href = response.url;
+        return;
+      }
+
+      // Redirect to Google's consent page
+      if (data.url) {
+        window.location.href = data.url;
       }
     } catch (error) {
       console.error("Google sign in error:", error);

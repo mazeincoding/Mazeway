@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "./ui/button";
-import { resendConfirmation } from "@/actions/auth/email";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ConfirmProps {
   email: string;
@@ -34,23 +33,37 @@ export function Confirm({ email, show, onClose }: ConfirmProps) {
     if (!email) return;
 
     setIsResending(true);
-    const response = await resendConfirmation(email);
+    try {
+      const response = await fetch("/api/auth/email/resend-confirmation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    if (response.error) {
-      toast({
-        title: "Error resending email",
-        description: response.error,
-        variant: "destructive",
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error("Error resending email", {
+          description: data.error,
+          duration: 3000,
+        });
+      } else {
+        toast.success("Email sent", {
+          description: "Check your inbox for the confirmation link",
+          duration: 3000,
+        });
+        setTimeLeft(10);
+      }
+    } catch (error) {
+      toast.error("Error resending email", {
+        description: "An unexpected error occurred",
+        duration: 3000,
       });
-    } else {
-      toast({
-        title: "Email sent",
-        description: "Check your inbox for the confirmation link",
-      });
-      setTimeLeft(10);
+    } finally {
+      setIsResending(false);
     }
-
-    setIsResending(false);
   }
 
   return (
@@ -98,7 +111,7 @@ export function Confirm({ email, show, onClose }: ConfirmProps) {
       <button
         onClick={onClose}
         className="bg-transparent absolute top-6 right-6 group h-auto w-auto"
-  >
+      >
         <X className="text-muted-foreground group-hover:text-foreground size-6" />
       </button>
     </div>

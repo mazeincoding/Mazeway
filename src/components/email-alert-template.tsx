@@ -8,6 +8,7 @@ import {
   Section,
   Heading,
   Text,
+  Link,
 } from "@react-email/components";
 
 interface EmailAlertTemplateProps {
@@ -90,7 +91,8 @@ export function EmailAlertTemplate({ email, device }: EmailAlertTemplateProps) {
             }}
           >
             If this wasn't you, please secure your account immediately by
-            changing your password.
+            changing your password
+            <Link href="/account/security">here</Link>
           </Text>
         </Container>
       </Body>

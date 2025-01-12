@@ -2,15 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import * as UAParser from "ua-parser-js";
 import {
-  createDeviceSession,
-  getTrustedDeviceSessions,
-} from "@/actions/auth/device-sessions";
-import {
   calculateDeviceConfidence,
   getConfidenceLevel,
 } from "@/utils/device-confidence";
 import { TAuthProvider } from "@/types/auth";
-import { ErrorResponse } from "../create-user/route";
+import { TApiErrorResponse } from "@/types/api";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -84,7 +80,7 @@ export async function GET(request: Request) {
       );
 
       if (!response.ok) {
-        const errorData = (await response.json()) as ErrorResponse;
+        const errorData = (await response.json()) as TApiErrorResponse;
         throw new Error(errorData.error);
       }
     } catch (error) {
@@ -100,7 +96,15 @@ export async function GET(request: Request) {
   }
 
   // Get trusted sessions for confidence calculation
-  const { data: trustedSessions } = await getTrustedDeviceSessions(user.id);
+  const trustedSessionsResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/device-sessions/trusted`,
+    {
+      headers: {
+        Cookie: request.headers.get("cookie") || "",
+      },
+    }
+  );
+  const { data: trustedSessions } = await trustedSessionsResponse.json();
 
   const currentDevice = {
     device_name: deviceName,
@@ -129,41 +133,60 @@ export async function GET(request: Request) {
 
   // Create session with these settings
   const session_id = crypto.randomUUID();
-  const { error: sessionError2 } = await createDeviceSession({
-    user_id: user.id,
-    session_id,
-    device: currentDevice,
-    confidence_score: score,
-    needs_verification: needsVerification,
-    is_trusted: isTrusted,
-  });
+
+  // Create device session using the API
+  const createSessionResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/device-sessions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: request.headers.get("cookie") || "",
+      },
+      body: JSON.stringify({
+        user_id: user.id,
+        session_id,
+        device: currentDevice,
+        confidence_score: score,
+        needs_verification: needsVerification,
+        is_trusted: isTrusted,
+      }),
+    }
+  );
+
+  if (!createSessionResponse.ok) {
+    const error = await createSessionResponse.json();
+    console.error("Failed to create device session:", error);
+    return NextResponse.redirect(
+      `${origin}/auth/error?error=failed_to_create_session&message=${encodeURIComponent(error.error || "Unknown error")}`
+    );
+  }
 
   // Send email notification (if Resend is configured)
-  if (!sessionError2) {
-    if (!process.env.RESEND_API_KEY) {
-      console.log(
-        "RESEND_API_KEY not configured. Login notification emails are disabled."
-      );
-    } else {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/send-email-alert`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(`Failed to send email: ${error.message}`);
+  if (!process.env.RESEND_API_KEY) {
+    console.log(
+      "RESEND_API_KEY not configured. Login notification emails are disabled."
+    );
+  } else {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/send-email-alert`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: request.headers.get("cookie") || "",
+          },
         }
-      } catch (emailError) {
-        // Log error but don't block auth flow
-        console.error("Failed to send login notification:", emailError);
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Failed to send email: ${error.message}`);
       }
+    } catch (emailError) {
+      // Log error but don't block auth flow
+      console.error("Failed to send login notification:", emailError);
     }
   }
 

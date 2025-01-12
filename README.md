@@ -442,7 +442,9 @@ Examples:
 `TUser`
 `TAuthError`
 
-Also, a thought: we should probably explain why we choose API routes over server actions. So the reason:
+---
+
+A thought: we should probably explain why we choose API routes over server actions. So the reason:
 
 Server actions are just HTTP post requests. They seem "locked down" but they aren't entirely.
 
@@ -456,6 +458,15 @@ So at this point, server actions end up with more downsides:
 - At that point, we'd end up with inconsistency
 
 Pretty simple: we can't ONLY use server actions because of the OAuth routes. We CAN use only API routes though, and they allow us to use them from anywhere outside the Next.js app in the future.
+
+---
+
+The /auth/error page is just for generic, can't recover errors.
+
+That's why if device verification fails for example, you'll see we redirect to `/auth/verify-device?error=`. Because:
+- Verification errors are not generic
+- Can recover from error (send verification code again)
+- Stays in context with device verification
 
 ---
 

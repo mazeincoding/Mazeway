@@ -124,11 +124,33 @@ export default function VerifyPage() {
   if (!session) {
     return (
       <div className="flex flex-col items-center justify-center min-h-dvh py-8">
-        <Alert variant="destructive" className="max-w-md mx-auto">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Invalid request</AlertTitle>
-          <AlertDescription>No verification session provided</AlertDescription>
-        </Alert>
+        <Card className="max-w-sm w-full mx-auto border-destructive/35">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">
+              Invalid Request
+            </CardTitle>
+            <CardDescription className="text-base">
+              We couldn't find a verification session. This usually happens
+              when:
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+              <li>The verification link has expired</li>
+              <li>The URL is incomplete or malformed</li>
+              <li>You've already verified this device</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push("/")}
+            >
+              Return Home
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }

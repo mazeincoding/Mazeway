@@ -16,7 +16,10 @@ interface EmailAlertTemplateProps {
   device: TDeviceInfo;
 }
 
-export function EmailAlertTemplate({ email, device }: EmailAlertTemplateProps) {
+export default function EmailAlertTemplate({
+  email,
+  device,
+}: EmailAlertTemplateProps) {
   return (
     <Html>
       <Head />

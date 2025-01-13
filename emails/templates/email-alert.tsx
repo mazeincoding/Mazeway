@@ -17,8 +17,13 @@ interface EmailAlertTemplateProps {
 }
 
 export default function EmailAlertTemplate({
-  email,
-  device,
+  email = "test@test.com",
+  device = {
+    device_name: "Test Device",
+    browser: "Test Browser",
+    os: "Test OS",
+    ip_address: "123.123.123.123",
+  },
 }: EmailAlertTemplateProps) {
   return (
     <Html>

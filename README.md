@@ -84,6 +84,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ### 3. Rename the `.env.example` file to `.env.local`
 > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys) 
 
+### 4. Install dependencies
+In the terminal, go ahead and run this:
+```bash
+npm install --legacy-peer-deps
+```
+The `--legacy-peer-deps` flag is just because this project uses react 19, and not a lot of npm packages support that. You might get errors without the flag, so this should solve them.
+
 ### 4. Set up Supabase tables
 Head over to Supabase and within your project, click "SQL Editor" in the sidebar. Run all the following code snippets (this will set up the necessary tables, RLS policies, etc for te app to work)
 
@@ -469,6 +476,17 @@ That's why if device verification fails for example, you'll see we redirect to `
 - Stays in context with device verification
 
 ---
+
+The project has some cool email templates (verify device, new login, etc) and they all live in `/emails/templates`. Coolest thing ever? It uses react-email (which is cool). This is why:
+
+try running this command in the terminal:
+```bash
+npx react-email dev
+```
+
+It should give you a localhost URL (eg: `http://localhost:3001`). Just copy that and paste into the browser. (pro tip, hold down CTRL while clicking the URL. It should work in most terminals and it's pretty convenient)
+
+Next, expand "templates" in the sidebar and click any templates. You can preview them here!
 
 **Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
 

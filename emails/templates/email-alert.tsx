@@ -99,8 +99,7 @@ export default function EmailAlertTemplate({
             }}
           >
             If this wasn't you, please secure your account immediately by
-            changing your password
-            <Link href="/account/security">here</Link>
+            changing your password <Link href="/account/security">here</Link>
           </Text>
         </Container>
       </Body>

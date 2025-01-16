@@ -7,11 +7,12 @@ import {
   Text,
   Heading,
 } from "@react-email/components";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export default function DeviceVerificationEmail({
   code = "000000",
   device_name = "Unknown Device",
-  expires_in = "10 minutes",
+  expires_in = `${AUTH_CONFIG.deviceVerification.codeExpirationTime} minutes`,
 }: {
   code?: string;
   device_name?: string;

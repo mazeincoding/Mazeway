@@ -484,9 +484,13 @@ try running this command in the terminal:
 npx react-email dev
 ```
 
-It should give you a localhost URL (eg: `http://localhost:3001`). Just copy that and paste into the browser. (pro tip, hold down CTRL while clicking the URL. It should work in most terminals and it's pretty convenient)
+It should give you a localhost URL (eg: `http://localhost:3000`). Just copy that and paste into the browser.
 
 Next, expand "templates" in the sidebar and click any templates. You can preview them here!
+
+### Steps to production
+1. Change logo throughout app
+2. Set up Supabase for production (including OAuth from Google cloud console)
 
 **Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
 

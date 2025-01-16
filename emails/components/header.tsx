@@ -3,8 +3,9 @@ import { Text, Img } from "@react-email/components";
 export function Header() {
   return (
     <div>
+      {/* App logo */}
       <Img
-        src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038%20(1).png"
+        src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png"
         width={32}
         height={32}
         alt="Logo"
@@ -13,9 +14,10 @@ export function Header() {
       <Text
         style={{
           fontSize: "24px",
-          fontWeight: "bold", 
+          fontWeight: "bold",
           margin: "0 0 24px",
-          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}
       >
         Auth

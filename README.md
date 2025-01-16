@@ -434,15 +434,15 @@ That's literally it. You just set up an entire authentication system (that users
 - Or check out the auth flow section. It really explains how the project works.
 
 ## Get to know the project better
+
+### Types: where they are and why the naming convention
 You might notice in the types (`/types`) we define interfaces and types with a prefix of "T". This is intentional to avoid name conflicts with components vs types.
 
 Examples:
 `TUser`
 `TAuthError`
 
----
-
-A thought: we should probably explain why we choose API routes over server actions. So the reason:
+### API routes VS server actions: Why we use API routes
 
 Server actions are just HTTP post requests. They seem "locked down" but they aren't entirely.
 
@@ -457,29 +457,51 @@ So at this point, server actions end up with more downsides:
 
 Pretty simple: we can't ONLY use server actions because of the OAuth routes. We CAN use only API routes though, and they allow us to use them from anywhere outside the Next.js app in the future.
 
----
+### How auth errors work
 
-The /auth/error page is just for generic, can't recover errors.
+The /auth/error page is just for generic, "can't recover" errors.
 
-That's why if device verification fails for example, you'll see we redirect to `/auth/verify-device?error=`. Because:
-- Verification errors are not generic
-- Can recover from error (send verification code again)
+That's why if device verification fails for example, you'll see we redirect to `/auth/verify-device` (in `src/app/api/auth/complete`). Because:
+- Verification errors are not "generic"
+- User can recover from error (send verification code again)
 - Stays in context with device verification
 
----
+### Email templates
 
-The project has some cool email templates (verify device, new login, etc) and they all live in `/emails/templates`. Coolest thing ever? It uses react-email (which is cool). This is why:
+Most templates will actually be in your Supabase dashboard. The ones you can find in there are:
+- Confirm sign up
+- Invite user
+- Magic Link
+- Change Email Address
+- Reset Password
+- Reauthentication
+
+All other email templates live in this project in `/emails/templates`. You'll find:
+- Verify device (`/emails/templates/device-verification.tsx`)
+- Log in alert (`/emails/templates/email-alert.tsx`)
+
+Separating the email templates wasn't a design choice. Supabase didn't have these security features built-in, so we had to do it ourselves.
+
+Now: coolest thing ever? It uses react-email (which makes it cool). Watch this:
 
 try running this command in the terminal:
 ```bash
 npx react-email dev
 ```
 
-It should give you a localhost URL (eg: `http://localhost:3000`). Just copy that and paste into the browser.
+It should give you a localhost URL (eg: `http://localhost:3000`). Just copy that and paste it into the browser.
 
-Next, expand "templates" in the sidebar and click any templates. You can preview them here!
+Next, expand "templates" in the sidebar and click any templates. You can preview them here! 🎉
 
-### Steps to production
+### Auth config
+
+To make things a little more manageable, there's a config file for the auth.
+
+With this, you don't need to touch the core auth to make small tweaks (which could be risky if you don't know what you're doing). Of course, you will if there's no configuration for it. But there should be for most things that people would commonly change.
+
+The config file is at `/config/auth.ts`.
+
+## Steps to production
 1. Change logo throughout app
 2. Set up Supabase for production (including OAuth from Google cloud console)
 

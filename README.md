@@ -434,15 +434,6 @@ That's literally it. You just set up an entire authentication system (that users
 - Or check out the auth flow section. It really explains how the project works.
 
 ## Get to know the project better
-Gonna implement this section later.
-
-This is where we're gonna explain how everything works.
-
-So people know what they're working with.
-
-We should write it in simple terms, breaking complex things into things that just makes sense.
-
-... add something like this:
 You might notice in the types (`/types`) we define interfaces and types with a prefix of "T". This is intentional to avoid name conflicts with components vs types.
 
 Examples:

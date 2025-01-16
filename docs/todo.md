@@ -1,9 +1,12 @@
 - [x] Implement device sessions and verification for untrusted devices
-- [ ] Create device verification email template
-- [ ] Preview the UI of all email templates and tweak if needed
-- [ ] Figure if Supabase has a "reset password" email template
+- [x] Create device verification email template
+- [x] Preview the UI of all email templates and tweak if needed
+- [x] Figure if Supabase has a "reset password" email template
     - If they do: we can use it
     - Otherwise, we'll need to create that too
+
+> Update: Yes they do! They have `Reset password`
+
 - [ ] Create API endpoints for changing/forgot password:
     - `/api/auth/forgot-password`
     - `/api/auth/change-password`

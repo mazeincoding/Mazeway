@@ -10,6 +10,7 @@ import {
   Text,
   Link,
 } from "@react-email/components";
+import { Header } from "../components/header";
 
 interface EmailAlertTemplateProps {
   email: string;
@@ -29,26 +30,35 @@ export default function EmailAlertTemplate({
     <Html>
       <Head />
       <Preview>New Login Alert for your account</Preview>
-      <Body style={{ fontFamily: "Arial, sans-serif" }}>
-        <Container
-          style={{ maxWidth: "600px", margin: "0 auto", padding: "20px" }}
-        >
-          <Section
+      <Body
+        style={{
+          backgroundColor: "#ffffff",
+          fontFamily:
+            '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
+        }}
+      >
+        <Container style={{ padding: "40px 20px" }}>
+          <Header />
+
+          <Heading
+            as="h1"
             style={{
-              backgroundColor: "#f8f9fa",
-              padding: "20px",
-              borderRadius: "8px",
-              marginBottom: "20px",
+              fontSize: "24px",
+              fontWeight: "600",
+              color: "#202124",
+              textAlign: "left",
+              margin: "30px 0 20px",
             }}
           >
-            <Heading style={{ color: "#1a73e8", margin: "0 0 16px" }}>
-              New Login Alert
-            </Heading>
+            New Login Alert
+          </Heading>
+
+          <Section style={{ marginBottom: "16px" }}>
             <Text
               style={{
                 fontSize: "16px",
                 lineHeight: "1.5",
-                color: "#202124",
+                color: "#5f6368",
                 margin: "0 0 16px",
               }}
             >
@@ -95,11 +105,16 @@ export default function EmailAlertTemplate({
               fontSize: "14px",
               color: "#5f6368",
               marginTop: "20px",
-              textAlign: "center",
+              textAlign: "left",
             }}
           >
-            If this wasn't you, please secure your account immediately by
-            changing your password <Link href="/account/security">here</Link>
+            If this wasn't you, please secure your account immediately by{" "}
+            <Link
+              href="/account/security"
+              style={{ color: "#202124", textDecoration: "underline" }}
+            >
+              changing your password
+            </Link>
           </Text>
         </Container>
       </Body>

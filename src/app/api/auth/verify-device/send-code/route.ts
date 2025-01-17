@@ -5,8 +5,7 @@ import { Resend } from "resend";
 import DeviceVerificationEmail from "@emails/templates/device-verification";
 import { randomBytes } from "crypto";
 import type { TDeviceSession, TUser } from "@/types/auth";
-
-const VERIFICATION_CODE_EXPIRY_MINUTES = 15;
+import { AUTH_CONFIG } from "@/config/auth";
 
 function generateVerificationCode(): string {
   return randomBytes(3).readUIntBE(0, 3).toString().padStart(6, "0").slice(-6);
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
     const code = generateVerificationCode();
     const expiresAt = new Date();
     expiresAt.setMinutes(
-      expiresAt.getMinutes() + VERIFICATION_CODE_EXPIRY_MINUTES
+      expiresAt.getMinutes() + AUTH_CONFIG.deviceVerification.codeExpirationTime
     );
 
     // Store verification code
@@ -85,7 +84,7 @@ export async function POST(request: NextRequest) {
       react: DeviceVerificationEmail({
         code,
         device_name,
-        expires_in: `${VERIFICATION_CODE_EXPIRY_MINUTES} minutes`,
+        expires_in: `${AUTH_CONFIG.deviceVerification.codeExpirationTime} minutes`,
       }),
     });
 

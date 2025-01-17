@@ -501,6 +501,20 @@ With this, you don't need to touch the core auth to make small tweaks (which cou
 
 The config file is at `/config/auth.ts`.
 
+### Separation of concerns
+
+There's a reason for why you might see almost all, if not all auth logic is in API routes:
+- email login/signup
+- google sign in
+- forgot password
+- reset password
+- device sessions
+... and more
+
+It's so devs like you don't need to touch the core auth to make changes.
+
+Wanna change the UI? You can do that without touching the auth itself.
+
 ## Steps to production
 1. Change logo throughout app
 2. Set up Supabase for production (including OAuth from Google cloud console)

@@ -7,13 +7,13 @@
 
 > Update: Yes they do! They have `Reset password`
 
-- [ ] Create API endpoints for changing/forgot password:
+- [x] Create API endpoints for changing/forgot password:
     [x] `/api/auth/forgot-password`
     [x] `/api/auth/change-password`
 
 > Why not just combine them? Because the code is so different, and they serve different purposes. One will need to receive the current password to change it. The other will receive an email to send a "forgot password" email.
 
-- [x] Implement API rate limiting for endpoints
+- [ ] Implement API rate limiting for endpoints
     - Does Vercel/Next.js have this out of the box?
     - If not, how will we implement it?
 - [x] Create forgot password page for non-authenticated users.

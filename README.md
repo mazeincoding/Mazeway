@@ -515,6 +515,22 @@ It's so devs like you don't need to touch the core auth to make changes.
 
 Wanna change the UI? You can do that without touching the auth itself.
 
+### Difference between forgot password and change password
+
+Notice how we have these:
+- `/api/auth/forgot-password`
+- `/api/auth/change-password`
+
+And pages:
+- `auth/forgot-password`
+- `auth/change-password`
+
+The reason: they serve different purposes.
+
+At first, I thought we could just combine them but that doesn't make sense.
+
+One focuses on sending an email, the other actually changes the password.
+
 ## Steps to production
 1. Change logo throughout app
 2. Set up Supabase for production (including OAuth from Google cloud console)

@@ -367,30 +367,24 @@ ON verification_codes(expires_at);
 
 If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue, or just contact me directly [X](https://x.com/mazewinther1) [Email](emailto:hi@mazecoding.com)
 
-### Set up Resend (optional)
+### 7. Set up Resend (optional)
+Supabase (as of now) does give you 2 free emails per hour (for development) but it's unreliable. Sometimes, unclear errors will pop up because of their SMTP and you'll spend 2 hours debugging.
 
-Supabase (as of now) does give you 2 free emails per hour BUT:
+You can totally skip this step for now (during development) but be mindful that if auth doesn't work, setting up a custom SMTP will probably solve it.
 
-- The project does use Resend for other stuff
-- Like login alert emails
-- And verifying device (eg: when logging in from an untrusted device, user needs to verify it through email)
+Aside from that, the project uses Resend for:
+- login alerts
+- device verification
 
-You're probably thinking "shit we need to handle trusted devices too?" and no you don't. It's already done! All you need for that to work is set up Resend. That's exactly why this project exists.
-
-Good news:
-- You can ignore this step for now
-- Just during development
-- When you go in production, please set it up. I promise, it's nothing crazy. Takes a few minutes.
-
-Though I get why you wouldn't wanna set it up right away, you:
-- Wanna try this project, and see it working
-- Maybe don't have a domain yet?
-- Or other cool reasons
-
-So **if you don't set it up**, here's what will happen:
+If you don't set up Resend:
 - The code won't attempt to use Resend at all
-- All devices will be "trusted" by default (this is the concern for production)
+- All devices will be "trusted" by default, which doesn't matter for development but important for production
 - Supabase might hate you for using their free email service, but that's their own fault
+
+When you go in production, I recommend you set it up. Because:
+- you just need to get an API and put it in the environment variables (`.env.local`).
+- you don't need to change any code
+- auth should be secure in production
 
 With that out the way, here's how to do it:
 
@@ -429,9 +423,17 @@ You won't even need to touch the Supabase dashboard to do it.
     + RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
     ```
 
-That's literally it. You just set up an entire authentication system (that users will appreciate) probably in minutes. You can:
+Congrats! 🎉 You just set up everything you need for the auth to work. You can:
 - Go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
-- Or check out the auth flow section. It really explains how the project works.
+- Or if setup was too fast for you, keep reading. You'll learn about the project you're working with, optional steps (recommended for production) and more fun stuff.
+
+No joke: 99% of auth is done for production but when you go in production, I really recommend you:
+- go back and set up Resend
+- set up API rate limiting
+
+Luckily, those things are super easy to do. You literally just need to set up 2 services (Resend and Redis), get API keys and replace them in `.env.local`. The code will handle everything else automatically.
+
+For development, do whatever you want. Set it up later if you want.
 
 ## Get to know the project better
 
@@ -443,7 +445,6 @@ Examples:
 `TAuthError`
 
 ### API routes VS server actions: Why we use API routes
-
 Server actions are just HTTP post requests. They seem "locked down" but they aren't entirely.
 
 When this project started, I actually went with server actions for most things because I thought they were locked down to this Next.js app only. And I get it, it's not as straightforward as a simple API call but with enough digging, you could call the server actions.
@@ -458,7 +459,6 @@ So at this point, server actions end up with more downsides:
 Pretty simple: we can't ONLY use server actions because of the OAuth routes. We CAN use only API routes though, and they allow us to use them from anywhere outside the Next.js app in the future.
 
 ### How auth errors work
-
 The /auth/error page is just for generic, "can't recover" errors.
 
 That's why if device verification fails for example, you'll see we redirect to `/auth/verify-device` (in `src/app/api/auth/complete`). Because:
@@ -467,7 +467,6 @@ That's why if device verification fails for example, you'll see we redirect to `
 - Stays in context with device verification
 
 ### Email templates
-
 Most templates will actually be in your Supabase dashboard. The ones you can find in there are:
 - Confirm sign up
 - Invite user
@@ -494,7 +493,6 @@ It should give you a localhost URL (eg: `http://localhost:3000`). Just copy that
 Next, expand "templates" in the sidebar and click any templates. You can preview them here! 🎉
 
 ### Auth config
-
 To make things a little more manageable, there's a config file for the auth.
 
 With this, you don't need to touch the core auth to make small tweaks (which could be risky if you don't know what you're doing). Of course, you will if there's no configuration for it. But there should be for most things that people would commonly change.
@@ -502,7 +500,6 @@ With this, you don't need to touch the core auth to make small tweaks (which cou
 The config file is at `/config/auth.ts`.
 
 ### Separation of concerns
-
 There's a reason for why you might see almost all, if not all auth logic is in API routes:
 - email login/signup
 - google sign in
@@ -516,7 +513,6 @@ It's so devs like you don't need to touch the core auth to make changes.
 Wanna change the UI? You can do that without touching the auth itself.
 
 ### Difference between forgot password and change password
-
 Notice how we have these:
 - `/api/auth/forgot-password`
 - `/api/auth/change-password`
@@ -530,6 +526,11 @@ The reason: they serve different purposes.
 At first, I thought we could just combine them but that doesn't make sense.
 
 One focuses on sending an email, the other actually changes the password.
+
+## Optional features
+
+### API Rate limiting (with Upstash Redis)
+[add setup here]
 
 ## Steps to production
 1. Change logo throughout app

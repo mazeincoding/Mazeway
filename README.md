@@ -435,6 +435,15 @@ Luckily, those things are super easy to do. You literally just need to set up 2 
 
 For development, do whatever you want. Set it up later if you want.
 
+## Production features
+
+### API Rate limiting (with Upstash Redis)
+[add setup here]
+
+## Steps to production
+1. Change logo throughout app
+2. Set up Supabase for production (including OAuth from Google cloud console)
+
 ## Get to know the project better
 
 ### Types: where they are and why the naming convention
@@ -527,14 +536,7 @@ At first, I thought we could just combine them but that doesn't make sense.
 
 One focuses on sending an email, the other actually changes the password.
 
-## Optional features
-
-### API Rate limiting (with Upstash Redis)
-[add setup here]
-
-## Steps to production
-1. Change logo throughout app
-2. Set up Supabase for production (including OAuth from Google cloud console)
+## Pro tips + note for Supabase
 
 **Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.
 

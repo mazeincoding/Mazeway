@@ -431,7 +431,7 @@ No joke: 99% of auth is done for production but when you go in production, I rea
 - go back and set up Resend
 - set up API rate limiting
 
-Luckily, those things are super easy to do. You literally just need to set up 2 services (Resend and Redis), get API keys and replace them in `.env.local`. The code will handle everything else automatically.
+Luckily, those things are super easy to do. You literally just need to set up 2 services (Resend and Upstash Redis), get API keys and replace them in `.env.local`. The code will handle everything else automatically.
 
 For development, do whatever you want. Set it up later if you want.
 

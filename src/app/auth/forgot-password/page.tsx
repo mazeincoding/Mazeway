@@ -10,7 +10,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { validateEmail } from "@/utils/validation/auth-validation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -19,6 +21,16 @@ export default function ForgotPassword() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const validation = validateEmail(email);
+    if (!validation.isValid) {
+      toast.error("Invalid email", {
+        description: validation.error || "The email you entered is invalid",
+        duration: 3000,
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -28,10 +40,27 @@ export default function ForgotPassword() {
         body: JSON.stringify({ email }),
       });
 
-      if (!response.ok) throw new Error("Failed to send reset email");
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        throw new Error(data.error || "Failed to send reset email");
+      }
+
       setIsSuccess(true);
     } catch (error) {
-      console.error("Error:", error);
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Something went wrong",
+        duration: 3000,
+      });
     } finally {
       setIsLoading(false);
     }

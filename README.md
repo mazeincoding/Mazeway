@@ -440,9 +440,11 @@ For development, do whatever you want. Set it up later if you want.
 ### API Rate limiting (with Upstash Redis)
 [add setup here]
 
-## Steps to production
+## Production checklist
 1. Change logo throughout app
-2. Set up Supabase for production (including OAuth from Google cloud console)
+2. Set up Supabase for production (so you have a dev project and production project)
+3. Set up Resend
+4. Implement rate limiting
 
 ## Get to know the project better
 

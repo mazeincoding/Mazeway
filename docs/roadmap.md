@@ -18,6 +18,7 @@
     - If not, how will we implement it? (Upstash Reddit)
 - [x] Create forgot password page for non-authenticated users.
 - [x] Modify the security settings page to use new API endpoint (`/api/auth/change-password`)
+- [ ] What if the user signed up with a different provider than email? They shouldn't be able to change password, we need to handle this in the app.
 - [ ] Implement 2FA (expand on this when we get to it)
 - [ ] Revise flow
     - When 2FA is enabled:

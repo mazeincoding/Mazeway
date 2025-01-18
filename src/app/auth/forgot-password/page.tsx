@@ -1,6 +1,5 @@
 "use client";
 
-import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,7 +38,6 @@ export default function ForgotPassword() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header isInitiallyLoggedIn={false} />
       <main className="flex-grow flex justify-center items-center px-8 py-10">
         <Card className="w-full max-w-md">
           <CardHeader>

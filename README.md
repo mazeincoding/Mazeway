@@ -330,11 +330,12 @@ CREATE INDEX idx_verification_codes_expires_at
 ON verification_codes(expires_at);
 ```
 
-### 5. Change the confirm signup in Supabase
+### 5. Change the confirm signup email template in Supabase
 1. Go to Supabase and click "Authentication" in the sidebar.
-2. The template should already be set to "Confirm signup". If it's not, click it.
-3. In the code, change `{{ .ConfirmationURL }}` to `{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup`
-4. Scroll down and click "Save"
+2. Click "Email Templates" in the left sidebar
+3. The template should already be set to "Confirm signup". If it's not, click it.
+4. In the code, change `{{ .ConfirmationURL }}` to `{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup`
+5. Scroll down and click "Save"
 
 ### 6. Enable Google OAuth
 > Note: The project comes with Google OAuth out of the box. This is done as it's becoming increasingly popular. If you don't want it at all, you can remove it from the codebase.

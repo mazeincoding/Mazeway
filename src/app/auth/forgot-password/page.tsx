@@ -39,7 +39,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="p-4">
+      <div className="p-4 pb-0">
         <BackButton />
       </div>
       <main className="flex-grow flex justify-center items-center px-8 py-10">

@@ -10,7 +10,6 @@ export function BackButton() {
   return (
     <Button
       variant="ghost"
-      size="sm"
       onClick={() => router.back()}
       className="flex items-center gap-2"
     >

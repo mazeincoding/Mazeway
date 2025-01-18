@@ -421,6 +421,8 @@ You won't even need to touch the Supabase dashboard to do it.
 13. Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
 14. Update your `.env.local` file to add these (this is because aside from Supabase, the project uses Resend too):
     ```diff
+    - RESEND_API_KEY=your-resend-api-key
+    - RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
     + RESEND_API_KEY=your-resend-api-key
     + RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
     ```

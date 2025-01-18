@@ -8,10 +8,9 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InputOTP, InputOTPSlot } from "@/components/ui/input-otp";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";

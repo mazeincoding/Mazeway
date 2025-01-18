@@ -82,6 +82,7 @@ export async function updateSession(request: NextRequest) {
 
   const protectedPaths = ["/dashboard", "/account", "/api/send-email-alert"];
   const authPaths = ["/", "/auth/login", "/auth/signup"];
+  const passwordResetPath = "/auth/change-password";
 
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
@@ -89,6 +90,7 @@ export async function updateSession(request: NextRequest) {
   const isAuthPath = authPaths.some(
     (path) => request.nextUrl.pathname === path
   );
+  const isPasswordResetPath = request.nextUrl.pathname === passwordResetPath;
   const isApiPath = request.nextUrl.pathname.startsWith("/api/");
 
   // Redirect to login if accessing protected route while not authenticated
@@ -102,6 +104,16 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
+  }
+
+  // Special handling for password reset page
+  if (isPasswordResetPath) {
+    // Allow access only if user has a recovery session or is fully authenticated
+    if (!user || (user.aud !== "recovery" && !user)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/auth/login";
+      return NextResponse.redirect(url);
+    }
   }
 
   // Redirect to dashboard if accessing auth routes while authenticated

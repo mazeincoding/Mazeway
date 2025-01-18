@@ -57,15 +57,47 @@ export default function Security() {
     e.preventDefault();
 
     try {
+      // Validate form data
       passwordChangeSchema.parse(formData);
       setErrors({});
-      // Handle password update here
-      // await updatePassword(formData);
+
+      // Send request to API
+      const response = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        // Handle other errors
+        toast.error("Error", {
+          description:
+            data.error || "Failed to update password. Please try again.",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // Success
       toast.success("Password updated", {
         description: "Your password has been changed successfully.",
         duration: 3000,
       });
-      // Clear form after successful update
+
+      // Clear form
       setFormData({
         currentPassword: "",
         newPassword: "",

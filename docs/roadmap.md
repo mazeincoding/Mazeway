@@ -17,7 +17,7 @@
     - Does Vercel/Next.js have this out of the box? (no)
     - If not, how will we implement it? (Upstash Reddit)
 - [x] Create forgot password page for non-authenticated users.
-- [ ] Modify the security settings page to use new API endpoint (`/api/auth/change-password`)
+- [x] Modify the security settings page to use new API endpoint (`/api/auth/change-password`)
 - [ ] Implement 2FA (expand on this when we get to it)
 - [ ] Revise flow
     - When 2FA is enabled:

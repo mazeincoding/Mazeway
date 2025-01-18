@@ -26,3 +26,4 @@
         - Will they need to verify through 2FA on ALL logins? (probably)
 - [ ] Double check flow (just through the code) to ensure shit makes sense and it follows our initial plan.
 - [ ] Figure out what the fuck we're gonna do with dev/production in Supabase. We'll (probably) need to update the README to clarify things or even more steps. (please never finish the other things so we never get to this painful thing)
+- [ ] Set up landing and demo

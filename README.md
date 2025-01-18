@@ -431,8 +431,8 @@ Congrats! 🎉 You just set up everything you need for the auth to work. You can
 - Go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
 - Or if setup was too fast for you, keep reading. You'll learn about the project you're working with, optional steps (recommended for production) and more fun stuff.
 
-No joke: 99% of auth is done for production but when you go in production, I really recommend you:
-- go back and set up Resend
+No joke: 99% of auth is done for production but **when you go in production**, I really recommend you:
+- go back and set up Resend if you didn't already
 - set up API rate limiting
 
 Luckily, those things are super easy to do. You literally just need to set up 2 services (Resend and Upstash Redis), get API keys and replace them in `.env.local`. The code will handle everything else automatically.

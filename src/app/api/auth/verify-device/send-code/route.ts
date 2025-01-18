@@ -6,12 +6,27 @@ import DeviceVerificationEmail from "@emails/templates/device-verification";
 import { randomBytes } from "crypto";
 import type { TDeviceSession, TUser } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
+import { authRateLimit } from "@/utils/rate-limit";
 
 function generateVerificationCode(): string {
   return randomBytes(3).readUIntBE(0, 3).toString().padStart(6, "0").slice(-6);
 }
 
 export async function POST(request: NextRequest) {
+  if (authRateLimit) {
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const { success } = await authRateLimit.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        {
+          error: "Too many requests. Please try again later.",
+        },
+        { status: 429 }
+      );
+    }
+  }
+
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json(
       { error: "Email service not configured" },

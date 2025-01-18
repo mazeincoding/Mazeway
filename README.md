@@ -20,6 +20,7 @@ The project uses modern tech:
 - Shadcn UI
 - Supabase
 - Resend
+- Upstash Redis
 
 I see a lot of new apps having only 5% of authentication. Including:
 - Missing login page
@@ -27,13 +28,13 @@ I see a lot of new apps having only 5% of authentication. Including:
 - Missing crucial security (2FA, device sessions, email alerts, and more)
 - Weird UI glitches with auth
 - No way to connect account to multiple providers (or delete some)
+- DDoS attacks for not having proper security and API rate limiting
+- HUGE bills, for lack of security again
+- This list is usually longer but you get the point
 
-These are the kind of things users expect to see in your app. And when they don't, they think:
-- "This app is not complete"
-- "It's unprofessional"
-- "Seems sketchy"
+These are the kind of things that should be implemented by default. You shouldn't have to forget these things, and most importantly: users expect to see these things implemented in your app. When they don't, they find it unattractive, unprofessional and sketchy.
 
-This starter pack includes all of that.
+This starter pack includes all of that, and more.
 
 ## The project comes with:
 - Sign-in options:
@@ -52,6 +53,7 @@ This starter pack includes all of that.
     - View active sessions
     - Revoke device access
     - Email alerts for new logins
+- API rate limiting with Upstash Redis
 
 > Unlike many docs written after-the-fact, the following steps were created in real-time as I built the project. Each step was immediately documented after being successfully completed. I'd do one step at a time and then add that step.
 
@@ -438,13 +440,48 @@ For development, do whatever you want. Set it up later if you want.
 ## Production features
 
 ### API Rate limiting (with Upstash Redis)
-[add setup here]
+At first, the idea for implementing rate-limiting was to just create a Supabase table and store how many requests an IP made but:
+- it's not fast enough for this
+- need cleanup jobs for expired records
+- even more complex to maintain than introducing another service
+- also risk of table bloat
+
+Yes, this does introduce another service you'll need to set up but:
+- again, it's optional for development
+- you just need to do it when you go in production
+- and you literally need to add 2 API keys. Takes a minute or so
+
+Here's how to do it:
+1. Go to this website: [https://console.upstash.com/login](https://console.upstash.com/login)
+2. Create an account or log in
+3. Click "create database"
+4. Name it whatever you want. If unsure, just name it "auth-rate-limit"
+5. Primary region: wherever you plan to host your app.
+    - It should be closest to where your Next.js app is hosted, not users, since the API endpoints in this project will use it.
+    - If you're just setting up rate limiting for development, anything's fine.
+    - Whenever you deploy your app (eg: Vercel, Netlify) you can specify a region.
+6. Choose a plan: just go free for now because:
+    - You get 10K commands per day
+    - With API rate limiting, each API request might use 2-3 Redis commands to:
+        - Get the current request count
+        - Increment it
+7. Click "create"
+8. Get your `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`:
+    1. Scroll down to the "REST API" section
+    2. Look above the code snippet, you should see them here
+9. Update `.env.local` file to add these:
+    ```diff
+    - # UPSTASH_REDIS_REST_URL=your-upstash-redis-rest-url
+    - # UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
+    + UPSTASH_REDIS_REST_URL=your-upstash-redis-rest-url
+    + UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
+    ```
 
 ## Production checklist
 1. Change logo throughout app
 2. Set up Supabase for production (so you have a dev project and production project)
 3. Set up Resend
-4. Implement rate limiting
+4. Set up Upstash Redis for API rate limiting
 
 ## Get to know the project better
 

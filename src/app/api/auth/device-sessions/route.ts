@@ -7,6 +7,7 @@ import {
   TGetDeviceSessionsResponse,
 } from "@/types/api";
 import { TDeviceInfo } from "@/types/auth";
+import { apiRateLimit } from "@/utils/rate-limit";
 
 async function createOrFindDevice(device: TDeviceInfo) {
   const supabase = await createClient();
@@ -71,6 +72,18 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (apiRateLimit) {
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const { success } = await apiRateLimit.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+  }
+
   const supabase = await createClient({ useServiceRole: true });
 
   try {

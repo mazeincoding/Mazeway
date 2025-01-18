@@ -1,9 +1,22 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import { authRateLimit } from "@/utils/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    if (authRateLimit) {
+      const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+      const { success } = await authRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 }
+        );
+      }
+    }
+
     const { device_session_id, code } = await request.json();
 
     if (!device_session_id || !code) {

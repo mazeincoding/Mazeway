@@ -1,16 +1,31 @@
 import { createClient } from "@/utils/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   TApiErrorResponse,
   TGetTrustedDeviceSessionsResponse,
 } from "@/types/api";
+import { apiRateLimit } from "@/utils/rate-limit";
 
 /**
  * Returns all trusted device sessions for the authenticated user.
  * A session is considered trusted if it has been explicitly marked as trusted
  * during session creation based on device confidence and verification status.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (apiRateLimit) {
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const { success } = await apiRateLimit.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        {
+          error: "Too many requests. Please try again later.",
+        },
+        { status: 429 }
+      );
+    }
+  }
+
   const supabase = await createClient();
 
   try {

@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import { apiRateLimit } from "@/utils/rate-limit";
 
 /**
  * Deletes a device session. Security is enforced through two layers:
@@ -10,7 +11,24 @@ import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
  * This double-check prevents authenticated users from deleting sessions belonging
  * to other users, even if they have a valid token.
  */
-export async function DELETE({ params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  if (apiRateLimit) {
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const { success } = await apiRateLimit.limit(ip);
+
+    if (!success) {
+      return NextResponse.json(
+        {
+          error: "Too many requests. Please try again later.",
+        },
+        { status: 429 }
+      );
+    }
+  }
+
   const supabase = await createClient();
 
   try {

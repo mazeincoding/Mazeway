@@ -2,9 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { validateEmail } from "@/utils/validation/auth-validation";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import { authRateLimit } from "@/utils/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    if (authRateLimit) {
+      const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+      const { success } = await authRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 }
+        );
+      }
+    }
+
     const { email } = await request.json();
     const { origin } = new URL(request.url);
 

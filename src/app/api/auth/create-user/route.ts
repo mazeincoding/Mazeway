@@ -6,11 +6,25 @@ import {
   TCreateUserRequest,
   TEmptySuccessResponse,
 } from "@/types/api";
+import { apiRateLimit } from "@/utils/rate-limit";
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-
   try {
+    if (apiRateLimit) {
+      const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+      const { success } = await apiRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          {
+            error: "Too many requests. Please try again later.",
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    const supabase = await createClient();
     const userData: TCreateUserRequest = await request.json();
 
     const { error } = await supabase.from("users").insert({

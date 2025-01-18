@@ -29,20 +29,7 @@ export async function GET(request: Request) {
         ? `${os.name} Device`
         : "Privacy Browser";
 
-  // Get the actual Supabase session
-  // TODO: Remove this since we should generate a unique ID
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (sessionError || !session) {
-    return NextResponse.redirect(
-      `${origin}/auth/error?error=failed_to_get_session&message=${encodeURIComponent(sessionError?.message || "No session found")}`
-    );
-  }
-
-  // Get user after confirming we have a valid session
+  // Get user
   const {
     data: { user },
     error: userError,

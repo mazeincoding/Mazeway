@@ -592,6 +592,32 @@ The names look similar, but they serve entirely different purposes.
 
 - `auth/reset-password`: Part of the forgot password flow: it takes a new password and a token, which it uses to update the password.
 
+### API routes - returning success/error response VS redirecting
+We're doing both. Why? Because it's not about consistency or standardizing one approach.
+
+It's about doing what we need it to do:
+- some API endpoints need to do their own thing (redirect to error page)
+- other times, you need to respond with the error so the frontend can choose what happens
+
+**Example of when API route needs to do its thing**
+Let's imagine a user signs up with Google:
+1. It hits our endpoint `/api/auth/google/signin`
+1. Then some OAuth stuff from Google
+2. Next goes to our endpoint `/api/auth/callback`
+3. And finally `/api/auth/post-auth`
+
+There's no UI in these sequences. It's all magic server-side.
+
+This is where we need to let the server decide what to do.
+
+**Example of when UI needs to handle success/error**
+Now let's imagine the user signs up with Email/Password:
+1. Calls our API endpoint `/api/auth/email/signup`
+2. If there's an error, there should be a clear error on the signup form (in the UI)
+3. Redirecting to a general auth error page would be a way worse UX
+
+Standardizing a single approach here adds zero benefits and introduces a lot of limits.
+
 ## Pro tips + note for Supabase
 
 **Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.

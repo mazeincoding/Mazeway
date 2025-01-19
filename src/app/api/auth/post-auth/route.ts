@@ -1,3 +1,8 @@
+/**
+ * This route handles the final steps of a login/signup
+ * Such as creating a device session, checking for trusted sessions, etc.
+ */
+
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import * as UAParser from "ua-parser-js";

@@ -22,7 +22,9 @@ type TErrorCategory =
   | "profile_creation_failed"
   | "failed_to_create_user"
   | "google_callback_error"
-  | "failed_to_get_session";
+  | "failed_to_get_session"
+  | "reset_password_error"
+  | "invalid_callback";
 interface TErrorConfig {
   title: string;
   message: string;
@@ -131,6 +133,39 @@ const ERROR_CONFIGS: Record<TErrorCategory, TErrorConfig> = {
         label: "Go Home",
         href: "/",
         type: "default",
+      },
+    ],
+  },
+  reset_password_error: {
+    title: "Password reset failed",
+    message: "There was a problem resetting your password. Please try again.",
+    actions: [
+      {
+        label: "Try Again",
+        href: "/auth/forgot-password",
+        type: "default",
+      },
+      {
+        label: "Go Home",
+        href: "/",
+        type: "secondary",
+      },
+    ],
+  },
+  invalid_callback: {
+    title: "Invalid authentication callback",
+    message:
+      "The authentication callback request was invalid or malformed. Please try logging in again.",
+    actions: [
+      {
+        label: "Log in",
+        href: "/auth/login",
+        type: "default",
+      },
+      {
+        label: "Go Home",
+        href: "/",
+        type: "secondary",
       },
     ],
   },

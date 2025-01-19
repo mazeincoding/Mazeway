@@ -1,3 +1,8 @@
+/**
+ * This route is for authenticated users that want to change their password.
+ * It's not for non-authenticated users.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";

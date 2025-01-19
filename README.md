@@ -342,6 +342,14 @@ ON verification_codes(expires_at);
 <p><a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup">Confirm your mail</a></p>
 ```
 
+**Reset Password**
+```html
+<h2>Reset Password</h2>
+
+<p>Follow this link to reset the password for your user:</p>
+<p><a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}"></p>
+```
+
 ### 6. Enable Google OAuth
 > Note: The project comes with Google OAuth out of the box. This is done as it's becoming increasingly popular. If you don't want it at all, you can remove it from the codebase.
 
@@ -570,20 +578,19 @@ It's so devs like you don't need to touch the core auth to make changes.
 
 Wanna change the UI? You can do that without touching the auth itself.
 
-### Difference between forgot password and change password
-Notice how we have these:
-- `/api/auth/forgot-password`
-- `/api/auth/change-password`
-
-And pages:
+### Difference between forgot password, change password and reset password
+Notice how we got 3, very similar API routes?
 - `auth/forgot-password`
 - `auth/change-password`
+- `auth/reset-password`
 
-The reason: they serve different purposes.
+The names look similar, but they serve entirely different purposes.
 
-At first, I thought we could just combine them but that doesn't make sense.
+-  `auth/forgot-password`: Sends a password reset email
 
-One focuses on sending an email, the other actually changes the password.
+- `auth/change-password`: Used to change the password of authenticated users. It accepts a current and new password.
+
+- `auth/reset-password`: Part of the forgot password flow: it takes a new password and a token, which it uses to update the password.
 
 ## Pro tips + note for Supabase
 

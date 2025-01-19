@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header isInitiallyLoggedIn={false} />
-      <main className="flex-grow flex items-center justify-center flex-col gap-6 px-8 text-center">
+      <main className="flex-grow flex items-center justify-center flex-col gap-6 px-8 py-16 text-center">
         <div className="flex flex-col gap-3 max-w-xl mx-auto">
           <h1 className="text-4xl font-bold text-center text-pretty">
             Clerk but you own the code

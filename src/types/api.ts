@@ -32,3 +32,9 @@ export interface TCreateUserRequest {
 
 // Empty success responses
 export interface TEmptySuccessResponse {}
+
+// /api/auth/2fa/enroll
+export interface TEnroll2FAResponse {
+  qr_code: string;
+  secret: string;
+}

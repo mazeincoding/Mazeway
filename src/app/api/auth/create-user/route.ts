@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
       email: userData.email,
       name: userData.email.split("@")[0],
       avatar_url: null,
-      auth_method: userData.auth_method,
     });
 
     if (error) {

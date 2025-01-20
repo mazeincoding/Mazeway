@@ -1,6 +1,16 @@
 /**
- * This route is for authenticated users that want to change their password.
- * It's not for non-authenticated users.
+ * This route is for:
+ * 1. Authenticated users that want to change their password
+ * 2. OAuth users that want to add a password to their account
+ *
+ * For users that signed up with email/password:
+ * - Requires current password verification
+ * - Updates to new password if verification succeeds
+ *
+ * For users that signed up with OAuth:
+ * - Skips current password verification
+ * - Adds password to their account
+ * - Keeps OAuth provider connected
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -51,20 +61,25 @@ export async function POST(request: NextRequest) {
 
     const { currentPassword, newPassword } = result.data;
 
-    // Verify current password by attempting to sign in
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email!,
-      password: currentPassword,
-    });
+    // Check if user has password auth
+    const hasPasswordAuth = user.app_metadata.providers?.includes("email");
 
-    if (signInError) {
-      return NextResponse.json(
-        { error: "Current password is incorrect" },
-        { status: 400 }
-      ) satisfies NextResponse<TApiErrorResponse>;
+    // If user has password auth, verify current password
+    if (hasPasswordAuth) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        return NextResponse.json(
+          { error: "Current password is incorrect" },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
     }
 
-    // Update password
+    // Update/add password
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });

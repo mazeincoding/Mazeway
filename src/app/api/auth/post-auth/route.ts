@@ -10,7 +10,6 @@ import {
   calculateDeviceConfidence,
   getConfidenceLevel,
 } from "@/utils/device-confidence";
-import { TAuthProvider } from "@/types/auth";
 import { TApiErrorResponse } from "@/types/api";
 
 export async function GET(request: Request) {
@@ -66,7 +65,6 @@ export async function GET(request: Request) {
           body: JSON.stringify({
             id: user.id,
             email: user.email!,
-            auth_method: provider as TAuthProvider,
           }),
         }
       );

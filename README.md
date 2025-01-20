@@ -119,7 +119,6 @@ CREATE TABLE users (
   email text UNIQUE NOT NULL,
   name text NOT NULL,
   avatar_url text,
-  auth_method text CHECK (auth_method IN ('email', 'google')),
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
 );

@@ -30,7 +30,8 @@ import Link from "next/link";
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
 export default function Security() {
-  const { isLoading } = useUserStore();
+  const { isLoading, user } = useUserStore();
+  const hasPasswordAuth = user?.auth.providers.includes("email");
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -92,8 +93,10 @@ export default function Security() {
       }
 
       // Success
-      toast.success("Password updated", {
-        description: "Your password has been changed successfully.",
+      toast.success(hasPasswordAuth ? "Password updated" : "Password added", {
+        description: hasPasswordAuth
+          ? "Your password has been changed successfully."
+          : "Password has been added to your account. You can now use it to log in.",
         duration: 3000,
       });
 
@@ -125,11 +128,15 @@ export default function Security() {
     <div className="flex flex-col gap-8">
       <SettingCard
         icon={KeyRound}
-        title="Change password"
-        description="Update your account password."
+        title={hasPasswordAuth ? "Change password" : "Add password"}
+        description={
+          hasPasswordAuth
+            ? "Update your account password."
+            : "Add a password to your account. You'll still be able to use your current login method."
+        }
         footer={
           <Button type="submit" form="password-form" disabled={isLoading}>
-            Update password
+            {hasPasswordAuth ? "Update password" : "Add password"}
           </Button>
         }
       >
@@ -138,15 +145,17 @@ export default function Security() {
           onSubmit={handleSubmit}
           className="flex flex-col gap-6"
         >
-          <FormField
-            id="currentPassword"
-            label="Current password"
-            type="password"
-            value={formData.currentPassword}
-            onChange={handleChange}
-            disabled={isLoading}
-            error={errors.currentPassword}
-          />
+          {hasPasswordAuth && (
+            <FormField
+              id="currentPassword"
+              label="Current password"
+              type="password"
+              value={formData.currentPassword}
+              onChange={handleChange}
+              disabled={isLoading}
+              error={errors.currentPassword}
+            />
+          )}
           <FormField
             id="newPassword"
             label="New password"
@@ -167,16 +176,24 @@ export default function Security() {
           />
           <div className="space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Updating password..." : "Update password"}
+              {isLoading
+                ? hasPasswordAuth
+                  ? "Updating password..."
+                  : "Adding password..."
+                : hasPasswordAuth
+                  ? "Update password"
+                  : "Add password"}
             </Button>
-            <div className="text-center">
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            {hasPasswordAuth && (
+              <div className="text-center">
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
           </div>
         </form>
       </SettingCard>

@@ -25,7 +25,7 @@
     - [ ] Show options: Authenticator App and SMS (based on the auth config)
     - [ ] Authenticator app:
         - [ ] Implement API endpoints:
-            - [ ] `/api/auth/2fa/enroll` (starts enrollment, returns QR code URI)
+            - [x] `/api/auth/2fa/enroll` (starts enrollment, returns QR code URI)
             - [ ] `/api/auth/2fa/verify` (verifies the code, completes setup)
             - [ ] `/api/auth/2fa/disable` (requires current password and 2FA)
         - [ ] Show QR code when "Enable 2FA" is clicked

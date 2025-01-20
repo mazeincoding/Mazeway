@@ -20,12 +20,18 @@
 - [x] Modify the security settings page to use new API endpoint (`/api/auth/change-password`)
 - [x] What if the user signed up with a different provider than email? They shouldn't be able to change password, we need to handle this in the app.
 - [x] Allow authenticated users to reset their password even if they forgot it (with email and/or whatever 2FA is enabled. Need to figure this out)
-- [ ] Implement 2FA (expand on this when we get to it)
+- [ ] Implement 2FA:
+    - [ ] Allow users to enable it in security settings page
+    - [ ] Trying to login? Require 2FA
+    - [ ] Changing password? Require 2FA
+    - [ ] Revoking device session? Require 2FA
+    - [ ] Changing email? Require 2FA
+    - [ ] Turning off 2FA itself? Require 2FA
+    - [ ] Resetting password? Require 2FA
 - [ ] Revise flow
     - When 2FA is enabled:
-        - Should they need to verify email for unknown logged in devices?
-        - Or verify only with 2FA
-        - Will they need to verify through 2FA on ALL logins? (probably)
+        - [ ] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first?
+        - [x] Will they need to verify through 2FA on ALL logins? (yes)
 - [ ] Double check flow (just through the code) to ensure shit makes sense and it follows our initial plan.
 - [ ] Figure out what the fuck we're gonna do with dev/production in Supabase. We'll (probably) need to update the README to clarify things or even more steps. (please never finish the other things so we never get to this painful thing)
 - [ ] Set up landing and demo

@@ -67,3 +67,24 @@ export const passwordChangeSchema = z
 
 export type ProfileSchema = z.infer<typeof profileSchema>;
 export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;
+
+export const twoFactorVerificationSchema = z.object({
+  factorId: z.string().min(1, "Factor ID is required"),
+  code: z
+    .string()
+    .min(6, "Code must be 6 digits")
+    .max(6, "Code must be 6 digits")
+    .regex(/^\d+$/, "Code must contain only numbers"),
+});
+
+export type TwoFactorVerificationSchema = z.infer<
+  typeof twoFactorVerificationSchema
+>;
+
+export const validateTwoFactorCode = (code: string) => {
+  const result = twoFactorVerificationSchema.shape.code.safeParse(code);
+  return {
+    isValid: result.success,
+    error: !result.success ? result.error.issues[0]?.message : undefined,
+  };
+};

@@ -38,3 +38,8 @@ export interface TEnroll2FAResponse {
   qr_code: string;
   secret: string;
 }
+
+// /api/auth/2fa/verify
+export interface TVerify2FAResponse {
+  success: boolean;
+}

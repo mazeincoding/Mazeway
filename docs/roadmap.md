@@ -26,7 +26,7 @@
     - [ ] Authenticator app:
         - [ ] Implement API endpoints:
             - [x] `/api/auth/2fa/enroll` (starts enrollment, returns QR code URI)
-            - [ ] `/api/auth/2fa/verify` (verifies the code, completes setup)
+            - [x] `/api/auth/2fa/verify` (verifies the code, completes setup)
             - [ ] `/api/auth/2fa/disable` (requires current password and 2FA)
         - [ ] Show QR code when "Enable 2FA" is clicked
         - [ ] Require user to enter code

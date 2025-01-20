@@ -24,14 +24,19 @@ export interface TDeviceSession {
   updated_at: Date;
 }
 
-export type TAuthProvider = "email" | "google" | null;
-
 export interface TUser {
   id: string;
   email: string;
   name: string;
   avatar_url: string;
-  auth_method: TAuthProvider;
   created_at: string;
   updated_at: string;
+}
+
+export interface TUserWithAuth extends TUser {
+  auth: {
+    providers: string[];
+    emailVerified: boolean;
+    lastSignInAt: string;
+  };
 }

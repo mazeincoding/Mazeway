@@ -1,4 +1,4 @@
-import { TAuthProvider, TDeviceInfo, TDeviceSession } from "./auth";
+import { TDeviceInfo, TDeviceSession } from "./auth";
 
 // Shared response type for error cases
 export interface TApiErrorResponse {
@@ -28,7 +28,6 @@ export interface TGetTrustedDeviceSessionsResponse {
 export interface TCreateUserRequest {
   id: string;
   email: string;
-  auth_method: TAuthProvider;
 }
 
 // Empty success responses

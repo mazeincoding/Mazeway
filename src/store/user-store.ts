@@ -2,10 +2,10 @@
 
 import { create } from "zustand";
 import { createClient } from "@/utils/supabase/client";
-import type { TUser } from "@/types/auth";
+import type { TUser, TUserWithAuth } from "@/types/auth";
 
 interface UserState {
-  user: TUser | null;
+  user: TUserWithAuth | null;
   isLoading: boolean;
   error: string | null;
   fetchUser: () => Promise<void>;
@@ -40,7 +40,18 @@ export const useUserStore = create<UserState>((set) => ({
 
       if (error) throw error;
 
-      set({ user: userData as TUser, isLoading: false });
+      // Combine DB user with auth info
+      const userWithAuth: TUserWithAuth = {
+        ...userData,
+        auth: {
+          providers:
+            authUser.identities?.map((identity) => identity.provider) || [],
+          emailVerified: !!authUser.email_confirmed_at,
+          lastSignInAt: authUser.last_sign_in_at,
+        },
+      };
+
+      set({ user: userWithAuth, isLoading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to fetch user",
@@ -69,7 +80,17 @@ export const useUserStore = create<UserState>((set) => ({
 
       if (error) throw error;
 
-      set({ user: data as TUser, isLoading: false });
+      const userWithAuth: TUserWithAuth = {
+        ...data,
+        auth: {
+          providers:
+            authUser.identities?.map((identity) => identity.provider) || [],
+          emailVerified: !!authUser.email_confirmed_at,
+          lastSignInAt: authUser.last_sign_in_at,
+        },
+      };
+
+      set({ user: userWithAuth, isLoading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to update user",

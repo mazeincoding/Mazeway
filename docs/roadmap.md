@@ -19,7 +19,7 @@
 - [x] Create forgot password page for non-authenticated users.
 - [x] Modify the security settings page to use new API endpoint (`/api/auth/change-password`)
 - [ ] What if the user signed up with a different provider than email? They shouldn't be able to change password, we need to handle this in the app.
-- [ ] Allow authenticated users to reset their password even if they forgot it (with email and/or whatever 2FA is enabled. Need to figure this out)
+- [x] Allow authenticated users to reset their password even if they forgot it (with email and/or whatever 2FA is enabled. Need to figure this out)
 - [ ] Implement 2FA (expand on this when we get to it)
 - [ ] Revise flow
     - When 2FA is enabled:

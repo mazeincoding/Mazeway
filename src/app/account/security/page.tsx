@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/user-store";
@@ -26,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -165,6 +165,19 @@ export default function Security() {
             disabled={isLoading}
             error={errors.confirmPassword}
           />
+          <div className="space-y-4">
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Updating password..." : "Update password"}
+            </Button>
+            <div className="text-center">
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          </div>
         </form>
       </SettingCard>
 

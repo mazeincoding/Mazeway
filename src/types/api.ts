@@ -43,3 +43,9 @@ export interface TEnroll2FAResponse {
 export interface TVerify2FAResponse {
   success: boolean;
 }
+
+// /api/auth/2fa/disable
+export interface TDisable2FARequest {
+  factorId: string;
+  code: string;
+}

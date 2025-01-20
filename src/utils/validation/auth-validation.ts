@@ -88,3 +88,15 @@ export const validateTwoFactorCode = (code: string) => {
     error: !result.success ? result.error.issues[0]?.message : undefined,
   };
 };
+
+export const disable2FASchema = z.object({
+  factorId: z.string().min(1, "Factor ID is required"),
+  code: z
+    .string()
+    .min(6, "Code must be 6 digits")
+    .max(6, "Code must be 6 digits")
+    .regex(/^\d+$/, "Code must contain only numbers"),
+  password: z.string().min(1, "Current password is required"),
+});
+
+export type Disable2FASchema = z.infer<typeof disable2FASchema>;

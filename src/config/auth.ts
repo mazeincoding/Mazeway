@@ -8,4 +8,10 @@ export const AUTH_CONFIG = {
     codeExpirationTime: 10,
     codeLength: 6,
   },
+  twoFactorAuth: {
+    // These are feature flags that control which methods are available in the app
+    // They do NOT control the user preferences
+    authenticatorAppEnabled: true,
+    smsEnabled: false,
+  },
 } as const;

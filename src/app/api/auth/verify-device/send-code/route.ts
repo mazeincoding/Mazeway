@@ -9,7 +9,12 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { authRateLimit } from "@/utils/rate-limit";
 
 function generateVerificationCode(): string {
-  return randomBytes(3).readUIntBE(0, 3).toString().padStart(6, "0").slice(-6);
+  const codeLength = AUTH_CONFIG.deviceVerification.codeLength;
+  return randomBytes(Math.ceil(codeLength / 2))
+    .readUIntBE(0, Math.ceil(codeLength / 2))
+    .toString()
+    .padStart(codeLength, "0")
+    .slice(-codeLength);
 }
 
 export async function POST(request: NextRequest) {

@@ -528,10 +528,14 @@ Pretty simple: we can't ONLY use server actions because of the OAuth routes. We 
 ### How auth errors work
 The /auth/error page is just for generic, "can't recover" errors.
 
-That's why if device verification fails for example, you'll see we redirect to `/auth/verify-device` (in `src/app/api/auth/complete`). Because:
-- Verification errors are not "generic"
-- User can recover from error (send verification code again)
-- Stays in context with device verification
+Usually, the API route responds with an error so the frontend can show it to the user.
+
+In some cases, there is no frontend to display errors, for API routes like:
+- callback
+- confirm
+- post-auth (after successful login/signup)
+
+That's why we have a generic auth error page. For most stuff, the API responds with error/success.
 
 ### Email templates
 Most templates will actually be in your Supabase dashboard. The ones you can find in there are:

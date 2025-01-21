@@ -21,17 +21,17 @@
 - [x] What if the user signed up with a different provider than email? They shouldn't be able to change password, we need to handle this in the app.
 - [x] Allow authenticated users to reset their password even if they forgot it (with email and/or whatever 2FA is enabled. Need to figure this out)
 - [ ] Implement 2FA:
-    - [ ] Allow users to enable 2FA in the `settings/security` page
-    - [ ] Show options: Authenticator App and SMS (based on the auth config)
+    - [x] Allow users to enable 2FA in the `settings/security` page
+    - [x] Show options: Authenticator App and SMS (based on the auth config)
     - [ ] Authenticator app:
         - [x] Implement API endpoints:
             - [x] `/api/auth/2fa/enroll` (starts enrollment, returns QR code URI)
             - [x] `/api/auth/2fa/verify` (verifies the code, completes setup)
             - [x] `/api/auth/2fa/disable` (requires current password and 2FA)
-        - [ ] Show QR code when "Enable 2FA" is clicked
-        - [ ] Require user to enter code
+        - [x] Show QR code when "Enable 2FA" is clicked
+        - [x] Require user to enter code
         - [ ] Generate recovery codes, show them and allow easy copying
-        - [ ] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
+        - [x] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
     - [ ] Require 2FA when:
         - [ ] Trying to login
         - [ ] Changing password

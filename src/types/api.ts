@@ -37,6 +37,7 @@ export interface TEmptySuccessResponse {}
 export interface TEnroll2FAResponse {
   qr_code: string;
   secret: string;
+  factor_id: string;
 }
 
 // /api/auth/2fa/verify

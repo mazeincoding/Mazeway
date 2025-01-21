@@ -135,22 +135,24 @@ export default function Security() {
 
   const handleEnable2FA = async () => {
     try {
-      const response = await fetch("/api/auth/2fa/enroll", {
-        method: "POST",
-      });
+      if (!user?.auth.twoFactorEnabled) {
+        const response = await fetch("/api/auth/2fa/enroll", {
+          method: "POST",
+        });
 
-      if (!response.ok) {
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to start 2FA enrollment");
+        }
+
         const data = await response.json();
-        throw new Error(data.error || "Failed to start 2FA enrollment");
+        setSetupData({
+          qrCode: data.qr_code,
+          secret: data.secret,
+          factorId: data.factor_id,
+        });
+        setShowSetupDialog(true);
       }
-
-      const data = await response.json();
-      setSetupData({
-        qrCode: data.qr_code,
-        secret: data.secret,
-        factorId: data.factor_id,
-      });
-      setShowSetupDialog(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     }
@@ -194,6 +196,10 @@ export default function Security() {
     } finally {
       setIsVerifying(false);
     }
+  };
+
+  const handleDisable2FA = async () => {
+    return;
   };
 
   return (
@@ -275,8 +281,13 @@ export default function Security() {
         title="Two-factor authentication"
         description="Add an extra layer of security to your account."
       >
-        <Button variant="outline" onClick={handleEnable2FA}>
-          Enable 2FA
+        <Button
+          variant="outline"
+          onClick={
+            user?.auth.twoFactorEnabled ? handleDisable2FA : handleEnable2FA
+          }
+        >
+          {user?.auth.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
         </Button>
       </SettingCard>
 

@@ -47,6 +47,14 @@ export default function Security() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showSetupDialog, setShowSetupDialog] = useState(false);
+  const [setupData, setSetupData] = useState<{
+    qrCode: string;
+    secret: string;
+    factorId: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -196,6 +204,69 @@ export default function Security() {
     }
   };
 
+  const handleEnable2FA = async () => {
+    try {
+      const response = await fetch("/api/auth/2fa/enroll", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to start 2FA enrollment");
+      }
+
+      const data = await response.json();
+      setSetupData({
+        qrCode: data.qr_code,
+        secret: data.secret,
+        factorId: data.factor_id,
+      });
+      setShowSetupDialog(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    }
+  };
+
+  const handleVerify = async (code: string) => {
+    if (!setupData) return;
+
+    setIsVerifying(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          factorId: setupData.factorId,
+          code,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to verify code");
+      }
+
+      // Success! Close dialog and refresh user data
+      setShowSetupDialog(false);
+      setSetupData(null);
+
+      // Show success message
+      toast.success("2FA Enabled", {
+        description:
+          "Two-factor authentication has been enabled for your account.",
+      });
+
+      // Refresh user data to update 2FA status
+      await useUserStore.getState().fetchUser();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to verify code");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <SettingCard
@@ -279,6 +350,18 @@ export default function Security() {
           {user?.auth.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
         </Button>
       </SettingCard>
+
+      {setupData && (
+        <TwoFactorSetupDialog
+          open={showSetupDialog}
+          onOpenChange={setShowSetupDialog}
+          qrCode={setupData.qrCode}
+          secret={setupData.secret}
+          onVerify={handleVerify}
+          error={error}
+          isVerifying={isVerifying}
+        />
+      )}
 
       {setupData && (
         <TwoFactorSetupDialog

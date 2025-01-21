@@ -70,8 +70,7 @@ Changed the GitHub repo name from Auth-Starter to Mazeway because:
     - Easy to get lost (forgot password, security)
     - Need a clear route for users to follow
   
-## Setup
-Just a few steps and you'll have working auth. Let's set everything up using the steps below:
+## Required setup
 
 ### 1. Create Supabase project
 Create a Supabase project and get your ANON key and Supabase project URL.
@@ -452,7 +451,12 @@ Luckily, those things are super easy to do. You literally just need to set up 2 
 
 For development, do whatever you want. Set it up later if you want.
 
-## Production features
+## Recommended for production
+The features listed below are completely optional for development.
+
+If you want, you can do them right away. That's up to you.
+
+But I highly recommend you do it when you go in production.
 
 ### API Rate limiting (with Upstash Redis)
 At first, the idea for implementing rate-limiting was to just create a Supabase table and store how many requests an IP made but:
@@ -462,9 +466,8 @@ At first, the idea for implementing rate-limiting was to just create a Supabase 
 - also risk of table bloat
 
 Yes, this does introduce another service you'll need to set up but:
-- again, it's optional for development
-- you just need to do it when you go in production
-- and you literally need to add 2 API keys. Takes a minute or so
+- you literally need to get 2 API keys.
+- takes a minute or so to do
 
 Here's how to do it:
 1. Go to this website: [https://console.upstash.com/login](https://console.upstash.com/login)
@@ -492,7 +495,11 @@ Here's how to do it:
     + UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
     ```
 
-> In the auth config of this project (`src/config/auth.ts`) API rate limiting is already enabled. If you ever need, you can disable it here (eg: for testing).
+> In the auth config of this project (`src/config/auth.ts`) API rate limiting is already enabled by default. If you ever need (to test something for example), you can disable it in the config.
+
+## Optional features
+
+...
 
 ## Production checklist
 1. Change logo throughout app

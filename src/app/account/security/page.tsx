@@ -27,6 +27,7 @@ import {
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { TwoFactorSetupDialog } from "@/components/two-factor-setup-dialog";
+import { AUTH_CONFIG } from "@/config/auth";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -276,20 +277,22 @@ export default function Security() {
         </form>
       </SettingCard>
 
-      <SettingCard
-        icon={ShieldIcon}
-        title="Two-factor authentication"
-        description="Add an extra layer of security to your account."
-      >
-        <Button
-          variant="outline"
-          onClick={
-            user?.auth.twoFactorEnabled ? handleDisable2FA : handleEnable2FA
-          }
+      {AUTH_CONFIG.twoFactorAuth.enabled && (
+        <SettingCard
+          icon={ShieldIcon}
+          title="Two-factor authentication"
+          description="Add an extra layer of security to your account."
         >
-          {user?.auth.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
-        </Button>
-      </SettingCard>
+          <Button
+            variant="outline"
+            onClick={
+              user?.auth.twoFactorEnabled ? handleDisable2FA : handleEnable2FA
+            }
+          >
+            {user?.auth.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
+          </Button>
+        </SettingCard>
+      )}
 
       {setupData && (
         <TwoFactorSetupDialog

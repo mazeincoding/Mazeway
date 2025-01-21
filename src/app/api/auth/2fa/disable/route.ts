@@ -3,9 +3,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if 2FA is enabled in config
+    if (!AUTH_CONFIG.twoFactorAuth.enabled) {
+      return NextResponse.json(
+        { error: "Two-factor authentication is not enabled" },
+        { status: 403 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // Check if authenticator method is enabled
+    const authenticatorConfig = AUTH_CONFIG.twoFactorAuth.methods.find(
+      (m) => m.type === "authenticator"
+    );
+    if (!authenticatorConfig?.enabled) {
+      return NextResponse.json(
+        { error: "Authenticator app method is not enabled" },
+        { status: 403 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     if (authRateLimit) {
       const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
       const { success } = await authRateLimit.limit(ip);

@@ -71,7 +71,7 @@ Changed the GitHub repo name from Auth-Starter to Mazeway because:
     - Need a clear route for users to follow
   
 ## Setup
-Just a few steps and your authentication is **production ready**. Let's set everything up using the steps below:
+Just a few steps and you'll have working auth. Let's set everything up using the steps below:
 
 ### 1. Create Supabase project
 Create a Supabase project and get your ANON key and Supabase project URL.

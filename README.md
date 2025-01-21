@@ -571,17 +571,31 @@ With this, you don't need to touch the core auth to make small tweaks (which cou
 The config file is at `/config/auth.ts`.
 
 ### Separation of concerns
-There's a reason for why you might see almost all, if not all auth logic is in API routes:
-- email login/signup
-- google sign in
-- forgot password
-- reset password
-- device sessions
-... and more
+Most core auth lives in API routes.
 
-It's so devs like you don't need to touch the core auth to make changes.
+It goes like this:
+- API routes: doing actual things
+- Pages: show things
 
-Wanna change the UI? You can do that without touching the auth itself.
+For example, if the user logs in:
+- ❌ We don't do this in a component:
+```typescript
+supabase.auth.signInWithEmailAndPassword();
+```
+- ✅ We call an API route to logout the user:
+```typescript
+fetch(`/api/auth/email/${type}`)
+```
+
+Reasons:
+1. Security: we never trust the client for things that need good security
+2. Separation of concerns: auth lives in the API routes, components/pages handle the UI
+3. Consistency: all auth flows go through API routes
+4. Rate limiting: we can apply rate limiting to auth endpoints
+5. Error handling: centralized error handling for auth operations
+6. Logging: easier to track auth events and debug issues
+7. Future-proofing: if we need to add more auth features, we know exactly where they go
+8. ...probably more reasons, but you get the point.
 
 ### Difference between forgot password, change password and reset password
 Notice how we got 3, very similar API routes?

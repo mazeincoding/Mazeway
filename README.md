@@ -77,7 +77,7 @@ Just a few steps and you'll have working auth. Let's set everything up using the
 Create a Supabase project and get your ANON key and Supabase project URL.
 
 ### 2. Set up Supabase in your project
-Open the .env.example file and replace `NEXT_PUBLIC_SUPABASE_URL` with your project URL and `NEXT_PUBLIC_SUPABASE_ANON_KEY` with your ANON key. Example:
+Open the `.env.example` file and replace `NEXT_PUBLIC_SUPABASE_URL` with your project URL and `NEXT_PUBLIC_SUPABASE_ANON_KEY` with your ANON key. Example:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key

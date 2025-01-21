@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { TwoFactorSetupDialog } from "@/components/two-factor-setup-dialog";
+import { TwoFactorSetupDialog } from "@/components/2fa-setup-dialog";
 import { AUTH_CONFIG } from "@/config/auth";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;

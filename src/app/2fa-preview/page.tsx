@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { TwoFactorSetupDialog } from "@/components/two-factor-setup-dialog";
+import { TwoFactorSetupDialog } from "@/components/2fa-setup-dialog";
 import { Button } from "@/components/ui/button";
 import QRCode from "qrcode";
 import { TTwoFactorMethod } from "@/types/auth";

@@ -32,6 +32,11 @@
         - [x] Require user to enter code
         - [ ] Generate recovery codes, show them and allow easy copying
         - [x] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
+    - [ ] SMS
+        - [ ] Figure out if we need to set up any additional services or if Supabase is all we need
+        - [ ] If setting up other services: add instructions to README
+        - [ ] Also explain how you can enable/disable 2FA and methods in the config
+        - [ ] Implement API endpoints for SMS enroll, verify and disable (either create new ones or use existing that accepts a method)
     - [ ] Require 2FA when:
         - [x] Trying to login
         - [ ] Changing password

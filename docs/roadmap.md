@@ -33,7 +33,7 @@
         - [ ] Generate recovery codes, show them and allow easy copying
         - [x] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
     - [ ] Require 2FA when:
-        - [ ] Trying to login
+        - [x] Trying to login
         - [ ] Changing password
         - [ ] Revoking device session
         - [ ] Changing email

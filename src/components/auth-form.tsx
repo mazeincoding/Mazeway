@@ -1,6 +1,6 @@
 "use client";
-
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -20,16 +20,22 @@ import {
   validateEmail,
 } from "@/utils/validation/auth-validation";
 import { Confirm } from "./auth-confirm";
+import { TwoFactorVerifyForm } from "./2fa-verify-form";
 
 interface AuthFormProps {
   type: "login" | "signup";
 }
 
 export function AuthForm({ type }: AuthFormProps) {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
+  const [factorId, setFactorId] = useState<string | null>(null);
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
   const passwordValidation = validatePassword(password);
   const emailValidation = validateEmail(email);
@@ -58,16 +64,62 @@ export function AuthForm({ type }: AuthFormProps) {
         return;
       }
 
+      // Store redirect URL for later use
+      setRedirectUrl(data.redirectTo);
+
+      // Check if 2FA is required
+      if (data.requiresTwoFactor) {
+        setRequiresTwoFactor(true);
+        setFactorId(data.factorId);
+        return;
+      }
+
       // For signup, show confirmation dialog
-      // For login, the server handles redirect to /api/auth/complete
+      // For login, redirect to the URL from server
       if (type === "signup") {
         setShowConfirm(true);
+      } else {
+        router.push(data.redirectTo);
       }
     } catch (error) {
       toast.error("Error", {
         description: "An unexpected error occurred",
         duration: 3000,
       });
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function handleVerify(code: string) {
+    if (!factorId || !redirectUrl) return;
+
+    try {
+      setIsPending(true);
+      setTwoFactorError(null);
+
+      const response = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          factorId,
+          code,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setTwoFactorError(data.error);
+        return;
+      }
+
+      // Redirect to stored URL after successful 2FA
+      router.push(redirectUrl);
+    } catch (error) {
+      setTwoFactorError("An unexpected error occurred");
     } finally {
       setIsPending(false);
     }
@@ -81,99 +133,120 @@ export function AuthForm({ type }: AuthFormProps) {
         <CardHeader className="text-center space-y-4">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-2xl font-bold">
-              {type === "login" ? "Welcome back" : "Create your account"}
+              {requiresTwoFactor
+                ? "Two-factor authentication"
+                : type === "login"
+                  ? "Welcome back"
+                  : "Create your account"}
             </CardTitle>
             <CardDescription className="text-foreground/35">
-              {type === "login"
-                ? "Enter your credentials to continue"
-                : "Enter your details below to get started"}
+              {requiresTwoFactor
+                ? "Enter the code from your authenticator app"
+                : type === "login"
+                  ? "Enter your credentials to continue"
+                  : "Enter your details below to get started"}
             </CardDescription>
           </div>
-          <SocialButtons />
+          {!requiresTwoFactor && <SocialButtons />}
         </CardHeader>
         <CardContent>
-          <form action={handleSubmit} className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="name@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+          {requiresTwoFactor ? (
+            factorId && (
+              <TwoFactorVerifyForm
+                factorId={factorId}
+                onVerify={handleVerify}
+                isVerifying={isPending}
+                error={twoFactorError}
               />
-            </div>
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+            )
+          ) : (
+            <form action={handleSubmit} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
 
-            <div className="flex flex-col gap-4">
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!isFormValid || isPending}
-              >
-                {isPending ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    {type === "login" ? "Logging in..." : "Creating account..."}
-                  </span>
-                ) : type === "login" ? (
-                  "Log in"
-                ) : (
-                  "Create account"
+              <div className="flex flex-col gap-4">
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={!isFormValid || isPending}
+                >
+                  {isPending ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      {type === "login"
+                        ? "Logging in..."
+                        : "Creating account..."}
+                    </span>
+                  ) : type === "login" ? (
+                    "Log in"
+                  ) : (
+                    "Create account"
+                  )}
+                </Button>
+                {type === "login" && !requiresTwoFactor && (
+                  <Link href="/auth/login-help">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full text-sm"
+                    >
+                      Can't log in?
+                    </Button>
+                  </Link>
                 )}
-              </Button>
-              {type === "login" && (
-                <Link href="/auth/login-help">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full text-sm"
-                  >
-                    Can't log in?
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </form>
+              </div>
+            </form>
+          )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-2 border-t p-5">
-          <p className="text-sm text-foreground/35 flex gap-1">
-            {type === "login" ? (
-              <>
-                Don't have an account?{" "}
-                <Link
-                  href="/auth/signup"
-                  className="text-foreground hover:underline"
-                >
-                  Sign up
-                </Link>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <Link
-                  href="/auth/login"
-                  className="text-foreground hover:underline"
-                >
-                  Log in
-                </Link>
-              </>
-            )}
-          </p>
-        </CardFooter>
+        {!requiresTwoFactor && (
+          <CardFooter className="flex flex-col gap-2 border-t p-5">
+            <p className="text-sm text-foreground/35 flex gap-1">
+              {type === "login" ? (
+                <>
+                  Don't have an account?{" "}
+                  <Link
+                    href="/auth/signup"
+                    className="text-foreground hover:underline"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <Link
+                    href="/auth/login"
+                    className="text-foreground hover:underline"
+                  >
+                    Log in
+                  </Link>
+                </>
+              )}
+            </p>
+          </CardFooter>
+        )}
       </Card>
       <Confirm
         email={email}

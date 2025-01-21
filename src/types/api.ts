@@ -50,3 +50,10 @@ export interface TDisable2FARequest {
   factorId: string;
   code: string;
 }
+
+// /api/auth/email/login
+export interface TEmailLoginResponse {
+  requiresTwoFactor: boolean;
+  factorId?: string;
+  redirectTo: string;
+}

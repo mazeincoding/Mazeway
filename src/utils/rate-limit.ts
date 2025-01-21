@@ -1,9 +1,12 @@
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
+import { AUTH_CONFIG } from "@/config/auth";
 
-// If Redis isn't configured, rate limiting will be disabled
+// If API rate limiting isn't enabled in the auth config, or Redis isn't configured, rate limiting will be disabled
 const redis =
-  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  AUTH_CONFIG.api_rate_limit.enabled &&
+  process.env.UPSTASH_REDIS_REST_URL &&
+  process.env.UPSTASH_REDIS_REST_TOKEN
     ? Redis.fromEnv()
     : null;
 

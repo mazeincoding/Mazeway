@@ -7,7 +7,7 @@ import { TApiErrorResponse, TEmailLoginResponse } from "@/types/api";
 
 export async function POST(request: Request) {
   try {
-    if (authRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
+    if (authRateLimit) {
       const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
       const { success } = await authRateLimit.limit(ip);
 

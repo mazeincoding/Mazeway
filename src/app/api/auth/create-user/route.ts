@@ -7,11 +7,10 @@ import {
   TEmptySuccessResponse,
 } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
-import { AUTH_CONFIG } from "@/config/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    if (apiRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
+    if (apiRateLimit) {
       const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
       const { success } = await apiRateLimit.limit(ip);
 

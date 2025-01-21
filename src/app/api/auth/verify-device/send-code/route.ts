@@ -18,7 +18,7 @@ function generateVerificationCode(): string {
 }
 
 export async function POST(request: NextRequest) {
-  if (authRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
+  if (authRateLimit) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
     const { success } = await authRateLimit.limit(ip);
 

@@ -2,7 +2,6 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
-import { AUTH_CONFIG } from "@/config/auth";
 
 /**
  * Deletes a device session. Security is enforced through two layers:
@@ -16,7 +15,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (apiRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
+  if (apiRateLimit) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
     const { success } = await apiRateLimit.limit(ip);
 

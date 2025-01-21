@@ -93,6 +93,15 @@ export const useUserStore = create<UserState>((set) => ({
 
       if (error) throw error;
 
+      // Get MFA status for update too
+      const { data: mfaData } = await supabase.auth.mfa.listFactors();
+      const enabledMethods: TTwoFactorMethod[] =
+        mfaData?.all
+          ?.filter((factor) => factor.status === "verified")
+          .map((factor) =>
+            factor.factor_type === "totp" ? "authenticator" : "sms"
+          ) || [];
+
       const userWithAuth: TUserWithAuth = {
         ...data,
         auth: {
@@ -100,6 +109,8 @@ export const useUserStore = create<UserState>((set) => ({
             authUser.identities?.map((identity) => identity.provider) || [],
           emailVerified: !!authUser.email_confirmed_at,
           lastSignInAt: authUser.last_sign_in_at,
+          twoFactorEnabled: enabledMethods.length > 0,
+          twoFactorMethods: enabledMethods,
         },
       };
 

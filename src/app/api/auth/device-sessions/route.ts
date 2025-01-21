@@ -8,6 +8,7 @@ import {
 } from "@/types/api";
 import { TDeviceInfo } from "@/types/auth";
 import { apiRateLimit } from "@/utils/rate-limit";
+import { AUTH_CONFIG } from "@/config/auth";
 
 async function createOrFindDevice(device: TDeviceInfo) {
   const supabase = await createClient();
@@ -72,7 +73,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (apiRateLimit) {
+  if (apiRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
     const { success } = await apiRateLimit.limit(ip);
 

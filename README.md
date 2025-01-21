@@ -492,6 +492,8 @@ Here's how to do it:
     + UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
     ```
 
+> In the auth config of this project (`src/config/auth.ts`) API rate limiting is already enabled. If you ever need, you can disable it here (eg: for testing).
+
 ## Production checklist
 1. Change logo throughout app
 2. Set up Supabase for production. This will be more clear once I know more about it, but:

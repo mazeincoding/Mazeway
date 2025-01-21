@@ -5,6 +5,7 @@ import {
   TGetTrustedDeviceSessionsResponse,
 } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
+import { AUTH_CONFIG } from "@/config/auth";
 
 /**
  * Returns all trusted device sessions for the authenticated user.
@@ -12,7 +13,7 @@ import { apiRateLimit } from "@/utils/rate-limit";
  * during session creation based on device confidence and verification status.
  */
 export async function GET(request: NextRequest) {
-  if (apiRateLimit) {
+  if (apiRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
     const { success } = await apiRateLimit.limit(ip);
 

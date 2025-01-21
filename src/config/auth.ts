@@ -29,4 +29,7 @@ export const AUTH_CONFIG = {
     ],
     enabled: true,
   },
+  api_rate_limit: {
+    enabled: true,
+  },
 } as const;

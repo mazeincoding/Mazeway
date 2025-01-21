@@ -2,12 +2,13 @@ import EmailAlertTemplate from "@emails/templates/email-alert";
 import { Resend } from "resend";
 import { authRateLimit } from "@/utils/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
+import { AUTH_CONFIG } from "@/config/auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
-    if (authRateLimit) {
+    if (authRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
       const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
       const { success } = await authRateLimit.limit(ip);
 

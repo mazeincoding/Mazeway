@@ -9,10 +9,11 @@ import { createClient } from "@/utils/supabase/server";
 import { validatePassword } from "@/utils/validation/auth-validation";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit } from "@/utils/rate-limit";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    if (authRateLimit) {
+    if (authRateLimit && AUTH_CONFIG.api_rate_limit.enabled) {
       const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
       const { success } = await authRateLimit.limit(ip);
 

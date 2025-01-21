@@ -1,9 +1,6 @@
 import { TDeviceInfo, TDeviceSession } from "./auth";
 
-// Shared response type for error cases
-export interface TApiErrorResponse {
-  error: string;
-}
+// ===== REQUEST TYPES =====
 
 // /api/auth/device-sessions
 export interface TCreateDeviceSessionRequest {
@@ -15,6 +12,26 @@ export interface TCreateDeviceSessionRequest {
   is_trusted: boolean;
 }
 
+// /api/auth/create-user
+export interface TCreateUserRequest {
+  id: string;
+  email: string;
+}
+
+// /api/auth/2fa/disable
+export interface TDisable2FARequest {
+  factorId: string;
+  code: string;
+}
+
+// ===== RESPONSE TYPES =====
+
+// Shared response type for error cases
+export interface TApiErrorResponse {
+  error: string;
+}
+
+// /api/auth/device-sessions
 export interface TGetDeviceSessionsResponse {
   data: TDeviceSession[];
 }
@@ -23,15 +40,6 @@ export interface TGetDeviceSessionsResponse {
 export interface TGetTrustedDeviceSessionsResponse {
   data: TDeviceSession[];
 }
-
-// /api/auth/create-user
-export interface TCreateUserRequest {
-  id: string;
-  email: string;
-}
-
-// Empty success responses
-export interface TEmptySuccessResponse {}
 
 // /api/auth/2fa/enroll
 export interface TEnroll2FAResponse {
@@ -45,15 +53,12 @@ export interface TVerify2FAResponse {
   success: boolean;
 }
 
-// /api/auth/2fa/disable
-export interface TDisable2FARequest {
-  factorId: string;
-  code: string;
-}
-
 // /api/auth/email/login
 export interface TEmailLoginResponse {
   requiresTwoFactor: boolean;
   factorId?: string;
   redirectTo: string;
 }
+
+// Generic success response
+export interface TEmptySuccessResponse {}

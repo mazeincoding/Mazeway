@@ -9,6 +9,8 @@ export type TAccessLevel = "full" | "verified" | "restricted";
 
 export type TVerificationLevel = "none" | "light" | "full";
 
+export type TTwoFactorMethod = "authenticator" | "sms";
+
 export interface TDeviceSession {
   id: string;
   user_id: string;

@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createClient } from "@/utils/supabase/client";
-import type { TUser, TUserWithAuth } from "@/types/auth";
+import type { TUser, TUserWithAuth, TTwoFactorMethod } from "@/types/auth";
 
 interface UserState {
   user: TUserWithAuth | null;
@@ -40,6 +40,17 @@ export const useUserStore = create<UserState>((set) => ({
 
       if (error) throw error;
 
+      // Get MFA factors
+      const { data } = await supabase.auth.mfa.listFactors();
+
+      // Get enabled methods
+      const enabledMethods: TTwoFactorMethod[] =
+        data?.all
+          ?.filter((factor) => factor.status === "verified")
+          .map((factor) =>
+            factor.factor_type === "totp" ? "authenticator" : "sms"
+          ) || [];
+
       // Combine DB user with auth info
       const userWithAuth: TUserWithAuth = {
         ...userData,
@@ -48,6 +59,8 @@ export const useUserStore = create<UserState>((set) => ({
             authUser.identities?.map((identity) => identity.provider) || [],
           emailVerified: !!authUser.email_confirmed_at,
           lastSignInAt: authUser.last_sign_in_at,
+          twoFactorEnabled: enabledMethods.length > 0,
+          twoFactorMethods: enabledMethods,
         },
       };
 

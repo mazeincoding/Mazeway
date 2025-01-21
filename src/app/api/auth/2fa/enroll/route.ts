@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       qr_code: factorData.totp.qr_code,
       secret: factorData.totp.secret,
+      factor_id: factorData.id,
     }) satisfies NextResponse<TEnroll2FAResponse>;
   } catch (error) {
     console.error("Error in 2FA enrollment:", error);

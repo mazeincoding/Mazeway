@@ -40,5 +40,7 @@ export interface TUserWithAuth extends TUser {
     providers: string[];
     emailVerified: boolean;
     lastSignInAt: string;
+    twoFactorEnabled: boolean;
+    twoFactorMethods: TTwoFactorMethod[];
   };
 }

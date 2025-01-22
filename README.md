@@ -358,33 +358,33 @@ If you don't want it, good news:
 - that means, this step is going to an optional feature
 - for now, it's required (but super simple to do)
 
-**Get your Google OAuth credentials**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+1. Get your Google OAuth credentials
+    - Go to [Google Cloud Console](https://console.cloud.google.com/)
+    - Create/select project in console
+    - Go to: [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
+    - Choose "External". ("Internal" might be disabled)
 
-**Enable Google OAuth in Supabase**
-1. Create/select project in console
-2. Go to: [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
-3. Choose "External". ("Internal" might be disabled)
-4. Enter your app name in the "App name" field (ex: auth-starter)
-5. Click the "user support email" dropdown and select your email here
-6. You can upload a logo if you want. The auth will work either way
-7. Scroll down to the "Authorized domains" heading and click the "ADD DOMAIN" button. Enter your Supabase project URL here. It's the same URL as the one you got earlier which you put into your `.env.local` file. Should look like `<PROJECT_ID>.supabase.co`.
+2. Configure OAuth consent screen
+    - Enter your app name in the "App name" field (eg: auth-starter)
+    - Click the "user support email" dropdown and select your email here
+    - You can upload a logo if you want. The auth will work either way
+    - Scroll down to the "Authorized domains" heading and click the "ADD DOMAIN" button. Enter your Supabase project URL here. It's the same URL as the one you got earlier which you put into your `.env.local` file. Should look like `<PROJECT_ID>.supabase.co`.
+    - Scroll down to the "Developer contact information" heading and add your email.
 
     > Note: The URL shouldn't include the `https://` part
 
-8. Scroll down to the "Developer contact information" heading and add your email.
-9. Go to: [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
-10. Click "create credentials"
-11. Choose "OAuth Client ID".
-12. For "Application type", choose "Web application".
-13. Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000`.
-14. Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
-    1. Go to your Supabase dashboard
-    2. In the sidebar, click "Authentication" and then click "Providers" to the left side and scroll down until you see "Google"
-    3. Click to expand Google. Here, you'll find a field labeled "Callback URL (for OAuth)"".
-
-15. Hit "create" in the Google console and you will be shown your "Client ID" and "Client secret"
-16. Copy those, go back to Supabbase and paste those. Then click "Save"
+3. Create OAuth credentials
+    - Go to: [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+    - Click "create credentials"
+    - Choose "OAuth Client ID".
+    - For "Application type", choose "Web application".
+    - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000`.
+    - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
+        1. Go to your Supabase dashboard
+        2. In the sidebar, click "Authentication" and then click "Providers" to the left side and scroll down until you see "Google"
+        3. Click to expand Google. Here, you'll find a field labeled "Callback URL (for OAuth)"".
+    - Hit "create" in the Google console and you will be shown your "Client ID" and "Client secret"
+    - Copy those, go back to Supabbase and paste those. Then click "Save"
 
 If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue, or just contact me directly [X](https://x.com/mazewinther1) [Email](emailto:hi@mazecoding.com)
 
@@ -414,10 +414,12 @@ Resend makes it REALLY straightforward to integrate with Supabase.
 
 You won't even need to touch the Supabase dashboard to do it.
 
-1. Go to the [Resend website](https://resend.com)
-2. Create an account/login
-3. Go to [Domains](https://resend.com/domains)
-   
+1. Create Resend account and set up domain
+    - Go to the [Resend website](https://resend.com)
+    - Create an account/login
+    - Go to [Domains](https://resend.com/domains)
+    - If you already have a domain here (that you wanna use) you can skip this. But if you don't got one (or want a new one) follow the steps by Resend. It should be clear what to do, but hit me up on [X (Twitter)](https://x.com/mazewinther1) if you're having trouble and I'll personally help you. You can also open a GitHub issue.
+
     > Note: You will need a paid domain for this as mentioned above.
     
     > You can add any domain by the way. I'm on the Resend free tier so I added my personal domain (mazewinther.com). You know why? Because the free tier only gets you 1 domain, so by using my personal domain, I can re-use it for all of my apps and it still makes sense.
@@ -428,16 +430,16 @@ You won't even need to touch the Supabase dashboard to do it.
     >
     > Though Resend is really amazing, and I'd probably subscribe just to support the service itself.
 
-4. If you already have a domain here (that you wanna use) you can skip this. But if you don't got one (or want a new one) follow the steps by Resend. It should be clear what to do, but hit me up on [X (Twitter)](https://x.com/mazewinther1) if you're having trouble and I'll personally help you. You can also open a GitHub issue.
-5. Once you have a domain, go to [API Keys](https://resend.com/api-keys) and click "Create API key"
-7. Enter a name for the API key (like your app name), then change "permission" to "Sending access" and click the "Domain" field to change it to the one you just added
-8. Now go to [Integrations](https://resend.com/settings/integrations)
-9. You should see Supabase listed. Click "Connect to Supabase"
-10. Resend will request access to your Supabase organization. Click "Authorize Resend"
-11. Select your Supabase project
-12. Select the domain you just added
-13. Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
-14. Update your `.env.local` file to add these (this is because aside from Supabase, the project uses Resend too):
+2. Set up API key and Supabase integration
+    - Once you have a domain, go to [API Keys](https://resend.com/api-keys) and click "Create API key"
+    - Enter a name for the API key (like your app name), then change "permission" to "Sending access" and click the "Domain" field to change it to the one you just added
+    - Now go to [Integrations](https://resend.com/settings/integrations)
+    - You should see Supabase listed. Click "Connect to Supabase"
+    - Resend will request access to your Supabase organization. Click "Authorize Resend"
+    - Select your Supabase project
+    - Select the domain you just added
+    - Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
+    - Update your `.env.local` file to add these (this is because aside from Supabase, the project uses Resend too):
     ```diff
     - RESEND_API_KEY=your-resend-api-key
     - RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
@@ -476,30 +478,35 @@ Yes, this does introduce another service you'll need to set up but:
 - takes a minute or so to do
 
 Here's how to do it:
-1. Go to the Upstash website: [https://console.upstash.com/login](https://console.upstash.com/login)
-2. Create an account or log in
-3. Click "create database"
-4. Name it whatever you want. If unsure, just name it "auth-rate-limit"
-5. Primary region: wherever you plan to host your app.
+1. Set up Upstash account and database
+    - Go to the Upstash website: [https://console.upstash.com/login](https://console.upstash.com/login)
+    - Create an account or log in
+    - Click "create database"
+    - Name it whatever you want like "auth-rate-limit"
+
+2. Configure database settings
+    - Primary region: wherever you plan to host your app.
     - It should be closest to where your Next.js app is hosted, not users, since the API endpoints in this project will use it.
     - If you're just setting up rate limiting for development, anything's fine.
     - Whenever you deploy your app (eg: Vercel, Netlify) you can specify a region.
-6. Choose a plan: just go free for now because:
-    - You get 10K commands per day
-    - With API rate limiting, each API request might use 2-3 Redis commands to:
-        - Get the current request count
-        - Increment it
-7. Click "create"
-8. Get your `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`:
-    1. Scroll down to the "REST API" section
-    2. Look above the code snippet, you should see them here
-9. Update `.env.local` file to add these:
-    ```diff
-    - # UPSTASH_REDIS_REST_URL=your-upstash-redis-rest-url
-    - # UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
-    + UPSTASH_REDIS_REST_URL=your-upstash-redis-rest-url
-    + UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
-    ```
+    - Choose a plan: just go free for now because:
+        - You get 10K commands per day
+        - With API rate limiting, each API request might use 2-3 Redis commands to:
+            - Get the current request count
+            - Increment it
+    - Click "create"
+
+3. Get API credentials and update environment
+    - Get your `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`:
+        - Scroll down to the "REST API" section
+        - Look above the code snippet, you should see them here
+    - Update `.env.local` file to add these:
+        ```diff
+        - # UPSTASH_REDIS_REST_URL=your-upstash-redis-rest-url
+        - # UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
+        + UPSTASH_REDIS_REST_URL=your-upstash-redis-rest-url
+        + UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-rest-token
+        ```
 
 > In the auth config of this project (`src/config/auth.ts`) API rate limiting is already enabled by default. If you ever need (to test something for example), you can disable it in the config.
 

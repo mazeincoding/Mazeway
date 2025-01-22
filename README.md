@@ -93,7 +93,8 @@ npm install --legacy-peer-deps
 The `--legacy-peer-deps` flag is just because this project uses react 19, and not a lot of npm packages support that. You might get errors without the flag, so this should solve them.
 
 ### 4. Set up Supabase tables
-Head over to Supabase and within your project, click "SQL Editor" in the sidebar. Run all the following code snippets (this will set up the necessary tables, RLS policies, etc for te app to work)
+1. Head over to the Supabase [SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+2. Run all the following code snippets (this will set up the necessary tables, RLS policies, etc)
 
 **Create update_updated_at function**
 ```sql
@@ -329,7 +330,7 @@ ON verification_codes(expires_at);
 ```
 
 ### 5. Change email templates in Supabase
-1. Go to Supabase > Authentication > Email Templates
+1. Go to Supabase [Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
 2. Paste the code into each individual template:
 
 **Confirm signup**
@@ -349,7 +350,13 @@ ON verification_codes(expires_at);
 ```
 
 ### 6. Enable Google OAuth
-> Note: The project comes with Google OAuth out of the box. This is done as it's becoming increasingly popular. If you don't want it at all, you can remove it from the codebase.
+This will allow users to sign in with Google.
+
+If you don't want it, good news:
+- this project is moving towards a "config-based" approach
+- where you can enable/disable what you need
+- that means, this step is going to an optional feature
+- for now, it's required (but super simple to do)
 
 **Get your Google OAuth credentials**
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -409,7 +416,7 @@ You won't even need to touch the Supabase dashboard to do it.
 
 1. Go to the [Resend website](https://resend.com)
 2. Create an account/login
-3. In the left sidebar, go to "Domains" and add a domain here
+3. Go to [Domains](https://resend.com/domains)
    
     > Note: You will need a paid domain for this as mentioned above.
     
@@ -421,11 +428,10 @@ You won't even need to touch the Supabase dashboard to do it.
     >
     > Though Resend is really amazing, and I'd probably subscribe just to support the service itself.
 
-4. If you already have a domain here (that you wanna use) you can skip this. But if you don't got one (or want a new one) follow the steps by Resend. From experience, verifying the domain might be the most painful part, especially when it doesn't work no matter what you do. It's really like rolling a dice. If it lands on 6, everything verifies! Otherwise, try again. Hit me up on [X (Twitter)](https://x.com/mazewinther1) or send me an [Email](mailto:hi@mazecoding.com) if you're having trouble and I'll personally help you. You can also open a GitHub issue.
-5. In the left sidebar again, go to "API Keys" and click "Create API key"
-6. Just enter a name for the API key (like your app name), then change "permission" to "Sending access" and click the "Domain" field to change it to the one you just added
-7. Now, again in the left sidebar, go to "Settings"
-8. Then, go to "Integrations" (this is where the magic is)
+4. If you already have a domain here (that you wanna use) you can skip this. But if you don't got one (or want a new one) follow the steps by Resend. It should be clear what to do, but hit me up on [X (Twitter)](https://x.com/mazewinther1) if you're having trouble and I'll personally help you. You can also open a GitHub issue.
+5. Once you have a domain, go to [API Keys](https://resend.com/api-keys) and click "Create API key"
+7. Enter a name for the API key (like your app name), then change "permission" to "Sending access" and click the "Domain" field to change it to the one you just added
+8. Now go to [Integrations](https://resend.com/settings/integrations)
 9. You should see Supabase listed. Click "Connect to Supabase"
 10. Resend will request access to your Supabase organization. Click "Authorize Resend"
 11. Select your Supabase project
@@ -470,7 +476,7 @@ Yes, this does introduce another service you'll need to set up but:
 - takes a minute or so to do
 
 Here's how to do it:
-1. Go to this website: [https://console.upstash.com/login](https://console.upstash.com/login)
+1. Go to the Upstash website: [https://console.upstash.com/login](https://console.upstash.com/login)
 2. Create an account or log in
 3. Click "create database"
 4. Name it whatever you want. If unsure, just name it "auth-rate-limit"

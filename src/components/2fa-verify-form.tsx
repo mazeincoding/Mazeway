@@ -54,17 +54,14 @@ export function TwoFactorVerifyForm({
             <FormItem>
               <FormLabel>Verification code</FormLabel>
               <FormControl>
-                <InputOTP
-                  maxLength={6}
-                  render={({ slots }) => (
-                    <InputOTPGroup>
-                      {slots.map((slot, index) => (
-                        <InputOTPSlot key={index} index={index} {...slot} />
-                      ))}
-                    </InputOTPGroup>
-                  )}
-                  {...field}
-                />
+                <InputOTP maxLength={6} className="gap-2" {...field}>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTP>
               </FormControl>
               <FormMessage>{error}</FormMessage>
             </FormItem>

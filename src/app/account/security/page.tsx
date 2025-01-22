@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { TwoFactorSetupDialog } from "@/components/2fa-setup-dialog";
 import { AUTH_CONFIG } from "@/config/auth";
+import { TTwoFactorMethod } from "@/types/auth";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -42,9 +43,10 @@ export default function Security() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [showSetupDialog, setShowSetupDialog] = useState(false);
   const [setupData, setSetupData] = useState<{
-    qrCode: string;
-    secret: string;
+    qrCode?: string;
+    secret?: string;
     factorId: string;
+    method: TTwoFactorMethod;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -134,11 +136,17 @@ export default function Security() {
     }
   };
 
-  const handleEnable2FA = async () => {
+  const handleEnable2FA = async (
+    method: TTwoFactorMethod = "authenticator"
+  ) => {
     try {
       if (!user?.auth.twoFactorEnabled) {
         const response = await fetch("/api/auth/2fa/enroll", {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ method }),
         });
 
         if (!response.ok) {
@@ -151,6 +159,7 @@ export default function Security() {
           qrCode: data.qr_code,
           secret: data.secret,
           factorId: data.factor_id,
+          method,
         });
         setShowSetupDialog(true);
       }
@@ -159,18 +168,53 @@ export default function Security() {
     }
   };
 
-  const handleVerify = async (code: string) => {
+  const handleVerify = async (
+    method: TTwoFactorMethod,
+    code: string,
+    phone?: string
+  ) => {
     if (!setupData) return;
 
     setIsVerifying(true);
     setError(null);
 
     try {
+      // If this is the initial SMS setup, we need to enroll the phone number first
+      if (method === "sms" && phone) {
+        const enrollResponse = await fetch("/api/auth/2fa/enroll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            method,
+            phone,
+          }),
+        });
+
+        if (!enrollResponse.ok) {
+          const data = await enrollResponse.json();
+          throw new Error(data.error || "Failed to enroll phone number");
+        }
+
+        // Update setup data with new factor ID if provided
+        const enrollData = await enrollResponse.json();
+        if (enrollData.factor_id) {
+          setSetupData((prev) => ({
+            ...prev!,
+            factorId: enrollData.factor_id,
+          }));
+        }
+
+        // Return early as the SMS will be sent
+        return;
+      }
+
+      // Verify the code
       const response = await fetch("/api/auth/2fa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           factorId: setupData.factorId,
+          method: setupData.method,
           code,
         }),
       });
@@ -286,7 +330,9 @@ export default function Security() {
           <Button
             variant="outline"
             onClick={
-              user?.auth.twoFactorEnabled ? handleDisable2FA : handleEnable2FA
+              user?.auth.twoFactorEnabled
+                ? handleDisable2FA
+                : () => handleEnable2FA()
             }
           >
             {user?.auth.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
@@ -298,8 +344,8 @@ export default function Security() {
         <TwoFactorSetupDialog
           open={showSetupDialog}
           onOpenChange={setShowSetupDialog}
-          qrCode={setupData.qrCode}
-          secret={setupData.secret}
+          qrCode={setupData.qrCode || ""}
+          secret={setupData.secret || ""}
           onVerify={handleVerify}
           error={error}
           isVerifying={isVerifying}

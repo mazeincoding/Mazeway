@@ -70,6 +70,7 @@ export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;
 
 export const twoFactorVerificationSchema = z.object({
   factorId: z.string().min(1, "Factor ID is required"),
+  method: z.enum(["authenticator", "sms"] as const),
   code: z
     .string()
     .min(6, "Code must be 6 digits")
@@ -91,6 +92,7 @@ export const validateTwoFactorCode = (code: string) => {
 
 export const disable2FASchema = z.object({
   factorId: z.string().min(1, "Factor ID is required"),
+  method: z.enum(["authenticator", "sms"] as const),
   code: z
     .string()
     .min(6, "Code must be 6 digits")
@@ -100,3 +102,28 @@ export const disable2FASchema = z.object({
 });
 
 export type Disable2FASchema = z.infer<typeof disable2FASchema>;
+
+// Phone number validation for SMS 2FA
+export const phoneSchema = z
+  .string()
+  .min(1, "Phone number is required")
+  .regex(
+    /^\+[1-9]\d{1,14}$/,
+    "Phone number must be in E.164 format (e.g., +1234567890)"
+  );
+
+// SMS enrollment validation
+export const smsEnrollmentSchema = z.object({
+  method: z.literal("sms"),
+  phone: phoneSchema,
+});
+
+export type SMSEnrollmentSchema = z.infer<typeof smsEnrollmentSchema>;
+
+export const validatePhoneNumber = (phone: string) => {
+  const result = phoneSchema.safeParse(phone);
+  return {
+    isValid: result.success,
+    error: !result.success ? result.error.issues[0]?.message : undefined,
+  };
+};

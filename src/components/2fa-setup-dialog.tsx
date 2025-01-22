@@ -15,6 +15,10 @@ import Image from "next/image";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { InputOTP, InputOTPSlot } from "./ui/input-otp";
+import { validatePhoneNumber } from "@/utils/validation/auth-validation";
+import { Label } from "./ui/label";
+import { PhoneInput } from "./ui/phone-input";
+import type { E164Number } from "libphonenumber-js/core";
 
 interface TwoFactorSetupDialogProps {
   open: boolean;
@@ -22,7 +26,11 @@ interface TwoFactorSetupDialogProps {
   // Only needed for authenticator app
   qrCode: string;
   secret: string;
-  onVerify: (method: TTwoFactorMethod, code: string) => Promise<void>;
+  onVerify: (
+    method: TTwoFactorMethod,
+    code: string,
+    phone?: string
+  ) => Promise<void>;
   isVerifying: boolean;
   error: string | null;
 }
@@ -62,7 +70,13 @@ export function TwoFactorSetupDialog({
             selectedMethod={selectedMethod}
           />
         ) : (
-          <></>
+          <SMSMethod
+            setSelectedMethod={setSelectedMethod}
+            onVerify={onVerify}
+            isVerifying={isVerifying}
+            error={error}
+            selectedMethod={selectedMethod}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -116,7 +130,11 @@ function AuthenticatorAppMethod({
   qrCode: string;
   secret: string;
   setSelectedMethod: (method: TTwoFactorMethod | null) => void;
-  onVerify: (method: TTwoFactorMethod, code: string) => Promise<void>;
+  onVerify: (
+    method: TTwoFactorMethod,
+    code: string,
+    phone?: string
+  ) => Promise<void>;
   isVerifying: boolean;
   error: string | null;
   selectedMethod: TTwoFactorMethod;
@@ -176,6 +194,140 @@ function AuthenticatorAppMethod({
           <div className="flex flex-col gap-3 w-full">
             <Button className="w-full" onClick={handleContinue}>
               Continue
+            </Button>
+            <Button variant="outline" className="w-full" onClick={handleBack}>
+              Back
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-col items-center gap-4 w-full">
+            <InputOTP
+              maxLength={6}
+              className="gap-2"
+              value={code}
+              onChange={setCode}
+            >
+              <InputOTPSlot index={0} />
+              <InputOTPSlot index={1} />
+              <InputOTPSlot index={2} />
+              <InputOTPSlot index={3} />
+              <InputOTPSlot index={4} />
+              <InputOTPSlot index={5} />
+            </InputOTP>
+            {error && (
+              <p className="text-sm text-destructive w-full">{error}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-3 w-full">
+            <Button
+              className="w-full"
+              onClick={handleVerify}
+              disabled={isVerifying || !code}
+            >
+              {isVerifying ? "Verifying..." : "Verify"}
+            </Button>
+            <Button variant="outline" className="w-full" onClick={handleBack}>
+              Back
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SMSMethod({
+  setSelectedMethod,
+  onVerify,
+  isVerifying,
+  error,
+  selectedMethod,
+}: {
+  setSelectedMethod: (method: TTwoFactorMethod | null) => void;
+  onVerify: (
+    method: TTwoFactorMethod,
+    code: string,
+    phone?: string
+  ) => Promise<void>;
+  isVerifying: boolean;
+  error: string | null;
+  selectedMethod: TTwoFactorMethod;
+}) {
+  const [step, setStep] = useState(0);
+  const [phone, setPhone] = useState<E164Number | undefined>(undefined);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+
+  const handlePhoneSubmit = async () => {
+    if (!phone) {
+      setPhoneError("Phone number is required");
+      return;
+    }
+
+    const validation = validatePhoneNumber(phone);
+    if (!validation.isValid) {
+      setPhoneError(validation.error || "Invalid phone number");
+      return;
+    }
+    setPhoneError(null);
+
+    try {
+      // Start SMS verification process
+      await onVerify(selectedMethod, "", phone);
+      setStep(1);
+    } catch (err) {
+      setPhoneError(
+        err instanceof Error ? err.message : "Failed to send verification code"
+      );
+    }
+  };
+
+  const handleVerify = async () => {
+    await onVerify(selectedMethod, code);
+  };
+
+  const handleBack = () => {
+    if (step > 0) {
+      setStep(step - 1);
+      setCode("");
+      return;
+    }
+    setSelectedMethod(null);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4">
+      {step === 0 ? (
+        <>
+          <div className="flex flex-col gap-4 w-full">
+            <div className="space-y-2">
+              <Label>Phone Number</Label>
+              <PhoneInput
+                value={phone}
+                onChange={(value) => {
+                  setPhone(value);
+                  setPhoneError(null);
+                }}
+                defaultCountry="US"
+                disabled={isVerifying}
+              />
+              {phoneError && (
+                <p className="text-sm text-destructive">{phoneError}</p>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Enter your phone number to receive verification codes
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 w-full">
+            <Button
+              className="w-full"
+              onClick={handlePhoneSubmit}
+              disabled={isVerifying || !phone}
+            >
+              {isVerifying ? "Sending code..." : "Send verification code"}
             </Button>
             <Button variant="outline" className="w-full" onClick={handleBack}>
               Back

@@ -1,4 +1,4 @@
-import { TDeviceInfo, TDeviceSession } from "./auth";
+import { TDeviceInfo, TDeviceSession, TTwoFactorMethod } from "./auth";
 
 // ===== REQUEST TYPES =====
 
@@ -24,6 +24,12 @@ export interface TDisable2FARequest {
   code: string;
 }
 
+// /api/auth/2fa/enroll
+export interface TEnroll2FARequest {
+  method: TTwoFactorMethod;
+  phone?: string; // Only required for SMS method
+}
+
 // ===== RESPONSE TYPES =====
 
 // Shared response type for error cases
@@ -43,9 +49,12 @@ export interface TGetTrustedDeviceSessionsResponse {
 
 // /api/auth/2fa/enroll
 export interface TEnroll2FAResponse {
-  qr_code: string;
-  secret: string;
   factor_id: string;
+  // For authenticator method only
+  qr_code?: string;
+  secret?: string;
+  // For SMS method only
+  phone?: string; // Masked phone number for display
 }
 
 // /api/auth/2fa/verify

@@ -1,8 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { TApiErrorResponse, TEnroll2FAResponse } from "@/types/api";
-import { authRateLimit } from "@/utils/rate-limit";
+import {
+  TApiErrorResponse,
+  TEnroll2FARequest,
+  TEnroll2FAResponse,
+} from "@/types/api";
+import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
+import { smsEnrollmentSchema } from "@/utils/validation/auth-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,33 +19,9 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if authenticator method is enabled
-    const authenticatorConfig = AUTH_CONFIG.twoFactorAuth.methods.find(
-      (m) => m.type === "authenticator"
-    );
-    if (!authenticatorConfig?.enabled) {
-      return NextResponse.json(
-        { error: "Authenticator app method is not enabled" },
-        { status: 403 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    // Apply rate limiting
-    if (authRateLimit) {
-      const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-      const { success } = await authRateLimit.limit(ip);
-
-      if (!success) {
-        return NextResponse.json(
-          { error: "Too many requests. Please try again later." },
-          { status: 429 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
-
     const supabase = await createClient();
 
-    // Verify user is authenticated
+    // 1. Verify user authentication first
     const {
       data: { user },
       error: userError,
@@ -53,7 +34,93 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Start MFA enrollment
+    // 2. Get and validate request body
+    const body = (await request.json()) as TEnroll2FARequest;
+    const method = body.method || "authenticator";
+
+    // 3. Validate method configuration
+    const methodConfig = AUTH_CONFIG.twoFactorAuth.methods.find(
+      (m) => m.type === method
+    );
+    if (!methodConfig?.enabled) {
+      return NextResponse.json(
+        { error: `${method} method is not enabled` },
+        { status: 403 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // 4. Get client IP securely
+    const clientIp = getClientIp(request);
+
+    // 5. Apply rate limits in order of most specific to least specific
+    if (method === "sms" && smsRateLimit) {
+      // Check user-based rate limit first (most specific)
+      const { success: userSuccess } = await smsRateLimit.user.limit(user.id);
+      if (!userSuccess) {
+        return NextResponse.json(
+          {
+            error:
+              "Daily SMS limit reached for this account. Please try again tomorrow.",
+          },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      // Then check IP-based rate limit
+      const { success: ipSuccess } = await smsRateLimit.ip.limit(clientIp);
+      if (!ipSuccess) {
+        return NextResponse.json(
+          {
+            error:
+              "Too many SMS requests from this IP. Please try again later.",
+          },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
+    // 6. Apply general auth rate limit last (least specific)
+    if (authRateLimit) {
+      const { success } = await authRateLimit.limit(clientIp);
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
+    // 7. Handle SMS enrollment with validated phone number
+    if (method === "sms") {
+      const validation = smsEnrollmentSchema.safeParse(body);
+      if (!validation.success) {
+        return NextResponse.json(
+          { error: validation.error.issues[0]?.message || "Invalid input" },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      const { data: factorData, error: factorError } =
+        await supabase.auth.mfa.enroll({
+          factorType: "phone",
+          phone: validation.data.phone,
+        });
+
+      if (factorError) {
+        console.error("Failed to enroll in SMS 2FA:", factorError);
+        return NextResponse.json(
+          { error: factorError.message },
+          { status: 500 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      return NextResponse.json({
+        factor_id: factorData.id,
+        phone: factorData.phone,
+      }) satisfies NextResponse<TEnroll2FAResponse>;
+    }
+
+    // 8. Handle authenticator enrollment
     const { data: factorData, error: factorError } =
       await supabase.auth.mfa.enroll({
         factorType: "totp",
@@ -67,7 +134,6 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Return the QR code and secret
     return NextResponse.json({
       qr_code: factorData.totp.qr_code,
       secret: factorData.totp.secret,

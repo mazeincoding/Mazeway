@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TVerify2FAResponse } from "@/types/api";
-import { authRateLimit } from "@/utils/rate-limit";
+import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
 import { twoFactorVerificationSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 
@@ -15,32 +15,9 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if authenticator method is enabled
-    const authenticatorConfig = AUTH_CONFIG.twoFactorAuth.methods.find(
-      (m) => m.type === "authenticator"
-    );
-    if (!authenticatorConfig?.enabled) {
-      return NextResponse.json(
-        { error: "Authenticator app method is not enabled" },
-        { status: 403 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    if (authRateLimit) {
-      const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-      const { success } = await authRateLimit.limit(ip);
-
-      if (!success) {
-        return NextResponse.json(
-          { error: "Too many requests. Please try again later." },
-          { status: 429 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
-
     const supabase = await createClient();
 
-    // Verify user is authenticated
+    // 1. Verify user authentication first
     const {
       data: { user },
       error: userError,
@@ -53,7 +30,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get and validate request body
+    // 2. Get and validate request body
     const body = await request.json();
     const validation = twoFactorVerificationSchema.safeParse(body);
 
@@ -64,9 +41,61 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { factorId, code } = validation.data;
+    const { factorId, code, method } = validation.data;
 
-    // Create challenge first
+    // 3. Validate method configuration
+    const methodConfig = AUTH_CONFIG.twoFactorAuth.methods.find(
+      (m) => m.type === method
+    );
+    if (!methodConfig?.enabled) {
+      return NextResponse.json(
+        { error: `${method} method is not enabled` },
+        { status: 403 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // 4. Get client IP securely
+    const clientIp = getClientIp(request);
+
+    // 5. Apply rate limits in order of most specific to least specific
+    if (method === "sms" && smsRateLimit) {
+      // Check user-based rate limit first
+      const { success: userSuccess } = await smsRateLimit.user.limit(user.id);
+      if (!userSuccess) {
+        return NextResponse.json(
+          {
+            error:
+              "Daily SMS limit reached for this account. Please try again tomorrow.",
+          },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      // Then check IP-based rate limit
+      const { success: ipSuccess } = await smsRateLimit.ip.limit(clientIp);
+      if (!ipSuccess) {
+        return NextResponse.json(
+          {
+            error:
+              "Too many SMS requests from this IP. Please try again later.",
+          },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
+    // 6. Apply general auth rate limit last
+    if (authRateLimit) {
+      const { success } = await authRateLimit.limit(clientIp);
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
+    // 7. Create challenge
     const { data: challengeData, error: challengeError } =
       await supabase.auth.mfa.challenge({ factorId });
     if (challengeError) {
@@ -77,7 +106,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Verify the TOTP code
+    // 8. Verify the code
     const { error: verifyError } = await supabase.auth.mfa.verify({
       factorId,
       challengeId: challengeData.id,
@@ -85,7 +114,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (verifyError) {
-      console.error("Failed to verify 2FA code:", verifyError);
+      console.error(`Failed to verify ${method} code:`, verifyError);
       return NextResponse.json(
         { error: verifyError.message },
         { status: 400 }

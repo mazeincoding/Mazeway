@@ -33,16 +33,21 @@
         - [ ] Generate recovery codes, show them and allow easy copying
         - [x] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
     - [ ] SMS
-        - [ ] Figure out if we need to set up any additional services or if Supabase is all we need
-        - [ ] If setting up other services: add instructions to README
-        - [ ] Also explain how you can enable/disable 2FA and methods in the config
-        - [ ] Implement API endpoints for SMS enroll, verify and disable (either create new ones or use existing that accepts a method)
+        - [x] Figure out if we need to set up any additional services or if Supabase is all we need (need Twilio)
+        - [x] If setting up other services: add instructions to README
+        - [x] Also explain how you can enable/disable 2FA and methods in the config
+        - [x] Modify 2FA endpoints (enroll, verify, disable) to handle SMS with "method" in the body
+        - [x] Add enterprise-level security with extra rate limits
+        - [x] Ensure no IP Spoofing
+        - [x] Add SMS for 2FA setup dialog
+        - [x] Update security page to work with SMS
     - [ ] Require 2FA when:
         - [x] Trying to login
         - [ ] Changing password
         - [ ] Revoking device session
         - [ ] Changing email
         - [ ] Turning off 2FA itself
+    - [ ] Ensure when 2FA verification is needed in the flow, we handle authenticator and SMS
 - [ ] Revise flow
     - When 2FA is enabled:
         - [ ] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first?

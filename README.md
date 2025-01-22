@@ -499,7 +499,117 @@ Here's how to do it:
 
 ## Optional features
 
-...
+### SMS two-factor authentication
+I really don't see why you'd do this because:
+- Costs money (per SMS, monthly fees, registration fees)
+- Compliance headaches (A2P 10DLC registration, carrier approvals)
+- Different rates per country (good luck with that pricing)
+- SMS can be delayed or fail
+- Phone numbers change
+- Authenticator apps are:
+  - Free
+  - Work offline
+  - More secure
+  - No compliance BS
+  - No carrier drama
+
+Good news:
+- this starter does support SMS
+- You don't need to dig into the code to implement it
+
+But, consider if you really need this. The only benefit SMS has is:
+- users know it
+- not many even know what an authenticator app is
+
+Though I can argue that point:
+- if apps keep using SMS, users will NEVER adapt to anything more secure
+- they don't know SMS isn't secure
+- the more apps that start to ditch it (and introduce the apps) the faster users will adapt
+- just like users adapted to making passwords more complicated (uppercase, special characters)
+
+You know why users adapted to complex passwords? Because apps finally took ACTION.
+
+They started throwing errors all around.
+
+It's just a matter of time; what company is brave enough to make the move?
+
+If you really want to flex that your auth system can do everything:
+
+1. Create a Twilio account
+    - Go to [Twilio's website](https://www.twilio.com/try-twilio)
+    - Sign up for a free account
+    - Verify your email and phone number
+2. Get account credentials
+    - After verification, you'll be taken to your console
+    - If you didn't, here's a link: [Twilio Console](https://console.twilio.com/)
+    - Scroll down to "Account Info"
+    - You'll see:
+    ```
+    Account SID: AC********************************
+    Auth Token: ********************************
+    ```
+    - We'll need to add these to Supabase in a bit. You can (temporarily) store them somewhere like a note. Just be sure to delete it when we're done.
+3. Get a phone number
+    - In Twilio Console, go to "Phone Numbers" > "Manage" > "Buy a number" (it's free)
+    - Or direct link: [Buy a Number](https://console.twilio.com/us1/develop/phone-numbers/manage/search)
+    - Click "Buy" on a number (trial accounts get a free number, you should have that if you just created it)
+    - If you click "Configure number" you may see a warning and 2 notes
+        - Don't let them overwhelm you. They just make shit seem overcomplicated for no reason.
+        - First note about "A2P 10DLC":
+            - Just a fancy way of saying "business texting from regular numbers"
+            - US carriers want to prevent spam
+            - Twilio makes businesses register their SMS use-case
+            - Like telling them "yeah we're just doing 2FA codes"
+            - Trial accounts can skip this (only needed for production)
+        - Second note about some CSV Report:
+            - Just a way to check if your numbers are registered
+            - Again, trial accounts don't need this
+            - It's for big companies managing lots of numbers
+        - Last warning about "Emergency Address":
+            - This doesn't even apply to us
+            - Because we're only using SMS, no calls.
+4. Create a Twilio messaging service
+    - Direct link: [Create Messaging Service](https://console.twilio.com/us1/service/sms/create?frameUrl=%2Fconsole%2Fsms%2Fservices%2Fcreate%3Fx-target-region%3Dus1)
+    - Friendly name: your app name (eg: My App)
+    - Select "Verify users" as the use case
+    - Click "Add Senders" on step 2,
+    - For "Sender Type" the default should already be "Phone Number". If not, select that.
+    - Click "Continue"
+    - You should see the phone number listed that you bought earlier. Select it
+    - Click "Add Phone Numbers"
+    - Now, go to "Properties" (direct link: [Messaging Properties](https://console.twilio.com/us1/service/sms/_/messaging-service-properties?frameUrl=%2Fconsole%2Fsms%2Fservices%2FMG3fd63140e331b046c661d315701decbc%2Fproperties%3Fx-target-region%3Dus1))
+    - Here, you'll find "Messaging Service SID". We're going to need this now! (along with the other things we got earlier)
+5. Connect Supabase with Twilio
+    - Go to Supabase [Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+    - Expand "Phone" and enable it
+    - SMS provider: Twilio
+    - Twilio account SID: you got this from step 2
+    - Twilio auth token: and this from step 2
+    - Messaging Service SID: what we just got
+    - Ignore the "Twilio Content SID" field because that's for WhatsApp
+    - Turn OFF "enable phone confirmation" because:
+        - it would force users to enter a phone number on sign up
+        - it's different from 2FA (what we're doing)
+        - so users will be able to sign up with email and password
+        - then later, add their phone number as 2FA for extra security
+    - Click "Save"
+6. Update the auth config to enable SMS as a 2FA method:
+```diff
+{
+    title: "SMS",
+    description: "Receive a verification code via SMS",
+-   enabled: false,
++   enabled: true,
+    type: "sms" as TTwoFactorMethod,
+}
+```
+
+What you need to know:
+- for development (with a trial account) you can only send SMS messages to verified numbers
+- "verified numbers" is the ones you manually verify in the Twilio console
+- When you signed up for an account and verified a phone number, that counts as one.
+- That means, when you try out the auth with SMS, use the phone number you verified to set up 2FA,
+- When going in production, scroll down to the production checklist.
 
 ## Production checklist
 1. Change logo throughout app
@@ -508,6 +618,15 @@ Here's how to do it:
     - or create 2 Supabase projects: one for dev and one for production. But try the one above this first.
 3. Set up Resend
 4. Set up Upstash Redis for API rate limiting
+5. If you set up SMS for two-factor authentication:
+    - Upgrade from Twilio trial account (add payment info)
+    - Register for A2P 10DLC (that fancy thing for business texting)
+    - Wait for carrier approval
+    - Be ready for:
+        - Per-message costs (~$0.0079 per SMS)
+        - Monthly fees
+        - Registration fees
+        - Different rates per country
 
 ## Get to know the project better
 

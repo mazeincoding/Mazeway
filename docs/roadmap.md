@@ -32,7 +32,7 @@
         - [x] Require user to enter code
         - [ ] Generate recovery codes, show them and allow easy copying
         - [x] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
-    - [ ] SMS
+    - [x] SMS
         - [x] Figure out if we need to set up any additional services or if Supabase is all we need (need Twilio)
         - [x] If setting up other services: add instructions to README
         - [x] Also explain how you can enable/disable 2FA and methods in the config

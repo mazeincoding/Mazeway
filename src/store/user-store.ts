@@ -86,9 +86,7 @@ export const useUserStore = create<UserState>((set) => ({
     });
   },
 
-  logout: async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+  logout: () => {
     set({ user: null, error: null });
   },
 }));

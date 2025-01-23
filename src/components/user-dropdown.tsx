@@ -6,12 +6,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
-import { LogOutIcon, MoonIcon, SunIcon, UserIcon } from "lucide-react";
+import { LogOutIcon, MoonIcon, UserIcon } from "lucide-react";
 import { useUserStore } from "@/store/user-store";
+import { toast } from "sonner";
 
 interface dropdownItem {
   label: string;
@@ -45,8 +45,25 @@ export function UserDropdown() {
   ];
 
   async function handleSignOut() {
-    logout();
-    router.push("/");
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        toast.error("Failed to logout", {
+          description: "Please try again later",
+        });
+      }
+
+      // Only update store and redirect on successful logout
+      logout();
+      router.push("/");
+    } catch (error) {
+      toast.error("Logout error", {
+        description: "Please try again later",
+      });
+    }
   }
 
   function getFirstLetter(text: string) {

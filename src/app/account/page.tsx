@@ -17,7 +17,8 @@ type FormErrors = Partial<Record<keyof ProfileSchema, string>>;
 
 export default function Account() {
   const { user, updateUser } = useUserStore();
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = useState<ProfileSchema>({
     name: "",
     email: "",
   });

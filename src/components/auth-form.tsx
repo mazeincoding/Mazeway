@@ -21,6 +21,7 @@ import {
 } from "@/utils/validation/auth-validation";
 import { Confirm } from "./auth-confirm";
 import { TwoFactorVerifyForm } from "./2fa-verify-form";
+import { TTwoFactorMethod } from "@/types/auth";
 
 interface AuthFormProps {
   type: "login" | "signup";
@@ -34,6 +35,12 @@ export function AuthForm({ type }: AuthFormProps) {
   const [isPending, setIsPending] = useState(false);
   const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
   const [factorId, setFactorId] = useState<string | null>(null);
+  const [availableMethods, setAvailableMethods] = useState<
+    Array<{
+      type: TTwoFactorMethod;
+      factorId: string;
+    }>
+  >([]);
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
@@ -71,6 +78,7 @@ export function AuthForm({ type }: AuthFormProps) {
       if (data.requiresTwoFactor) {
         setRequiresTwoFactor(true);
         setFactorId(data.factorId);
+        setAvailableMethods(data.availableMethods || []);
         return;
       }
 
@@ -106,6 +114,9 @@ export function AuthForm({ type }: AuthFormProps) {
         body: JSON.stringify({
           factorId,
           code,
+          method:
+            availableMethods.find((m) => m.factorId === factorId)?.type ||
+            "authenticator",
         }),
       });
 
@@ -125,6 +136,14 @@ export function AuthForm({ type }: AuthFormProps) {
     }
   }
 
+  function handleMethodChange(method: {
+    type: TTwoFactorMethod;
+    factorId: string;
+  }) {
+    setFactorId(method.factorId);
+    setTwoFactorError(null);
+  }
+
   const isFormValid = passwordValidation.isValid && emailValidation.isValid;
 
   return (
@@ -141,7 +160,11 @@ export function AuthForm({ type }: AuthFormProps) {
             </CardTitle>
             <CardDescription className="text-foreground/35">
               {requiresTwoFactor
-                ? "Enter the code from your authenticator app"
+                ? availableMethods.length > 1
+                  ? "Choose a verification method"
+                  : availableMethods[0]?.type === "authenticator"
+                    ? "Enter the code from your authenticator app"
+                    : "Enter the code sent to your phone"
                 : type === "login"
                   ? "Enter your credentials to continue"
                   : "Enter your details below to get started"}
@@ -154,7 +177,9 @@ export function AuthForm({ type }: AuthFormProps) {
             factorId && (
               <TwoFactorVerifyForm
                 factorId={factorId}
+                availableMethods={availableMethods}
                 onVerify={handleVerify}
+                onMethodChange={handleMethodChange}
                 isVerifying={isPending}
                 error={twoFactorError}
               />

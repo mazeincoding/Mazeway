@@ -77,5 +77,10 @@ export interface TPasswordChangeResponse extends TwoFactorRequirement {
   newPassword?: string;
 }
 
+// /api/auth/device-sessions/[id]
+export interface TRevokeDeviceSessionResponse extends TwoFactorRequirement {
+  sessionId: string;
+}
+
 // Generic success response
 export interface TEmptySuccessResponse {}

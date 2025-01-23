@@ -472,6 +472,8 @@ interface DeviceItemProps {
   browser: string;
   deviceIcon: React.ReactNode;
   lastActive: Date;
+  sessionId: string;
+  onRevoke: (sessionId: string) => void;
 }
 
 function DeviceItem({
@@ -479,6 +481,8 @@ function DeviceItem({
   browser,
   deviceIcon,
   lastActive,
+  sessionId,
+  onRevoke,
 }: DeviceItemProps) {
   return (
     <Dialog>
@@ -507,7 +511,11 @@ function DeviceItem({
         <InfoItem label="Browser" value={browser} />
         <InfoItem label="Last active" value={formatRelativeTime(lastActive)} />
         <DialogFooter>
-          <Button variant="destructive" className="w-full">
+          <Button
+            variant="destructive"
+            className="w-full"
+            onClick={() => onRevoke(sessionId)}
+          >
             Log out from this device
           </Button>
         </DialogFooter>
@@ -547,7 +555,118 @@ function InfoItem({ label, value }: { label: string; value: string }) {
 }
 
 function DeviceList() {
-  const { sessions, isLoading, error } = useDeviceSessions();
+  const { sessions, isLoading, error, refresh } = useDeviceSessions();
+  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState<{
+    factorId: string;
+    availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
+    sessionId: string;
+  } | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleRevoke = async (sessionId: string) => {
+    try {
+      const response = await fetch(`/api/auth/device-sessions/${sessionId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        toast.error("Error", {
+          description: data.error || "Failed to revoke device session",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // Check if 2FA is required
+      if (data.requiresTwoFactor) {
+        setTwoFactorData({
+          factorId: data.factorId,
+          availableMethods: data.availableMethods,
+          sessionId: sessionId,
+        });
+        setShowTwoFactorDialog(true);
+        return;
+      }
+
+      // Success
+      toast.success("Device logged out", {
+        description: "The device has been logged out successfully.",
+        duration: 3000,
+      });
+      refresh();
+    } catch (err) {
+      console.error("Error revoking device session:", err);
+      toast.error("Error", {
+        description: "Failed to revoke device session",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleVerify2FA = async (code: string) => {
+    if (!twoFactorData) return;
+
+    try {
+      setIsVerifying(true);
+      setVerifyError(null);
+
+      // Send 2FA verification to the same endpoint
+      const response = await fetch(
+        `/api/auth/device-sessions/${twoFactorData.sessionId}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            factorId: twoFactorData.factorId,
+            code,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        setVerifyError(data.error || "Failed to verify code");
+        return;
+      }
+
+      // Success
+      toast.success("Device logged out", {
+        description: "The device has been logged out successfully.",
+        duration: 3000,
+      });
+
+      // Clear state and refresh list
+      setTwoFactorData(null);
+      setShowTwoFactorDialog(false);
+      refresh();
+    } catch (err) {
+      console.error("Error verifying 2FA:", err);
+      setVerifyError("Failed to verify code. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   if (error) {
     return (
@@ -574,23 +693,50 @@ function DeviceList() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {sessions.map((session) => (
-        <DeviceItem
-          key={session.id}
-          deviceName={session.device.device_name}
-          browser={session.device.browser || "Unknown browser"}
-          deviceIcon={
-            session.device.device_name.toLowerCase().includes("iphone") ||
-            session.device.device_name.toLowerCase().includes("android") ? (
-              <SmartphoneIcon className="flex-shrink-0 w-8 h-8" />
-            ) : (
-              <LaptopMinimalIcon className="flex-shrink-0 w-8 h-8" />
-            )
-          }
-          lastActive={new Date(session.last_active)}
-        />
-      ))}
-    </div>
+    <>
+      <div className="flex flex-col gap-6">
+        {sessions.map((session) => (
+          <DeviceItem
+            key={session.id}
+            sessionId={session.session_id}
+            deviceName={session.device.device_name}
+            browser={session.device.browser || "Unknown browser"}
+            deviceIcon={
+              session.device.device_name.toLowerCase().includes("iphone") ||
+              session.device.device_name.toLowerCase().includes("android") ? (
+                <SmartphoneIcon className="flex-shrink-0 w-8 h-8" />
+              ) : (
+                <LaptopMinimalIcon className="flex-shrink-0 w-8 h-8" />
+              )
+            }
+            lastActive={new Date(session.last_active)}
+            onRevoke={handleRevoke}
+          />
+        ))}
+      </div>
+
+      {showTwoFactorDialog && twoFactorData && (
+        <Dialog
+          open={showTwoFactorDialog}
+          onOpenChange={setShowTwoFactorDialog}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify your identity</DialogTitle>
+              <DialogDescription>
+                Please enter your two-factor authentication code to continue.
+              </DialogDescription>
+            </DialogHeader>
+            <TwoFactorVerifyForm
+              factorId={twoFactorData.factorId}
+              availableMethods={twoFactorData.availableMethods}
+              onVerify={handleVerify2FA}
+              isVerifying={isVerifying}
+              error={verifyError}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }

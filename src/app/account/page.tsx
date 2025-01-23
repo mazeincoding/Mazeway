@@ -54,15 +54,29 @@ export default function Account() {
     setIsUpdating(true);
 
     try {
+      // First validate the complete form data
       profileSchema.parse(formData);
       setErrors({});
+
+      // Get changed fields only
+      const changedData: Partial<ProfileSchema> = {};
+      if (user) {
+        if (formData.name !== user.name) changedData.name = formData.name;
+        if (formData.email !== user.email) changedData.email = formData.email;
+      }
+
+      // Only proceed if there are changes
+      if (Object.keys(changedData).length === 0) {
+        toast.info("No changes to save");
+        return;
+      }
 
       const response = await fetch("/api/auth/user/update", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ data: changedData }),
       });
 
       const data = await response.json();

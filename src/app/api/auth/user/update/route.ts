@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { profileSchema } from "@/utils/validation/auth-validation";
+import { profileUpdateSchema } from "@/utils/validation/auth-validation";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Validate request body
     const body = await request.json();
-    const validation = profileSchema.safeParse(body);
+    const validation = profileUpdateSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { name, email } = validation.data;
+    const updateData = validation.data.data;
 
     // If email is being changed, update auth email first
-    if (email !== user.email) {
+    if (updateData.email && updateData.email !== user.email) {
       const { error: updateAuthError } = await supabase.auth.updateUser({
-        email,
+        email: updateData.email,
       });
 
       if (updateAuthError) {
@@ -64,8 +64,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from("users")
       .update({
-        name,
-        email,
+        ...updateData,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);

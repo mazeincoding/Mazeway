@@ -46,13 +46,23 @@ export const validateFormData = (
   return { error: null, data: result.data };
 };
 
-export const profileSchema = z.object({
+export const userFields = {
   name: z
     .string()
     .min(2, "Name must be at least 2 characters")
     .max(50, "Name cannot be longer than 50 characters"),
   email: authSchema.shape.email,
+  // Add any other user fields here
+} as const;
+
+export const profileSchema = z.object(userFields);
+
+export const profileUpdateSchema = z.object({
+  data: z.object(userFields).partial(),
 });
+
+export type ProfileSchema = z.infer<typeof profileSchema>;
+export type ProfileUpdateSchema = z.infer<typeof profileUpdateSchema>;
 
 export const passwordChangeSchema = z
   .object({
@@ -65,7 +75,6 @@ export const passwordChangeSchema = z
     path: ["confirmPassword"],
   });
 
-export type ProfileSchema = z.infer<typeof profileSchema>;
 export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;
 
 export const twoFactorVerificationSchema = z.object({

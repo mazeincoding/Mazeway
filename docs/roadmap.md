@@ -43,7 +43,7 @@
         - [x] Update security page to work with SMS
     - [ ] Require 2FA when:
         - [x] Trying to login
-        - [ ] Changing password
+        - [x] Changing password
         - [ ] Revoking device session
         - [ ] Changing email
         - [ ] Turning off 2FA itself

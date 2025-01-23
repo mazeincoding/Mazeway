@@ -29,6 +29,7 @@ import Link from "next/link";
 import { TwoFactorSetupDialog } from "@/components/2fa-setup-dialog";
 import { AUTH_CONFIG } from "@/config/auth";
 import { TTwoFactorMethod } from "@/types/auth";
+import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -50,6 +51,12 @@ export default function Security() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState<{
+    factorId: string;
+    availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
+    newPassword: string;
+  } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -104,6 +111,17 @@ export default function Security() {
         return;
       }
 
+      // Check if 2FA is required
+      if (data.requiresTwoFactor) {
+        setTwoFactorData({
+          factorId: data.factorId,
+          availableMethods: data.availableMethods,
+          newPassword: data.newPassword,
+        });
+        setShowTwoFactorDialog(true);
+        return;
+      }
+
       // Success
       toast.success(hasPasswordAuth ? "Password updated" : "Password added", {
         description: hasPasswordAuth
@@ -133,6 +151,63 @@ export default function Security() {
           duration: 3000,
         });
       }
+    }
+  };
+
+  const handleVerify2FA = async (code: string) => {
+    if (!twoFactorData) return;
+
+    try {
+      setIsVerifying(true);
+      setError(null);
+
+      // Complete password change with 2FA verification
+      const response = await fetch("/api/auth/change-password/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          factorId: twoFactorData.factorId,
+          code,
+          newPassword: twoFactorData.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        setError(data.error || "Failed to verify code");
+        return;
+      }
+
+      // Success
+      toast.success(hasPasswordAuth ? "Password updated" : "Password added", {
+        description: hasPasswordAuth
+          ? "Your password has been changed successfully."
+          : "Password has been added to your account. You can now use it to log in.",
+        duration: 3000,
+      });
+
+      // Clear form and state
+      setFormData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setTwoFactorData(null);
+      setShowTwoFactorDialog(false);
+    } catch (err) {
+      console.error("Error verifying 2FA:", err);
+      setError("Failed to verify code. Please try again.");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -350,6 +425,29 @@ export default function Security() {
           error={error}
           isVerifying={isVerifying}
         />
+      )}
+
+      {showTwoFactorDialog && twoFactorData && (
+        <Dialog
+          open={showTwoFactorDialog}
+          onOpenChange={setShowTwoFactorDialog}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify your identity</DialogTitle>
+              <DialogDescription>
+                Please enter your two-factor authentication code to continue.
+              </DialogDescription>
+            </DialogHeader>
+            <TwoFactorVerifyForm
+              factorId={twoFactorData.factorId}
+              availableMethods={twoFactorData.availableMethods}
+              onVerify={handleVerify2FA}
+              isVerifying={isVerifying}
+              error={error}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       <SettingCard

@@ -2,9 +2,8 @@ import { createClient } from "@/utils/supabase/server";
 import { validateFormData } from "@/utils/validation/auth-validation";
 import { NextResponse } from "next/server";
 import { authRateLimit } from "@/utils/rate-limit";
-import { AUTH_CONFIG } from "@/config/auth";
 import { TApiErrorResponse, TEmailLoginResponse } from "@/types/api";
-import { TTwoFactorMethod } from "@/types/auth";
+import { checkTwoFactorRequirements } from "@/utils/auth/two-factor";
 
 export async function POST(request: Request) {
   try {
@@ -45,74 +44,22 @@ export async function POST(request: Request) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if 2FA is enabled in config
-    if (AUTH_CONFIG.twoFactorAuth.enabled) {
-      // Get all enabled 2FA methods from config
-      const enabledMethods = AUTH_CONFIG.twoFactorAuth.methods.filter(
-        (m) => m.enabled
-      );
+    try {
+      // Check if 2FA is required
+      const twoFactorResult = await checkTwoFactorRequirements(supabase);
 
-      if (enabledMethods.length > 0) {
-        // Get user's enrolled factors
-        const { data, error: factorsError } =
-          await supabase.auth.mfa.listFactors();
-
-        if (factorsError) {
-          console.error("Error getting MFA factors:", factorsError);
-          return NextResponse.json(
-            { error: "Failed to check 2FA status" },
-            { status: 500 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-
-        const availableMethods: Array<{
-          type: TTwoFactorMethod;
-          factorId: string;
-        }> = [];
-
-        // Check for verified TOTP factors
-        if (data?.totp) {
-          const verifiedTOTP = data.totp.filter(
-            (factor) => factor.status === "verified"
-          );
-
-          if (verifiedTOTP.length > 0) {
-            availableMethods.push({
-              type: "authenticator",
-              factorId: verifiedTOTP[0].id,
-            });
-          }
-        }
-
-        // Check for verified SMS factors
-        if (data?.phone) {
-          const verifiedSMS = data.phone.filter(
-            (factor) => factor.status === "verified"
-          );
-
-          if (verifiedSMS.length > 0) {
-            availableMethods.push({
-              type: "sms",
-              factorId: verifiedSMS[0].id,
-            });
-          }
-        }
-
-        // If user has any verified factors, require 2FA
-        if (availableMethods.length > 0) {
-          // Default to authenticator if available, otherwise first available method
-          const defaultMethod =
-            availableMethods.find((m) => m.type === "authenticator") ||
-            availableMethods[0];
-
-          return NextResponse.json({
-            requiresTwoFactor: true,
-            factorId: defaultMethod.factorId,
-            availableMethods,
-            redirectTo: redirectUrl,
-          }) satisfies NextResponse<TEmailLoginResponse>;
-        }
+      if (twoFactorResult.requiresTwoFactor) {
+        return NextResponse.json({
+          ...twoFactorResult,
+          redirectTo: redirectUrl,
+        }) satisfies NextResponse<TEmailLoginResponse>;
       }
+    } catch (error) {
+      console.error("Error checking 2FA requirements:", error);
+      return NextResponse.json(
+        { error: "Failed to check 2FA status" },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
 
     // If no 2FA required or not configured, proceed with login

@@ -1,4 +1,9 @@
-import { TDeviceInfo, TDeviceSession, TTwoFactorMethod } from "./auth";
+import {
+  TDeviceInfo,
+  TDeviceSession,
+  TTwoFactorMethod,
+  TwoFactorRequirement,
+} from "./auth";
 
 // ===== REQUEST TYPES =====
 
@@ -63,14 +68,13 @@ export interface TVerify2FAResponse {
 }
 
 // /api/auth/email/login
-export interface TEmailLoginResponse {
-  requiresTwoFactor: boolean;
-  factorId?: string;
-  availableMethods?: Array<{
-    type: TTwoFactorMethod;
-    factorId: string;
-  }>;
+export interface TEmailLoginResponse extends TwoFactorRequirement {
   redirectTo: string;
+}
+
+// /api/auth/change-password
+export interface TPasswordChangeResponse extends TwoFactorRequirement {
+  newPassword?: string;
 }
 
 // Generic success response

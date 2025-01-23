@@ -11,6 +11,15 @@ export type TVerificationLevel = "none" | "light" | "full";
 
 export type TTwoFactorMethod = "authenticator" | "sms";
 
+export interface TwoFactorRequirement {
+  requiresTwoFactor: boolean;
+  factorId?: string;
+  availableMethods?: Array<{
+    type: TTwoFactorMethod;
+    factorId: string;
+  }>;
+}
+
 export interface TDeviceSession {
   id: string;
   user_id: string;

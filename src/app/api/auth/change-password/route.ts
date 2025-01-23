@@ -16,8 +16,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
-import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import { TApiErrorResponse, TPasswordChangeResponse } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
+import { checkTwoFactorRequirements } from "@/utils/auth/two-factor";
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,7 +80,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update/add password
+    // Check if 2FA is required
+    try {
+      const twoFactorResult = await checkTwoFactorRequirements(supabase);
+
+      if (twoFactorResult.requiresTwoFactor) {
+        return NextResponse.json({
+          ...twoFactorResult,
+          newPassword,
+        }) satisfies NextResponse<TPasswordChangeResponse>;
+      }
+    } catch (error) {
+      console.error("Error checking 2FA requirements:", error);
+      return NextResponse.json(
+        { error: "Failed to check 2FA status" },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // If no 2FA required or not configured, update password
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -92,10 +111,9 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    return NextResponse.json(
-      {},
-      { status: 200 }
-    ) satisfies NextResponse<TEmptySuccessResponse>;
+    return NextResponse.json({
+      requiresTwoFactor: false,
+    }) satisfies NextResponse<TPasswordChangeResponse>;
   } catch (error) {
     console.error("Error in change password:", error);
     return NextResponse.json(

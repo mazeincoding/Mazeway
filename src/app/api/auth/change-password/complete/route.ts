@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
 import { twoFactorVerificationSchema } from "@/utils/validation/auth-validation";
-import { verifyTwoFactorCode } from "@/utils/auth/two-factor";
+import { verifyTwoFactorCode } from "@/utils/two-factor";
 
 export async function POST(request: NextRequest) {
   try {

@@ -30,6 +30,12 @@ import { TwoFactorSetupDialog } from "@/components/2fa-setup-dialog";
 import { AUTH_CONFIG } from "@/config/auth";
 import { TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
+import { useDeviceSessions } from "@/hooks/use-device-sessions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatRelativeTime } from "@/lib/utils";
+import { isDeviceSessionActive } from "@/utils/device-sessions";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -455,20 +461,7 @@ export default function Security() {
         title="Manage devices"
         description="Manage the devices you're logged into."
       >
-        <div className="flex flex-col gap-6">
-          <DeviceItem
-            deviceName="iPhone 11"
-            browser="Safari"
-            deviceIcon={<SmartphoneIcon className="flex-shrink-0 w-8 h-8" />}
-            deviceStatus="active"
-          />
-          <DeviceItem
-            deviceName="DESKTOP-ABC123"
-            browser="Microsoft Edge"
-            deviceIcon={<LaptopMinimalIcon className="flex-shrink-0 w-8 h-8" />}
-            deviceStatus="inactive"
-          />
-        </div>
+        <DeviceList />
       </SettingCard>
     </div>
   );
@@ -478,14 +471,14 @@ interface DeviceItemProps {
   deviceName: string;
   browser: string;
   deviceIcon: React.ReactNode;
-  deviceStatus: "active" | "inactive";
+  lastActive: Date;
 }
 
 function DeviceItem({
   deviceName,
   browser,
   deviceIcon,
-  deviceStatus,
+  lastActive,
 }: DeviceItemProps) {
   return (
     <Dialog>
@@ -496,7 +489,7 @@ function DeviceItem({
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold">{deviceName}</h3>
-                <DeviceStatus deviceStatus={deviceStatus} />
+                <DeviceStatus lastActive={lastActive} />
               </div>
               <p className="text-sm text-muted-foreground">{browser}</p>
             </div>
@@ -512,9 +505,7 @@ function DeviceItem({
         </DialogHeader>
         <InfoItem label="Device name" value={deviceName} />
         <InfoItem label="Browser" value={browser} />
-        <InfoItem label="OS" value="Not available" />
-        <InfoItem label="IP Address" value="192.168.1.1" />
-        <InfoItem label="Last active" value="1 hour ago" />
+        <InfoItem label="Last active" value={formatRelativeTime(lastActive)} />
         <DialogFooter>
           <Button variant="destructive" className="w-full">
             Log out from this device
@@ -525,23 +516,22 @@ function DeviceItem({
   );
 }
 
-function DeviceStatus({
-  deviceStatus,
-}: {
-  deviceStatus: "active" | "inactive";
-}) {
+function DeviceStatus({ lastActive }: { lastActive: Date }) {
+  const isActive = isDeviceSessionActive(lastActive);
+  const lastActiveText = formatRelativeTime(lastActive);
+
   return (
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
           className={cn(
             "w-2 h-2 rounded-full cursor-pointer",
-            deviceStatus === "active" ? "bg-green-500" : "bg-red-500"
+            isActive ? "bg-green-500" : "bg-red-500"
           )}
         />
       </TooltipTrigger>
       <TooltipContent>
-        {deviceStatus === "active" ? "Active" : "Last active 1 hour ago"}
+        {isActive ? "Currently active" : `Last active ${lastActiveText}`}
       </TooltipContent>
     </Tooltip>
   );
@@ -552,6 +542,55 @@ function InfoItem({ label, value }: { label: string; value: string }) {
     <div className="flex flex-col gap-2">
       <Label className="text-sm text-muted-foreground">{label}</Label>
       <p className="text-xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function DeviceList() {
+  const { sessions, isLoading, error } = useDeviceSessions();
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground">No devices found</div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {sessions.map((session) => (
+        <DeviceItem
+          key={session.id}
+          deviceName={session.device.device_name}
+          browser={session.device.browser || "Unknown browser"}
+          deviceIcon={
+            session.device.device_name.toLowerCase().includes("iphone") ||
+            session.device.device_name.toLowerCase().includes("android") ? (
+              <SmartphoneIcon className="flex-shrink-0 w-8 h-8" />
+            ) : (
+              <LaptopMinimalIcon className="flex-shrink-0 w-8 h-8" />
+            )
+          }
+          lastActive={new Date(session.last_active)}
+        />
+      ))}
     </div>
   );
 }

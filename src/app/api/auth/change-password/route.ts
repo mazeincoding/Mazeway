@@ -18,7 +18,7 @@ import { createClient } from "@/utils/supabase/server";
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
 import { TApiErrorResponse, TPasswordChangeResponse } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
-import { checkTwoFactorRequirements } from "@/utils/auth/two-factor";
+import { checkTwoFactorRequirements } from "@/utils/two-factor";
 
 export async function POST(request: NextRequest) {
   try {

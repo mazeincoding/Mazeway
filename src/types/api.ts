@@ -66,6 +66,10 @@ export interface TVerify2FAResponse {
 export interface TEmailLoginResponse {
   requiresTwoFactor: boolean;
   factorId?: string;
+  availableMethods?: Array<{
+    type: TTwoFactorMethod;
+    factorId: string;
+  }>;
   redirectTo: string;
 }
 

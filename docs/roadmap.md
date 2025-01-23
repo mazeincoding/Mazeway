@@ -47,7 +47,7 @@
         - [ ] Revoking device session
         - [ ] Changing email
         - [ ] Turning off 2FA itself
-    - [ ] Ensure when 2FA verification is needed in the flow, we handle authenticator and SMS
+    - [x] Ensure when 2FA verification is needed in the flow, we handle authenticator and SMS
 - [ ] Revise flow
     - When 2FA is enabled:
         - [ ] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first?

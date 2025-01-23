@@ -63,6 +63,7 @@ export default function Security() {
     availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
     newPassword: string;
   } | null>(null);
+  const { refreshUser } = useUserStore();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -316,7 +317,7 @@ export default function Security() {
       });
 
       // Refresh user data to update 2FA status
-      await useUserStore.getState().refreshUser();
+      await refreshUser();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to verify code");
     } finally {

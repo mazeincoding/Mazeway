@@ -2,6 +2,7 @@ import {
   TDeviceInfo,
   TDeviceSession,
   TTwoFactorMethod,
+  TUserWithAuth,
   TwoFactorRequirement,
 } from "./auth";
 
@@ -80,6 +81,11 @@ export interface TPasswordChangeResponse extends TwoFactorRequirement {
 // /api/auth/device-sessions/[id]
 export interface TRevokeDeviceSessionResponse extends TwoFactorRequirement {
   sessionId: string;
+}
+
+// /api/user
+export interface TGetUserResponse {
+  user: TUserWithAuth;
 }
 
 // Generic success response

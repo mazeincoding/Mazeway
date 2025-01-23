@@ -73,54 +73,17 @@ export const useUserStore = create<UserState>((set) => ({
     }
   },
 
-  updateUser: async (updates) => {
-    const supabase = createClient();
-    set({ isLoading: true, error: null });
+  updateUser: async (updates: Partial<TUser>) => {
+    set((state) => {
+      if (!state.user) return state;
 
-    try {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (!authUser) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from("users")
-        .update(updates)
-        .eq("id", authUser.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Get MFA status for update too
-      const { data: mfaData } = await supabase.auth.mfa.listFactors();
-      const enabledMethods: TTwoFactorMethod[] =
-        mfaData?.all
-          ?.filter((factor) => factor.status === "verified")
-          .map((factor) =>
-            factor.factor_type === "totp" ? "authenticator" : "sms"
-          ) || [];
-
-      const userWithAuth: TUserWithAuth = {
-        ...data,
-        auth: {
-          providers:
-            authUser.identities?.map((identity) => identity.provider) || [],
-          emailVerified: !!authUser.email_confirmed_at,
-          lastSignInAt: authUser.last_sign_in_at,
-          twoFactorEnabled: enabledMethods.length > 0,
-          twoFactorMethods: enabledMethods,
-        },
+      const updatedUser: TUserWithAuth = {
+        ...state.user,
+        ...updates,
       };
 
-      set({ user: userWithAuth, isLoading: false });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : "Failed to update user",
-        isLoading: false,
-      });
-    }
+      return { user: updatedUser, error: null };
+    });
   },
 
   logout: async () => {

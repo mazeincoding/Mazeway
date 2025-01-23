@@ -16,16 +16,13 @@ import { toast } from "sonner";
 type FormErrors = Partial<Record<keyof ProfileSchema, string>>;
 
 export default function Account() {
-  // TODO: Consider using API routes over the store
-  // But we also have the store for a reason
-  // To update the entire app, and stores can't be updated from the API routes
-  // Maybe we need to first call API route, then update store?
-  const { user, isLoading, updateUser } = useUserStore();
+  const { user, updateUser } = useUserStore();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -53,11 +50,29 @@ export default function Account() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsUpdating(true);
 
     try {
       profileSchema.parse(formData);
       setErrors({});
+
+      const response = await fetch("/api/auth/user/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error);
+      }
+
+      // Update store after successful API call
       await updateUser(formData);
+
       toast.success("Profile updated", {
         description: "Your profile has been updated successfully.",
         duration: 3000,
@@ -73,10 +88,15 @@ export default function Account() {
         setErrors(newErrors);
       } else {
         toast.error("Error", {
-          description: "Failed to update profile. Please try again.",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to update profile. Please try again.",
           duration: 3000,
         });
       }
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -87,7 +107,7 @@ export default function Account() {
         title="Basic information"
         description="Manage your basic information."
         footer={
-          <Button type="submit" form="account-form" disabled={isLoading}>
+          <Button type="submit" form="account-form" disabled={isUpdating}>
             Save
           </Button>
         }
@@ -103,7 +123,7 @@ export default function Account() {
             placeholder="John Doe"
             value={formData.name}
             onChange={handleChange}
-            disabled={isLoading}
+            disabled={isUpdating}
             error={errors.name}
           />
           <FormField
@@ -113,7 +133,7 @@ export default function Account() {
             placeholder="john.doe@example.com"
             value={formData.email}
             onChange={handleChange}
-            disabled={isLoading}
+            disabled={isUpdating}
             error={errors.email}
           />
         </form>

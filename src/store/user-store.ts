@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { TUser, TUserWithAuth } from "@/types/auth";
+import type { TGetUserResponse, TApiErrorResponse } from "@/types/api";
 
 interface UserState {
   user: TUserWithAuth | null;
@@ -12,6 +13,7 @@ interface UserState {
   setError: (error: string | null) => void;
   updateUser: (updates: Partial<TUser>) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 export const useUserStore = create<UserState>((set) => ({
@@ -38,5 +40,25 @@ export const useUserStore = create<UserState>((set) => ({
 
   logout: () => {
     set({ user: null, error: null });
+  },
+
+  refreshUser: async () => {
+    set({ isLoading: true, error: null });
+
+    const response = await fetch("/api/user").catch(() => {
+      set({ error: "Failed to fetch user", isLoading: false });
+      return null;
+    });
+
+    if (!response) return;
+
+    if (!response.ok) {
+      const { error } = (await response.json()) as TApiErrorResponse;
+      set({ error, isLoading: false });
+      return;
+    }
+
+    const { user } = (await response.json()) as TGetUserResponse;
+    set({ user, isLoading: false });
   },
 }));

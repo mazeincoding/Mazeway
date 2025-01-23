@@ -316,7 +316,7 @@ export default function Security() {
       });
 
       // Refresh user data to update 2FA status
-      await useUserStore.getState().fetchUser();
+      await useUserStore.getState().refreshUser();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to verify code");
     } finally {

@@ -16,6 +16,10 @@ import { toast } from "sonner";
 type FormErrors = Partial<Record<keyof ProfileSchema, string>>;
 
 export default function Account() {
+  // TODO: Consider using API routes over the store
+  // But we also have the store for a reason
+  // To update the entire app, and stores can't be updated from the API routes
+  // Maybe we need to first call API route, then update store?
   const { user, isLoading, updateUser } = useUserStore();
   const [formData, setFormData] = useState({
     name: "",

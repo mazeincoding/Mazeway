@@ -50,7 +50,13 @@
     - [x] Ensure when 2FA verification is needed in the flow, we handle authenticator and SMS
 - [ ] Revise flow
     - When 2FA is enabled:
-        - [ ] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first?
+        - [x] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first? (yes)
+            - They're two different things
+            - And serve different purposes
+            - Device verification isn't just security
+            - It's about keeping a list of trusted devices
+            - A history of logged in devices
+            - And build trust with future devices
         - [x] Will they need to verify through 2FA on ALL logins? (yes)
 - [ ] Double check flow (just through the code) to ensure shit makes sense and it follows our initial plan.
 - [ ] Figure out what the fuck we're gonna do with dev/production in Supabase. We'll (probably) need to update the README to clarify things or even more steps. (please never finish the other things so we never get to this painful thing)

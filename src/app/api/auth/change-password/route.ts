@@ -30,6 +30,11 @@ import {
   twoFactorVerificationSchema,
 } from "@/utils/validation/auth-validation";
 
+// Helper to check if user is OAuth-only
+function isOAuthOnlyUser(providers: string[]) {
+  return providers.length > 0 && !providers.includes("email");
+}
+
 export async function POST(request: NextRequest) {
   if (apiRateLimit) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
@@ -58,6 +63,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    // Get user's auth providers from the user object
+    const providers = user.app_metadata.providers || [];
+    const isOAuthUser = isOAuthOnlyUser(providers);
 
     const body = await request.json();
 
@@ -110,17 +119,20 @@ export async function POST(request: NextRequest) {
 
     const { currentPassword, newPassword } = validation.data;
 
-    // Verify current password
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email!,
-      password: currentPassword,
-    });
+    // For OAuth users, skip current password verification
+    if (!isOAuthUser) {
+      // Verify current password for non-OAuth users
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: currentPassword,
+      });
 
-    if (signInError) {
-      return NextResponse.json(
-        { error: "Current password is incorrect" },
-        { status: 400 }
-      ) satisfies NextResponse<TApiErrorResponse>;
+      if (signInError) {
+        return NextResponse.json(
+          { error: "Current password is incorrect" },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
     }
 
     // Check if 2FA is required
@@ -146,7 +158,16 @@ export async function POST(request: NextRequest) {
       password: newPassword,
     });
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      // Special handling for OAuth users
+      if (isOAuthUser && updateError.message.includes("identity_not_found")) {
+        return NextResponse.json(
+          { error: "Cannot add password. Please contact support." },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+      throw updateError;
+    }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {

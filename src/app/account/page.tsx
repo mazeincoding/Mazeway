@@ -99,19 +99,21 @@ export default function Account() {
         return;
       }
 
-      // Success
-      toast.success("Email updated", {
-        description:
-          "Your email has been updated successfully. Please verify your new email address.",
-        duration: 3000,
+      // Success - email verification will be sent
+      toast.success("Verification email sent", {
+        description: "Please check your new email address for verification.",
+        duration: 5000,
       });
 
       // Clear state
       setTwoFactorData(null);
       setShowTwoFactorDialog(false);
 
-      // Update local user data
-      await updateUser({ ...user!, email: twoFactorData.newEmail });
+      // Reset form to current email since change isn't complete yet
+      setFormData((prev) => ({
+        ...prev,
+        email: user?.email || "",
+      }));
     } catch (err) {
       console.error("Error verifying 2FA:", err);
       setError("Failed to verify code. Please try again.");
@@ -171,15 +173,18 @@ export default function Account() {
             return;
           }
 
-          // If no 2FA required, email will be updated
-          toast.success("Email updated", {
+          // If no 2FA required, show verification message
+          toast.success("Verification email sent", {
             description:
-              "Your email has been updated successfully. Please verify your new email address.",
-            duration: 3000,
+              "Please check your new email address for verification.",
+            duration: 5000,
           });
 
-          // Update local user data
-          await updateUser({ ...user, email: formData.email });
+          // Reset form to current email since change isn't complete yet
+          setFormData((prev) => ({
+            ...prev,
+            email: user.email,
+          }));
         } catch (error) {
           toast.error("Error", {
             description:

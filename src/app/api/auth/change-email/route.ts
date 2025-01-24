@@ -16,25 +16,14 @@ import {
 } from "@/utils/validation/auth-validation";
 import { SupabaseClient } from "@supabase/supabase-js";
 
-async function updateUserEmail(
-  supabase: SupabaseClient,
-  userId: string,
-  newEmail: string
-) {
-  // Update email in auth
+async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
+  // Update email in auth - this will trigger Supabase to send verification email
+  // We're not updating the user profile in the DB because the user needs to verify the new email first
   const { error: updateError } = await supabase.auth.updateUser({
     email: newEmail,
   });
 
   if (updateError) throw updateError;
-
-  // Update user profile in database
-  const { error: profileError } = await supabase
-    .from("users")
-    .update({ email: newEmail })
-    .eq("id", userId);
-
-  if (profileError) throw profileError;
 }
 
 export async function POST(request: NextRequest) {
@@ -84,10 +73,10 @@ export async function POST(request: NextRequest) {
 
       try {
         await verifyTwoFactorCode(supabase, factorId, code);
-        await updateUserEmail(supabase, user.id, newEmail);
-        return NextResponse.json(
-          {}
-        ) satisfies NextResponse<TEmptySuccessResponse>;
+        await updateUserEmail(supabase, newEmail);
+        return NextResponse.json({
+          message: "Please check your new email for verification",
+        });
       } catch (error) {
         return NextResponse.json(
           {
@@ -130,10 +119,10 @@ export async function POST(request: NextRequest) {
       }
 
       // If no 2FA required, update email directly
-      await updateUserEmail(supabase, user.id, newEmail);
-      return NextResponse.json(
-        {}
-      ) satisfies NextResponse<TEmptySuccessResponse>;
+      await updateUserEmail(supabase, newEmail);
+      return NextResponse.json({
+        message: "Please check your new email for verification",
+      });
     } catch (error) {
       console.error("Error in email change flow:", error);
       return NextResponse.json(

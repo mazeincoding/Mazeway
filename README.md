@@ -1,18 +1,37 @@
-# Auth Starterpack (Supabase, Next.js, Resend, Shadcn UI)
+# Mazeway Auth
+Authentication should live in your project, not a node_modules folder.
 
-You just opened the door to the complete authentication starter pack your users will **love**.
+Think Clerk, but you own the code.
 
-> How is this project different from Clerk and other auth solutions?
+This is a complete, production-ready auth starter for anyone, including enterprise.
 
-Remember:
-- Bootstrap?
-- Material UI?
-- Chakra UI?
-- Ant Design?
+People like [Shadcn UI](ui.shadcn.com) because:
+- the components are in YOUR project
+- you own them
+- you can do whatever you want
+- they don't belong in a node_modules folder
 
-They all solved the same problem, but created yet another one... **lack of customization**. They were very limited. Then Shadcn UI came around, and solved that problem by focusing on copy-paste components. You owned all the code, and you could customize it exactly how you wanted. It was like the ultimate UI starter pack that you could just build on.
+Comparing Shadcn UI to bootstrap is like comparing Mazeway to Clerk:
+**Clerk**:
+- locked in
+- gets expensive quick
+- can't self host
+- limited customization
+- closed-source
+- still lacks some auth (that you can't add)
 
-That's exactly the difference between Clerk and this starter pack: you own all the code. It's yours! You can do whatever you want, scale it, add more things. It's the ultimate foundation of your app's authentication.
+**Mazeway**:
+- affordable thanks to Supabase
+- can be self-hosted
+- unlimited customization
+- open-source
+- actual complete auth
+- plus:
+    - community-driven
+    - more secure
+    - auth config to change common things
+    - later: extensions by the community which makes auth even easier
+    - acts as a foundation, not an end. Start here, build on it.
 
 The project uses modern tech:
 - Next.js 15
@@ -21,6 +40,8 @@ The project uses modern tech:
 - Supabase
 - Resend
 - Upstash Redis
+
+(not all these are required to set up. Because this project is made for that - being minimal)
 
 I see a lot of new apps having only 5% of authentication. Including:
 - Missing login page
@@ -32,7 +53,9 @@ I see a lot of new apps having only 5% of authentication. Including:
 - HUGE bills, for lack of security again
 - This list is usually longer but you get the point
 
-These are the kind of things that should be implemented by default. You shouldn't have to forget these things, and most importantly: users expect to see these things implemented in your app. When they don't, they find it unattractive, unprofessional and sketchy.
+These are the kind of things that should be implemented by default.
+
+That's what this project gives you: a foundation that you can build on.
 
 This starter pack includes all of that, and more.
 
@@ -44,18 +67,22 @@ This starter pack includes all of that, and more.
   - Login/signup pages
   - Password reset
   - Email verification
-  - Sign-in confirmation
-  - Two-factor authentication (2FA)
-- User settings dashboard
-  - Profile management
+  - Device sessions and verification
+  - Two-factor authentication (2FA):
+      - Authenticator App
+      - SMS
+- Settings
+  - Basic profile management
   - Change password
   - Device session management
     - View active sessions
     - Revoke device access
     - Email alerts for new logins
+  - Enable and disable 2FA (including individual methods)
 - API rate limiting with Upstash Redis
+- Bonus: a nice auth config in the project for devs to easily customize
 
-> Unlike many docs written after-the-fact, the following steps were created in real-time as I built the project. Each step was immediately documented after being successfully completed. I'd do one step at a time and then add that step.
+This is only the beginning. It's a great start. But if you're curious, check out `docs/roadmap.md`.
 
 ### ⚠️ Important notice
 The project is not done yet! It's not recommended to use in production until security gaps are fixed and the core auth feature are implemented fully. Changes are still being made to this README (like database updates, setup changes). You can come back to this repo and soon enough, it should be ready.

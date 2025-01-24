@@ -106,6 +106,16 @@ export default function Security() {
           return;
         }
 
+        // Handle OAuth-specific errors
+        if (data.error?.includes("identity_not_found")) {
+          toast.error("Cannot add password", {
+            description:
+              "There was an issue adding a password to your OAuth account. Please try again or contact support.",
+            duration: 4000,
+          });
+          return;
+        }
+
         // Handle other errors
         toast.error("Error", {
           description:

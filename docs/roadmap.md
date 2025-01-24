@@ -1,3 +1,5 @@
+## What matters right now
+
 - [x] Implement device sessions and verification for untrusted devices
 - [x] Create device verification email template
 - [x] Preview the UI of all email templates and tweak if needed
@@ -30,7 +32,7 @@
             - [x] `/api/auth/2fa/disable` (requires current password and 2FA)
         - [x] Show QR code when "Enable 2FA" is clicked
         - [x] Require user to enter code
-        - [ ] Generate recovery codes, show them and allow easy copying
+        - [ ] ~~Generate recovery codes, show them and allow easy copying~~
         - [x] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
     - [x] SMS
         - [x] Figure out if we need to set up any additional services or if Supabase is all we need (need Twilio)
@@ -67,3 +69,27 @@
 - [ ] Figure out what the fuck we're gonna do with dev/production in Supabase. We'll (probably) need to update the README to clarify things or even more steps. (please never finish the other things so we never get to this painful thing)
 - [ ] Set up landing and demo
 - [ ] Add a docs page for our site
+
+## In the future
+**Security Enhancements**
+
+- [ ] Recovery codes generation
+- [ ] Password complexity requirements
+- [ ] Password strength indicator
+- [ ] Password breach checking
+- [ ] CAPTCHA for login
+
+**Authentication Providers**
+- [ ] WebAuthn/FIDO2 support
+- [ ] Magic link authenticator
+- [ ] Additional providers (GitHub, Apple)
+- [ ] Advanced Security Features
+- [ ] Security event logging
+- [ ] Suspicious activity email notifications
+- [ ] Admin dashboard for security monitoring
+- [ ] Security questions as additional recovery option
+- [ ] Account deletion functionality
+
+**CLI direction**
+- [ ] Create a CLI for adding auth to existing projects
+- [ ] Add extensions market for CLI to add features on top by the community

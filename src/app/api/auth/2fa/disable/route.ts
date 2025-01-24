@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
-import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
+import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 
@@ -41,50 +41,12 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { factorId, code, password, method } = validation.data;
+    const { password, code, factorId } = validation.data;
 
-    // 3. Validate method configuration
-    const methodConfig = AUTH_CONFIG.twoFactorAuth.methods.find(
-      (m) => m.type === method
-    );
-    if (!methodConfig?.enabled) {
-      return NextResponse.json(
-        { error: `${method} method is not enabled` },
-        { status: 403 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    // 4. Get client IP securely
+    // 3. Get client IP securely
     const clientIp = getClientIp(request);
 
-    // 5. Apply rate limits in order of most specific to least specific
-    if (method === "sms" && smsRateLimit) {
-      // Check user-based rate limit first
-      const { success: userSuccess } = await smsRateLimit.user.limit(user.id);
-      if (!userSuccess) {
-        return NextResponse.json(
-          {
-            error:
-              "Daily SMS limit reached for this account. Please try again tomorrow.",
-          },
-          { status: 429 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-
-      // Then check IP-based rate limit
-      const { success: ipSuccess } = await smsRateLimit.ip.limit(clientIp);
-      if (!ipSuccess) {
-        return NextResponse.json(
-          {
-            error:
-              "Too many SMS requests from this IP. Please try again later.",
-          },
-          { status: 429 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
-
-    // 6. Apply general auth rate limit last
+    // 4. Apply rate limits
     if (authRateLimit) {
       const { success } = await authRateLimit.limit(clientIp);
       if (!success) {
@@ -95,7 +57,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Verify password first
+    // 5. Verify password first
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: user.email!,
       password,
@@ -108,7 +70,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 8. Create challenge
+    // 6. Create challenge
     const { data: challengeData, error: challengeError } =
       await supabase.auth.mfa.challenge({ factorId });
     if (challengeError) {
@@ -119,7 +81,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 9. Verify the code
+    // 7. Verify the code
     const { error: verifyError } = await supabase.auth.mfa.verify({
       factorId,
       challengeId: challengeData.id,
@@ -127,24 +89,48 @@ export async function POST(request: NextRequest) {
     });
 
     if (verifyError) {
-      console.error(`Failed to verify ${method} code:`, verifyError);
+      console.error("Failed to verify code:", verifyError);
       return NextResponse.json(
         { error: verifyError.message },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 10. If both password and code are verified, unenroll the factor
-    const { error: unenrollError } = await supabase.auth.mfa.unenroll({
-      factorId,
-    });
+    // 8. Handle disabling based on type
+    if (validation.data.type === "all") {
+      // Get all enrolled factors
+      const { data: factors } = await supabase.auth.mfa.listFactors();
 
-    if (unenrollError) {
-      console.error("Failed to disable 2FA:", unenrollError);
-      return NextResponse.json(
-        { error: unenrollError.message },
-        { status: 500 }
-      ) satisfies NextResponse<TApiErrorResponse>;
+      // Unenroll all verified factors
+      const unenrollPromises = factors?.all
+        ?.filter((factor) => factor.status === "verified")
+        .map((factor) => supabase.auth.mfa.unenroll({ factorId: factor.id }));
+
+      if (unenrollPromises?.length) {
+        const results = await Promise.all(unenrollPromises);
+        const errors = results.filter((r) => r.error).map((r) => r.error);
+
+        if (errors.length) {
+          console.error("Failed to disable all 2FA factors:", errors);
+          return NextResponse.json(
+            { error: "Failed to disable all 2FA factors" },
+            { status: 500 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
+      }
+    } else {
+      // Disable specific method
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+        factorId,
+      });
+
+      if (unenrollError) {
+        console.error("Failed to disable 2FA method:", unenrollError);
+        return NextResponse.json(
+          { error: unenrollError.message },
+          { status: 500 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
     }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;

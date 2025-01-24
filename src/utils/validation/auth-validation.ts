@@ -106,16 +106,29 @@ export const validateTwoFactorCode = (code: string) => {
   };
 };
 
-export const disable2FASchema = z.object({
-  factorId: z.string().min(1, "Factor ID is required"),
-  method: z.enum(["authenticator", "sms"] as const),
-  code: z
-    .string()
-    .min(6, "Code must be 6 digits")
-    .max(6, "Code must be 6 digits")
-    .regex(/^\d+$/, "Code must contain only numbers"),
-  password: z.string().min(1, "Current password is required"),
-});
+export const disable2FASchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("method"),
+    factorId: z.string().min(1, "Factor ID is required"),
+    method: z.enum(["authenticator", "sms"] as const),
+    code: z
+      .string()
+      .min(6, "Code must be 6 digits")
+      .max(6, "Code must be 6 digits")
+      .regex(/^\d+$/, "Code must contain only numbers"),
+    password: z.string().min(1, "Current password is required"),
+  }),
+  z.object({
+    type: z.literal("all"),
+    password: z.string().min(1, "Current password is required"),
+    code: z
+      .string()
+      .min(6, "Code must be 6 digits")
+      .max(6, "Code must be 6 digits")
+      .regex(/^\d+$/, "Code must contain only numbers"),
+    factorId: z.string().min(1, "Factor ID is required"),
+  }),
+]);
 
 export type Disable2FASchema = z.infer<typeof disable2FASchema>;
 

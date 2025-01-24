@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { TwoFactorSetupDialog } from "@/components/2fa-setup-dialog";
 import { AUTH_CONFIG } from "@/config/auth";
 import { TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
@@ -36,6 +35,8 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatRelativeTime } from "@/lib/utils";
 import { isDeviceSessionActive } from "@/utils/device-sessions";
+import { Manage2FADialog } from "@/components/manage-2fa-dialog";
+import { createClient } from "@/utils/supabase/client";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -48,13 +49,7 @@ export default function Security() {
     confirmPassword: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [showSetupDialog, setShowSetupDialog] = useState(false);
-  const [setupData, setSetupData] = useState<{
-    qrCode?: string;
-    secret?: string;
-    factorId: string;
-    method: TTwoFactorMethod;
-  } | null>(null);
+  const [showManage2FADialog, setShowManage2FADialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
@@ -62,7 +57,9 @@ export default function Security() {
     factorId: string;
     availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
     newPassword: string;
+    password: string;
   } | null>(null);
+  const supabase = createClient();
   const { refreshUser } = useUserStore();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,6 +121,7 @@ export default function Security() {
           factorId: data.factorId,
           availableMethods: data.availableMethods,
           newPassword: data.newPassword,
+          password: "",
         });
         setShowTwoFactorDialog(true);
         return;
@@ -168,7 +166,51 @@ export default function Security() {
       setIsVerifying(true);
       setError(null);
 
-      // Send 2FA verification to the same endpoint
+      // If we're disabling 2FA (no newPassword means we're disabling)
+      if (!twoFactorData.newPassword) {
+        const response = await fetch("/api/auth/2fa/disable", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: twoFactorData.availableMethods.length > 1 ? "all" : "method",
+            factorId: twoFactorData.factorId,
+            method: twoFactorData.availableMethods[0].type,
+            code,
+            password: twoFactorData.password,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 429) {
+            toast.error("Too many attempts", {
+              description: "Please wait a moment before trying again.",
+              duration: 4000,
+            });
+            return;
+          }
+
+          setError(data.error || "Failed to verify code");
+          return;
+        }
+
+        // Success
+        toast.success("2FA disabled", {
+          description:
+            twoFactorData.availableMethods.length > 1
+              ? "Two-factor authentication has been disabled for your account."
+              : `${twoFactorData.availableMethods[0].type === "authenticator" ? "Authenticator app" : "SMS"} has been disabled.`,
+          duration: 3000,
+        });
+
+        setTwoFactorData(null);
+        setShowTwoFactorDialog(false);
+        await refreshUser();
+        return;
+      }
+
+      // Handle password change verification (existing code)
       const response = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -218,115 +260,107 @@ export default function Security() {
     }
   };
 
-  const handleEnable2FA = async (
-    method: TTwoFactorMethod = "authenticator"
-  ) => {
+  const handleEnable2FA = async (method: TTwoFactorMethod) => {
     try {
-      if (!user?.auth.twoFactorEnabled) {
-        const response = await fetch("/api/auth/2fa/enroll", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ method }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to start 2FA enrollment");
-        }
-
-        const data = await response.json();
-        setSetupData({
-          qrCode: data.qr_code,
-          secret: data.secret,
-          factorId: data.factor_id,
-          method,
-        });
-        setShowSetupDialog(true);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    }
-  };
-
-  const handleVerify = async (
-    method: TTwoFactorMethod,
-    code: string,
-    phone?: string
-  ) => {
-    if (!setupData) return;
-
-    setIsVerifying(true);
-    setError(null);
-
-    try {
-      // If this is the initial SMS setup, we need to enroll the phone number first
-      if (method === "sms" && phone) {
-        const enrollResponse = await fetch("/api/auth/2fa/enroll", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            method,
-            phone,
-          }),
-        });
-
-        if (!enrollResponse.ok) {
-          const data = await enrollResponse.json();
-          throw new Error(data.error || "Failed to enroll phone number");
-        }
-
-        // Update setup data with new factor ID if provided
-        const enrollData = await enrollResponse.json();
-        if (enrollData.factor_id) {
-          setSetupData((prev) => ({
-            ...prev!,
-            factorId: enrollData.factor_id,
-          }));
-        }
-
-        // Return early as the SMS will be sent
-        return;
-      }
-
-      // Verify the code
-      const response = await fetch("/api/auth/2fa/verify", {
+      const response = await fetch("/api/auth/2fa/enroll", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          factorId: setupData.factorId,
-          method: setupData.method,
-          code,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ method }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Failed to verify code");
+        toast.error("Error", {
+          description: data.error || "Failed to start 2FA enrollment",
+        });
+        return;
       }
 
-      // Success! Close dialog and refresh user data
-      setShowSetupDialog(false);
-      setSetupData(null);
-
-      // Show success message
-      toast.success("2FA Enabled", {
-        description:
-          "Two-factor authentication has been enabled for your account.",
-      });
-
-      // Refresh user data to update 2FA status
-      await refreshUser();
+      const data = await response.json();
+      return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to verify code");
-    } finally {
-      setIsVerifying(false);
+      console.error("Error enabling 2FA:", err);
+      toast.error("Error", {
+        description:
+          err instanceof Error ? err.message : "Failed to enable 2FA",
+      });
     }
   };
 
-  const handleDisable2FA = async () => {
-    return;
+  const handleDisableMethod = async (
+    method: TTwoFactorMethod,
+    password: string
+  ) => {
+    try {
+      // Get the factor ID for the method
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const factor = factors?.all?.find(
+        (f) =>
+          f.status === "verified" &&
+          (f.factor_type === "totp"
+            ? method === "authenticator"
+            : method === "sms")
+      );
+
+      if (!factor) {
+        toast.error("Error", {
+          description: "2FA method not found",
+        });
+        return;
+      }
+
+      // Show 2FA verification dialog
+      setTwoFactorData({
+        factorId: factor.id,
+        availableMethods: [{ type: method, factorId: factor.id }],
+        newPassword: "", // Not used for disabling
+        password, // Store password for verification
+      });
+      setShowTwoFactorDialog(true);
+    } catch (err) {
+      console.error("Error disabling 2FA method:", err);
+      toast.error("Error", {
+        description:
+          err instanceof Error ? err.message : "Failed to disable 2FA method",
+      });
+    }
+  };
+
+  const handleDisableAll = async (password: string) => {
+    try {
+      // Get any verified factor to use for verification
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const factor = factors?.all?.find((f) => f.status === "verified");
+
+      if (!factor || !factors?.all) {
+        toast.error("Error", {
+          description: "No active 2FA methods found",
+        });
+        return;
+      }
+
+      // Show 2FA verification dialog
+      setTwoFactorData({
+        factorId: factor.id,
+        availableMethods: factors.all
+          .filter((f) => f.status === "verified")
+          .map((f) => ({
+            type: f.factor_type === "totp" ? "authenticator" : "sms",
+            factorId: f.id,
+          })),
+        newPassword: "", // Not used for disabling
+        password, // Store password for verification
+      });
+      setShowTwoFactorDialog(true);
+    } catch (err) {
+      console.error("Error disabling 2FA:", err);
+      toast.error("Error", {
+        description:
+          err instanceof Error ? err.message : "Failed to disable 2FA",
+      });
+    }
   };
 
   return (
@@ -411,28 +445,23 @@ export default function Security() {
         >
           <Button
             variant="outline"
-            onClick={
-              user?.auth.twoFactorEnabled
-                ? handleDisable2FA
-                : () => handleEnable2FA()
-            }
+            onClick={() => setShowManage2FADialog(true)}
           >
-            {user?.auth.twoFactorEnabled ? "Disable 2FA" : "Enable 2FA"}
+            {user?.auth.twoFactorEnabled ? "Manage 2FA" : "Enable 2FA"}
           </Button>
         </SettingCard>
       )}
 
-      {setupData && (
-        <TwoFactorSetupDialog
-          open={showSetupDialog}
-          onOpenChange={setShowSetupDialog}
-          qrCode={setupData.qrCode || ""}
-          secret={setupData.secret || ""}
-          onVerify={handleVerify}
-          error={error}
-          isVerifying={isVerifying}
-        />
-      )}
+      <Manage2FADialog
+        open={showManage2FADialog}
+        onOpenChange={setShowManage2FADialog}
+        enabledMethods={user?.auth.twoFactorMethods || []}
+        onMethodSetup={handleEnable2FA}
+        onMethodDisable={(method) =>
+          handleDisableMethod(method, formData.currentPassword)
+        }
+        onDisableAll={(password) => handleDisableAll(password)}
+      />
 
       {showTwoFactorDialog && twoFactorData && (
         <Dialog

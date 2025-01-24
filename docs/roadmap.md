@@ -41,12 +41,12 @@
         - [x] Ensure no IP Spoofing
         - [x] Add SMS for 2FA setup dialog
         - [x] Update security page to work with SMS
-    - [ ] Require 2FA when:
+    - [x] Require 2FA when:
         - [x] Trying to login
         - [x] Changing password
         - [x] Revoking device session
         - [x] Changing email
-        - [ ] Turning off 2FA itself
+        - [x] Turning off 2FA itself
     - [x] Ensure when 2FA verification is needed in the flow, we handle authenticator and SMS
 - [x] Implement change email feature
     - [x] Make user verify new email

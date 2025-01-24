@@ -53,7 +53,7 @@
 - [x] Refactor project to:
     - Use Zustand as a store for UI, not logic.
     - Be consistent with using API routes for actual logic.
-- [ ] Revise flow
+- [x] Revise flow
     - When 2FA is enabled:
         - [x] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first? (yes)
             - They're two different things

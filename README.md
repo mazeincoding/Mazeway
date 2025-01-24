@@ -341,6 +341,14 @@ ON verification_codes(expires_at);
 <p><a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup">Confirm your mail</a></p>
 ```
 
+**Change Email Address**
+```html
+<h2>Confirm Change of Email</h2>
+
+<p>Follow this link to confirm the update of your email from {{ .Email }} to {{ .NewEmail }}:</p>
+<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account">Change Email</a></p>
+```
+
 **Reset Password**
 ```html
 <h2>Reset Password</h2>

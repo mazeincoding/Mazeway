@@ -49,7 +49,7 @@
         - [ ] Turning off 2FA itself
     - [x] Ensure when 2FA verification is needed in the flow, we handle authenticator and SMS
 - [x] Implement change email feature
-    - [ ] Make user verify new email
+    - [x] Make user verify new email
 - [x] Refactor project to:
     - Use Zustand as a store for UI, not logic.
     - Be consistent with using API routes for actual logic.

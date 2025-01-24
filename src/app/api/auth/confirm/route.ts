@@ -22,6 +22,11 @@ export async function GET(request: NextRequest) {
   });
 
   if (!error) {
+    // For email change verifications, redirect to our success page
+    if (type === "email_change") {
+      redirect("/auth/email-verified");
+    }
+    // For other verifications (signup, etc), continue with normal flow
     redirect(`/api/auth/complete?provider=email&next=${next}`);
   }
 

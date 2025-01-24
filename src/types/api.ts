@@ -36,6 +36,11 @@ export interface TEnroll2FARequest {
   phone?: string; // Only required for SMS method
 }
 
+// /api/auth/change-email
+export interface TChangeEmailRequest {
+  newEmail: string;
+}
+
 // ===== RESPONSE TYPES =====
 
 // Shared response type for error cases
@@ -76,6 +81,11 @@ export interface TEmailLoginResponse extends TwoFactorRequirement {
 // /api/auth/change-password
 export interface TPasswordChangeResponse extends TwoFactorRequirement {
   newPassword?: string;
+}
+
+// /api/auth/change-email
+export interface TChangeEmailResponse extends TwoFactorRequirement {
+  newEmail?: string;
 }
 
 // /api/auth/device-sessions/[id]

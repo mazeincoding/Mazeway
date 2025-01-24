@@ -46,18 +46,14 @@ export async function POST(request: NextRequest) {
 
     const updateData = validation.data.data;
 
-    // If email is being changed, update auth email first
-    if (updateData.email && updateData.email !== user.email) {
-      const { error: updateAuthError } = await supabase.auth.updateUser({
-        email: updateData.email,
-      });
-
-      if (updateAuthError) {
-        return NextResponse.json(
-          { error: updateAuthError.message },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
+    // Don't allow email updates through this endpoint
+    if (updateData.email) {
+      return NextResponse.json(
+        {
+          error: "Email updates must be done through the change-email endpoint",
+        },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
 
     // Update user profile in database

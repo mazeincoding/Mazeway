@@ -64,6 +64,12 @@ export const profileUpdateSchema = z.object({
 export type ProfileSchema = z.infer<typeof profileSchema>;
 export type ProfileUpdateSchema = z.infer<typeof profileUpdateSchema>;
 
+export const emailChangeSchema = z.object({
+  newEmail: authSchema.shape.email,
+});
+
+export type EmailChangeSchema = z.infer<typeof emailChangeSchema>;
+
 export const passwordChangeSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),

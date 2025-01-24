@@ -45,7 +45,7 @@
         - [x] Trying to login
         - [x] Changing password
         - [x] Revoking device session
-        - [ ] Changing email
+        - [x] Changing email
         - [ ] Turning off 2FA itself
     - [x] Ensure when 2FA verification is needed in the flow, we handle authenticator and SMS
 - [x] Implement change email feature

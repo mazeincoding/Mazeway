@@ -12,6 +12,15 @@ import {
 } from "@/utils/validation/auth-validation";
 import { z } from "zod";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
+import { TTwoFactorMethod } from "@/types/auth";
 
 type FormErrors = Partial<Record<keyof ProfileSchema, string>>;
 
@@ -24,6 +33,14 @@ export default function Account() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState<{
+    factorId: string;
+    availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
+    newEmail: string;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -49,6 +66,60 @@ export default function Account() {
     }
   };
 
+  const handleVerify2FA = async (code: string) => {
+    if (!twoFactorData) return;
+
+    try {
+      setIsVerifying(true);
+      setError(null);
+
+      // Send 2FA verification to complete email change
+      const response = await fetch("/api/auth/change-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          factorId: twoFactorData.factorId,
+          code,
+          newEmail: twoFactorData.newEmail,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        setError(data.error || "Failed to verify code");
+        return;
+      }
+
+      // Success
+      toast.success("Email updated", {
+        description:
+          "Your email has been updated successfully. Please verify your new email address.",
+        duration: 3000,
+      });
+
+      // Clear state
+      setTwoFactorData(null);
+      setShowTwoFactorDialog(false);
+
+      // Update local user data
+      await updateUser({ ...user!, email: twoFactorData.newEmail });
+    } catch (err) {
+      console.error("Error verifying 2FA:", err);
+      setError("Failed to verify code. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUpdating(true);
@@ -62,36 +133,89 @@ export default function Account() {
       const changedData: Partial<ProfileSchema> = {};
       if (user) {
         if (formData.name !== user.name) changedData.name = formData.name;
-        if (formData.email !== user.email) changedData.email = formData.email;
       }
 
-      // Only proceed if there are changes
-      if (Object.keys(changedData).length === 0) {
-        toast.info("No changes to save");
-        return;
+      // Handle email change separately
+      if (user && formData.email !== user.email) {
+        try {
+          const response = await fetch("/api/auth/change-email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ newEmail: formData.email }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            if (response.status === 429) {
+              toast.error("Too many attempts", {
+                description: "Please wait a moment before trying again.",
+                duration: 4000,
+              });
+              return;
+            }
+
+            throw new Error(data.error);
+          }
+
+          // Check if 2FA is required
+          if (data.requiresTwoFactor) {
+            setTwoFactorData({
+              factorId: data.factorId,
+              availableMethods: data.availableMethods,
+              newEmail: formData.email,
+            });
+            setShowTwoFactorDialog(true);
+            return;
+          }
+
+          // If no 2FA required, email will be updated
+          toast.success("Email updated", {
+            description:
+              "Your email has been updated successfully. Please verify your new email address.",
+            duration: 3000,
+          });
+
+          // Update local user data
+          await updateUser({ ...user, email: formData.email });
+        } catch (error) {
+          toast.error("Error", {
+            description:
+              error instanceof Error
+                ? error.message
+                : "Failed to update email. Please try again.",
+            duration: 3000,
+          });
+          return;
+        }
       }
 
-      const response = await fetch("/api/auth/user/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ data: changedData }),
-      });
+      // Handle other profile updates if any
+      if (Object.keys(changedData).length > 0) {
+        const response = await fetch("/api/auth/user/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data: changedData }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error);
+        if (!response.ok) {
+          throw new Error(data.error);
+        }
+
+        // Update store after successful API call
+        await updateUser({ ...user!, ...changedData });
+
+        toast.success("Profile updated", {
+          description: "Your profile has been updated successfully.",
+          duration: 3000,
+        });
       }
-
-      // Update store after successful API call
-      await updateUser(formData);
-
-      toast.success("Profile updated", {
-        description: "Your profile has been updated successfully.",
-        duration: 3000,
-      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors: FormErrors = {};
@@ -153,6 +277,30 @@ export default function Account() {
           />
         </form>
       </SettingCard>
+
+      {showTwoFactorDialog && twoFactorData && (
+        <Dialog
+          open={showTwoFactorDialog}
+          onOpenChange={setShowTwoFactorDialog}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify your identity</DialogTitle>
+              <DialogDescription>
+                Please enter your two-factor authentication code to change your
+                email address.
+              </DialogDescription>
+            </DialogHeader>
+            <TwoFactorVerifyForm
+              factorId={twoFactorData.factorId}
+              availableMethods={twoFactorData.availableMethods}
+              onVerify={handleVerify2FA}
+              isVerifying={isVerifying}
+              error={error}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

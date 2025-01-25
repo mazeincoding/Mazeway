@@ -70,7 +70,9 @@ export async function GET(request: Request) {
 
       if (!response.ok) {
         const errorData = (await response.json()) as TApiErrorResponse;
-        throw new Error(errorData.error);
+        return NextResponse.redirect(
+          `${origin}/auth/error?error=failed_to_create_user&message=${encodeURIComponent(errorData.error)}`
+        );
       }
     } catch (error) {
       const err = error as Error;

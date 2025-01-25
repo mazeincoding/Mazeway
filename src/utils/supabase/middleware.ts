@@ -39,15 +39,20 @@ export async function updateSession(request: NextRequest) {
 
   if (user) {
     const deviceSessionId = request.cookies.get("device_session_id");
-    // Allow post-auth route to run without device session
-    if (request.nextUrl.pathname === "/api/auth/post-auth") {
+    // Allow post-auth and error routes to run without device session
+    if (
+      request.nextUrl.pathname === "/api/auth/post-auth" ||
+      request.nextUrl.pathname.startsWith("/auth/error")
+    ) {
       return supabaseResponse;
     }
 
     if (!deviceSessionId) {
-      // No device session, redirect to logout
+      // No device session, redirect to error page instead of logout
       const url = request.nextUrl.clone();
-      url.pathname = "/api/auth/logout";
+      url.pathname = "/auth/error";
+      url.searchParams.set("error", "no_device_session");
+      url.searchParams.set("message", "Session expired. Please login again.");
       return NextResponse.redirect(url);
     }
 

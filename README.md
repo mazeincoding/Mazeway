@@ -667,8 +667,8 @@ What you need to know:
 ## Production checklist
 1. Change logo throughout app
 2. Set up Supabase for production. This will be more clear once I know more about it, but:
-    - check out this: [X post](https://x.com/dshukertjr/status/1880601786647728638). It seems like that's how you handle dev/production nowadays
-    - or create 2 Supabase projects: one for dev and one for production. But try the one above this first.
+    - Check out this: [X post](https://x.com/dshukertjr/status/1880601786647728638). It seems like that's how you handle dev/production nowadays
+    - Or create 2 Supabase projects: one for dev and one for production. But try the one above this first.
 3. Set up Resend
 4. Set up Upstash Redis for API rate limiting
 5. If you set up SMS for two-factor authentication:
@@ -680,6 +680,9 @@ What you need to know:
         - Monthly fees
         - Registration fees
         - Different rates per country
+6. Enable "Enforce SSL on incoming connections" in Supabase:
+    - [Database Settings](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/settings/database)
+7. Change email OPT expiration (see how in "Recommended for production")
 
 ## Get to know the project better
 

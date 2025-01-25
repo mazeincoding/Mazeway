@@ -488,6 +488,7 @@ For development, do whatever you want. Set it up later if you want.
 
 ## Recommended for production
 The features/things listed below are completely optional for development.
+The features/things listed below are completely optional for development.
 
 If you want, you can do them right away. That's up to you.
 

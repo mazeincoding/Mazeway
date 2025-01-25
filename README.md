@@ -91,353 +91,364 @@ The project is not done yet! It's not recommended to use in production until sec
   
 ## Required setup
 
-### 1. Create Supabase project
-Create a Supabase project and get your ANON key and Supabase project URL.
-
-### 2. Set up Supabase in your project
-Open the `.env.example` file and replace `NEXT_PUBLIC_SUPABASE_URL` with your project URL and `NEXT_PUBLIC_SUPABASE_ANON_KEY` with your ANON key. Example:
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-### 3. Rename the `.env.example` file to `.env.local`
-> Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys) 
-
-### 4. Install dependencies
-In the terminal, go ahead and run this:
+### 1. Install dependencies
+In the terminal, run this:
 ```bash
 npm install --legacy-peer-deps
 ```
 The `--legacy-peer-deps` flag is just because this project uses react 19, and not a lot of npm packages support that. You might get errors without the flag, so this should solve them.
 
-### 4. Set up Supabase tables
-1. Head over to the Supabase [SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
-2. Run all the following code snippets (this will set up the necessary tables, RLS policies, etc)
+If you get errors with that flag too, check out [this list](https://docs.google.com/document/d/1piyDtOeEHoaIagc9K_vfglW37IKEo-4msLcZ92roLYU/edit?usp=sharing)
 
-**Create update_updated_at function**
-```sql
--- Create a function to update the "updated_at" column
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER 
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
+### 2. Set up Supabase
+1. Create a Supabase project
+    - Go to [Supabase](https://supabase.com/dashboard/projects)
+    - If you don't have an account, create one
+    - Click "New project"
+    - Give it a name, location and generate database password
+2.  Get API keys
+    - Once fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
+    - Get your "Project URL", "anon" key and "service_role" key
 
-**Create the user table**
-```sql
--- Step 1: Create the users table
-CREATE TABLE users (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email text UNIQUE NOT NULL,
-  name text NOT NULL,
-  avatar_url text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
-);
+    > Note that Supabase is changing "anon" and "service_role" to "publishable" and "secret". This may have changed when you're reading this.
+3. Update environment variables
+    - Open the `.env.example` file
+    - Copy the contents to a new file called `.env.local`
+    - Replace the values with your own:
+        - `NEXT_PUBLIC_SUPABASE_URL`: your project URL from step 2
+        - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your anon/publishable key from step 2
+        - `SUPABASE_SERVICE_ROLE_KEY`: your service role/secret key from step 2
+    - Leave the other variables as they are for now (we'll set them up later)
 
--- Step 2: Enable Row-Level Security
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+    > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys)
+4. Create Supabase tables
+    - Head over to the Supabase [SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+    - Run all these code snippets:
+    
+    **Create update_updated_at function**
+    ```sql
+    -- Create a function to update the "updated_at" column
+    CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+    RETURNS TRIGGER 
+    SECURITY DEFINER
+    SET search_path = public
+    AS $$
+    BEGIN
+      NEW.updated_at = now();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+    ```
+    
+    **Create the user table**
+    ```sql
+    -- Step 1: Create the users table
+    CREATE TABLE users (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      email text UNIQUE NOT NULL,
+      name text NOT NULL,
+      avatar_url text,
+      created_at timestamp with time zone DEFAULT now(),
+      updated_at timestamp with time zone DEFAULT now()
+    );
+    
+    -- Step 2: Enable Row-Level Security
+    ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+    
+    -- Step 3: Create RLS policies
+    
+    -- Allow users to insert their own data
+    CREATE POLICY "Allow user to insert their own data"
+    ON users
+    FOR INSERT
+    WITH CHECK (auth.uid() = id);
+    
+    -- Allow users to select their own data
+    CREATE POLICY "Allow user to select their own data"
+    ON users
+    FOR SELECT
+    USING (auth.uid() = id);
+    
+    -- Allow users to update their own data
+    CREATE POLICY "Allow user to update their own data"
+    ON users
+    FOR UPDATE
+    USING (auth.uid() = id);
+    
+    -- Allow users to delete their own data
+    CREATE POLICY "Allow user to delete their own data"
+    ON users
+    FOR DELETE
+    USING (auth.uid() = id);
+    
+    -- Step 4: Create trigger to update the "updated_at" column using the function we just created
+    CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+    ```
 
--- Step 3: Create RLS policies
+    **Create device sessions table**
+    ```sql
+    CREATE TABLE device_sessions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+      session_id uuid NOT NULL,
+      -- We'll add the device_id column later.
+      -- This is because we need to create the devices table first, in order to reference it.
+      is_trusted boolean DEFAULT false,
+      needs_verification boolean DEFAULT false,
+      confidence_score integer DEFAULT 0,  -- Keep this!
+      last_verified timestamp with time zone,
+      last_active timestamp with time zone DEFAULT now(),
+      created_at timestamp with time zone DEFAULT now(),
+      updated_at timestamp with time zone DEFAULT now()
+    );
+    
+    -- Step 2: Enable Row-Level Security
+    ALTER TABLE device_sessions ENABLE ROW LEVEL SECURITY;
+    
+    -- Step 3: Create RLS policies
+    
+    -- Allow users to insert their own device sessions
+    CREATE POLICY "Allow users to insert their own device sessions"
+    ON device_sessions
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+    
+    -- Allow users to view their own device sessions
+    CREATE POLICY "Allow users to view their own device sessions"
+    ON device_sessions
+    FOR SELECT
+    USING (auth.uid() = user_id);
+    
+    -- Allow users to update their own device sessions
+    CREATE POLICY "Allow users to update their own device sessions"
+    ON device_sessions
+    FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (
+      -- Can never modify security columns through client-side queries
+      (is_trusted IS NOT DISTINCT FROM OLD.is_trusted) AND
+      (needs_verification IS NOT DISTINCT FROM OLD.needs_verification)
+    );
+    
+    -- Allow users to delete their own device sessions
+    CREATE POLICY "Allow users to delete their own device sessions"
+    ON device_sessions
+    FOR DELETE
+    USING (auth.uid() = user_id);
+    
+    -- Step 4: Create trigger to update the "updated_at" column
+    CREATE TRIGGER update_device_sessions_updated_at
+    BEFORE UPDATE ON device_sessions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+    
+    -- Step 5: Create indexes for faster queries
+    CREATE INDEX idx_device_sessions_user_id ON device_sessions(user_id);
+    CREATE INDEX idx_device_sessions_device_id ON device_sessions(device_id);
+    ```
+    **Create devices table**
+    ```sql
+    -- Create devices table
+    CREATE TABLE devices (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      device_name text NOT NULL,
+      browser text,
+      os text,
+      ip_address text,
+      created_at timestamp with time zone DEFAULT now(),
+      updated_at timestamp with time zone DEFAULT now()
+    );
+    
+    -- Enable RLS
+    ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+    
+    -- Create RLS policies
+    CREATE POLICY "Allow any authenticated user to insert devices"
+    ON devices
+    FOR INSERT
+    TO authenticated;
+    
+    CREATE POLICY "Allow users to view their devices"
+    ON devices
+    FOR SELECT
+    USING (
+      EXISTS (
+        SELECT 1 FROM device_sessions 
+        WHERE device_sessions.device_id = devices.id 
+        AND device_sessions.user_id = auth.uid()
+      )
+    );
+    
+    -- Create trigger for updated_at
+    CREATE TRIGGER update_devices_updated_at
+    BEFORE UPDATE ON devices
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+    ```
+    **Add device_id column to device_sessions table** (now we can run this because we have the devices table)
+    ```sql
+    ALTER TABLE device_sessions ADD COLUMN device_id uuid REFERENCES devices(id) ON DELETE CASCADE;
+    ```
+    **Create verification codes table**
+    ```sql
+    -- Create verification_codes table
+    CREATE TABLE verification_codes (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      device_session_id uuid REFERENCES device_sessions(id) ON DELETE CASCADE,
+      code text NOT NULL,
+      expires_at timestamp with time zone NOT NULL,
+      created_at timestamp with time zone DEFAULT now(),
+      updated_at timestamp with time zone DEFAULT now()
+    );
+    
+    -- Enable RLS
+    ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
+    
+    -- Create RLS policies
+    CREATE POLICY "Allow users to insert verification codes for their devices"
+    ON verification_codes
+    FOR INSERT
+    WITH CHECK (
+      EXISTS (
+        SELECT 1 FROM device_sessions
+        WHERE device_sessions.id = verification_codes.device_session_id
+        AND device_sessions.user_id = auth.uid()
+      )
+    );
+    
+    -- Allow users to view their own verification codes
+    CREATE POLICY "Allow users to view their own verification codes"
+    ON verification_codes
+    FOR SELECT
+    USING (
+      EXISTS (
+        SELECT 1 FROM device_sessions
+        WHERE device_sessions.id = verification_codes.device_session_id
+        AND device_sessions.user_id = auth.uid()
+      )
+    );
+    
+    -- Allow users to delete their own verification codes
+    CREATE POLICY "Allow users to delete their own verification codes"
+    ON verification_codes
+    FOR DELETE
+    USING (
+      EXISTS (
+        SELECT 1 FROM device_sessions
+        WHERE device_sessions.id = verification_codes.device_session_id
+        AND device_sessions.user_id = auth.uid()
+      )
+    );
+    
+    -- Create trigger for updated_at
+    CREATE TRIGGER update_verification_codes_updated_at
+    BEFORE UPDATE ON verification_codes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+    
+    -- Create index for faster lookups
+    CREATE INDEX idx_verification_codes_device_session_id 
+    ON verification_codes(device_session_id);
+    
+    -- Create index for faster expiry cleanup
+    CREATE INDEX idx_verification_codes_expires_at 
+    ON verification_codes(expires_at);
+    ```
 
--- Allow users to insert their own data
-CREATE POLICY "Allow user to insert their own data"
-ON users
-FOR INSERT
-WITH CHECK (auth.uid() = id);
+5. Change email templates
+    - Go to Supabase [Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
+    - Paste the code into each individual template:
 
--- Allow users to select their own data
-CREATE POLICY "Allow user to select their own data"
-ON users
-FOR SELECT
-USING (auth.uid() = id);
+    **Confirm signup**
+    ```html
+    <h2>Confirm your signup</h2>
+    
+    <p>Follow this link to confirm your user:</p>
+    <p><a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup">Confirm your mail</a></p>
+    ```
+    
+    **Change Email Address**
+    ```html
+    <h2>Confirm Change of Email</h2>
+    
+    <p>Follow this link to confirm the update of your email from {{ .Email }} to {{ .NewEmail }}:</p>
+    <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account">Change Email</a></p>
+    ```
+    
+    **Reset Password**
+    ```html
+    <h2>Reset Password</h2>
+    
+    <p>Follow this link to reset the password for your user:</p>
+    <p><a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}"></p>
+    ```
 
--- Allow users to update their own data
-CREATE POLICY "Allow user to update their own data"
-ON users
-FOR UPDATE
-USING (auth.uid() = id);
+6. Set up Google OAuth and connect to Supabase
 
--- Allow users to delete their own data
-CREATE POLICY "Allow user to delete their own data"
-ON users
-FOR DELETE
-USING (auth.uid() = id);
-
--- Step 4: Create trigger to update the "updated_at" column using the function we just created
-CREATE TRIGGER update_users_updated_at
-BEFORE UPDATE ON users
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-```
-
-**Create device sessions table**
-```sql
-CREATE TABLE device_sessions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
-  session_id uuid NOT NULL,
-  -- We'll add the device_id column later.
-  -- This is because we need to create the devices table first, in order to reference it.
-  is_trusted boolean DEFAULT false,
-  needs_verification boolean DEFAULT false,
-  confidence_score integer DEFAULT 0,  -- Keep this!
-  last_verified timestamp with time zone,
-  last_active timestamp with time zone DEFAULT now(),
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
-);
-
--- Step 2: Enable Row-Level Security
-ALTER TABLE device_sessions ENABLE ROW LEVEL SECURITY;
-
--- Step 3: Create RLS policies
-
--- Allow users to insert their own device sessions
-CREATE POLICY "Allow users to insert their own device sessions"
-ON device_sessions
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
-
--- Allow users to view their own device sessions
-CREATE POLICY "Allow users to view their own device sessions"
-ON device_sessions
-FOR SELECT
-USING (auth.uid() = user_id);
-
--- Allow users to update their own device sessions
-CREATE POLICY "Allow users to update their own device sessions"
-ON device_sessions
-FOR UPDATE
-USING (auth.uid() = user_id)
-WITH CHECK (
-  -- Can never modify security columns through client-side queries
-  (is_trusted IS NOT DISTINCT FROM OLD.is_trusted) AND
-  (needs_verification IS NOT DISTINCT FROM OLD.needs_verification)
-);
-
--- Allow users to delete their own device sessions
-CREATE POLICY "Allow users to delete their own device sessions"
-ON device_sessions
-FOR DELETE
-USING (auth.uid() = user_id);
-
--- Step 4: Create trigger to update the "updated_at" column
-CREATE TRIGGER update_device_sessions_updated_at
-BEFORE UPDATE ON device_sessions
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-
--- Step 5: Create indexes for faster queries
-CREATE INDEX idx_device_sessions_user_id ON device_sessions(user_id);
-CREATE INDEX idx_device_sessions_device_id ON device_sessions(device_id);
-```
-**Create devices table**
-```sql
--- Create devices table
-CREATE TABLE devices (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  device_name text NOT NULL,
-  browser text,
-  os text,
-  ip_address text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policies
-CREATE POLICY "Allow any authenticated user to insert devices"
-ON devices
-FOR INSERT
-TO authenticated;
-
-CREATE POLICY "Allow users to view their devices"
-ON devices
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM device_sessions 
-    WHERE device_sessions.device_id = devices.id 
-    AND device_sessions.user_id = auth.uid()
-  )
-);
-
--- Create trigger for updated_at
-CREATE TRIGGER update_devices_updated_at
-BEFORE UPDATE ON devices
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-```
-**Add device_id column to device_sessions table** (now we can run this because we have the devices table)
-```sql
-ALTER TABLE device_sessions ADD COLUMN device_id uuid REFERENCES devices(id) ON DELETE CASCADE;
-```
-**Create verification codes table**
-```sql
--- Create verification_codes table
-CREATE TABLE verification_codes (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  device_session_id uuid REFERENCES device_sessions(id) ON DELETE CASCADE,
-  code text NOT NULL,
-  expires_at timestamp with time zone NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policies
-CREATE POLICY "Allow users to insert verification codes for their devices"
-ON verification_codes
-FOR INSERT
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM device_sessions
-    WHERE device_sessions.id = verification_codes.device_session_id
-    AND device_sessions.user_id = auth.uid()
-  )
-);
-
--- Allow users to view their own verification codes
-CREATE POLICY "Allow users to view their own verification codes"
-ON verification_codes
-FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM device_sessions
-    WHERE device_sessions.id = verification_codes.device_session_id
-    AND device_sessions.user_id = auth.uid()
-  )
-);
-
--- Allow users to delete their own verification codes
-CREATE POLICY "Allow users to delete their own verification codes"
-ON verification_codes
-FOR DELETE
-USING (
-  EXISTS (
-    SELECT 1 FROM device_sessions
-    WHERE device_sessions.id = verification_codes.device_session_id
-    AND device_sessions.user_id = auth.uid()
-  )
-);
-
--- Create trigger for updated_at
-CREATE TRIGGER update_verification_codes_updated_at
-BEFORE UPDATE ON verification_codes
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
-
--- Create index for faster lookups
-CREATE INDEX idx_verification_codes_device_session_id 
-ON verification_codes(device_session_id);
-
--- Create index for faster expiry cleanup
-CREATE INDEX idx_verification_codes_expires_at 
-ON verification_codes(expires_at);
-```
-
-### 5. Change email templates in Supabase
-1. Go to Supabase [Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
-2. Paste the code into each individual template:
-
-**Confirm signup**
-```html
-<h2>Confirm your signup</h2>
-
-<p>Follow this link to confirm your user:</p>
-<p><a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup">Confirm your mail</a></p>
-```
-
-**Change Email Address**
-```html
-<h2>Confirm Change of Email</h2>
-
-<p>Follow this link to confirm the update of your email from {{ .Email }} to {{ .NewEmail }}:</p>
-<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account">Change Email</a></p>
-```
-
-**Reset Password**
-```html
-<h2>Reset Password</h2>
-
-<p>Follow this link to reset the password for your user:</p>
-<p><a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}"></p>
-```
-
-### 6. Enable Google OAuth
 This will allow users to sign in with Google.
 
 If you don't want it, good news:
 - this project is moving towards a "config-based" approach
-- where you can enable/disable what you need
-- that means, this step is going to an optional feature
-- for now, it's required (but super simple to do)
+- where you can enable/disable what you want
+- that means, Google Auth is going to an optional feature
+- for now, it's required (but thankfully super simple to do)
 
-1. Get your Google OAuth credentials
-    - Go to [Google Cloud Console](https://console.cloud.google.com/)
-    - Create/select project in console
-    - Go to: [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
-    - Choose "External". ("Internal" might be disabled)
-
-2. Configure OAuth consent screen
-    - Enter your app name in the "App name" field (eg: auth-starter)
-    - Click the "user support email" dropdown and select your email here
-    - You can upload a logo if you want. The auth will work either way
-    - Scroll down to the "Authorized domains" heading and click the "ADD DOMAIN" button. Enter your Supabase project URL here. It's the same URL as the one you got earlier which you put into your `.env.local` file. Should look like `<PROJECT_ID>.supabase.co`.
-    - Scroll down to the "Developer contact information" heading and add your email.
-
-    > Note: The URL shouldn't include the `https://` part
-
-3. Create OAuth credentials
-    - Go to: [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
-    - Click "create credentials"
-    - Choose "OAuth Client ID".
-    - For "Application type", choose "Web application".
-    - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000`.
-    - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
-        1. Go to your Supabase dashboard
-        2. In the sidebar, click "Authentication" and then click "Providers" to the left side and scroll down until you see "Google"
-        3. Click to expand Google. Here, you'll find a field labeled "Callback URL (for OAuth)"".
-    - Hit "create" in the Google console and you will be shown your "Client ID" and "Client secret"
-    - Copy those, go back to Supabbase and paste those. Then click "Save"
+    1. Get your Google OAuth credentials
+        - Go to [Google Cloud Console](https://console.cloud.google.com/)
+        - Create/select project in console
+        - Go to: [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
+        - Choose "External". ("Internal" might be disabled)
+    
+    2. Configure OAuth consent screen
+        - Enter your app name in the "App name" field (eg: auth-starter)
+        - Click the "user support email" dropdown and select your email here
+        - You can upload a logo if you want. The auth will work either way
+        - Scroll down to the "Authorized domains" heading and click the "ADD DOMAIN" button. Enter your Supabase project URL here. We got this in the early steps. Should look like `<PROJECT_ID>.supabase.co`.
+        - Scroll down to the "Developer contact information" heading and add your email.
+    
+        > Note: The URL shouldn't include the `https://` part
+    
+    3. Create OAuth credentials
+        - Go to: [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+        - Click "create credentials"
+        - Choose "OAuth Client ID".
+        - For "Application type", choose "Web application".
+        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000`.
+        - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
+            1. Go to Supabase [Auth Providers](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/auth/providers)
+            2. Scroll down until you see "Google" and expand it
+            3. You'll find a field labeled "Callback URL (for OAuth)"".
+        - Hit "create" in the Google console and you will be shown your "Client ID" and "Client secret"
+        - Copy those, go back to Supabbase and paste those. Then click "Save"
 
 If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue, or just contact me directly [X](https://x.com/mazewinther1) [Email](emailto:hi@mazecoding.com)
 
-### 7. Set up Resend (optional)
-Supabase (as of now) does give you 2 free emails per hour (for development) but it's unreliable. Sometimes, unclear errors will pop up because of their SMTP and you'll spend 2 hours debugging.
+### 3. Set up Resend (optional)
+Supabase (as of now) does give you 2 free emails per hour but it's unreliable. Sometimes, unclear errors will pop up because of their SMTP and you'll spend 2 hours debugging.
 
-You can totally skip this step for now (during development) but be mindful that if auth doesn't work, setting up a custom SMTP will probably solve it.
+You can totally skip setting up Resend (during development) but be mindful that if auth doesn't work, setting up a custom SMTP will probably fix it.
 
 Aside from that, the project uses Resend for:
-- login alerts
+- email login alerts
 - device verification
 
 If you don't set up Resend:
 - The code won't attempt to use Resend at all
-- All devices will be "trusted" by default, which doesn't matter for development but important for production
-- Supabase might hate you for using their free email service, but that's their own fault
+- All devices will be "trusted" by default, which doesn't matter for development
 
 When you go in production, I recommend you set it up. Because:
-- you just need to get an API and put it in the environment variables (`.env.local`).
+- you just need to get an API key and put it in the environment variables (`.env.local`).
 - you don't need to change any code
-- auth should be secure in production
+- auth is supposed to be secure in production
+- you'll need a domain but you would anyway without Resend
 
 With that out the way, here's how to do it:
 
 **Luckily...**
-Resend makes it REALLY straightforward to integrate with Supabase.
+Resend makes it really straightforward to integrate with Supabase.
 
 You won't even need to touch the Supabase dashboard to do it.
 
@@ -487,7 +498,6 @@ Luckily, those things are super easy to do. You literally just need to set up 2 
 For development, do whatever you want. Set it up later if you want.
 
 ## Recommended for production
-The features/things listed below are completely optional for development.
 The features/things listed below are completely optional for development.
 
 If you want, you can do them right away. That's up to you.
@@ -805,7 +815,7 @@ Let's imagine a user signs up with Google:
 1. It hits our endpoint `/api/auth/google/signin`
 1. Then some OAuth stuff from Google
 2. Next goes to our endpoint `/api/auth/callback`
-3. And finally `/api/auth/post-auth`
+3. And finally `/api/auth2q`
 
 There's no UI in these sequences. It's all magic server-side.
 

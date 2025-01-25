@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       );
     }
     return NextResponse.redirect(
-      `/api/auth/post-auth?provider=google&next=${next}`
+      `${origin}/api/auth/post-auth?provider=google&next=${next}`
     );
   }
 

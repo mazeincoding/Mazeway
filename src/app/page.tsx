@@ -9,11 +9,10 @@ export default function Home() {
       <main className="flex-grow flex items-center justify-center flex-col gap-6 px-8 py-16 text-center">
         <div className="flex flex-col gap-3 max-w-xl mx-auto">
           <h1 className="text-4xl font-bold text-center text-pretty">
-            Clerk but you own the code
+            Mazeway Demo
           </h1>
           <p className="block text-lg text-muted-foreground text-pretty">
-            Production-ready auth you can actually customize. Built with modern
-            tech you already know and love. Created with security in mind.
+            See how complete auth feels. When you're ready, the auth is yours.
           </p>
         </div>
         <div className="flex gap-2">

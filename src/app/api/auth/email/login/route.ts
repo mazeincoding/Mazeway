@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     }
 
     const { origin } = new URL(request.url);
-    const redirectUrl = `${origin}/api/auth/complete?provider=email&next=/`;
+    const redirectUrl = `${origin}/api/auth/post-auth?provider=email&next=/`;
 
     const body = await request.json();
     const validation = validateFormData(body);

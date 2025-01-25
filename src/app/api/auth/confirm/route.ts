@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       redirect("/auth/email-verified");
     }
     // For other verifications (signup, etc), continue with normal flow
-    redirect(`/api/auth/complete?provider=email&next=${next}`);
+    redirect(`/api/auth/post-auth?provider=email&next=${next}`);
   }
 
   const errorType = error.message.includes("expired") ? "expired" : "invalid";

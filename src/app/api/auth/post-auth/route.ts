@@ -5,7 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import * as UAParser from "ua-parser-js";
+import { UAParser } from "ua-parser-js";
 import {
   calculateDeviceConfidence,
   getConfidenceLevel,
@@ -19,8 +19,7 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
   const userAgent = request.headers.get("user-agent") || "";
-  const parser = new (UAParser as any)();
-  parser.setUA(userAgent);
+  const parser = new UAParser(userAgent);
 
   const device = parser.getDevice();
   const browser = parser.getBrowser();

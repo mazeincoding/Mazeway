@@ -37,58 +37,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    const deviceSessionId = request.cookies.get("device_session_id");
-    // Allow post-auth and error routes to run without device session
-    if (
-      request.nextUrl.pathname === "/api/auth/post-auth" ||
-      request.nextUrl.pathname.startsWith("/auth/error")
-    ) {
-      return supabaseResponse;
-    }
-
-    if (!deviceSessionId) {
-      // No device session, redirect to error page instead of logout
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth/error";
-      url.searchParams.set("error", "no_device_session");
-      url.searchParams.set("message", "Session expired. Please login again.");
-      return NextResponse.redirect(url);
-    }
-
-    // Query device session by ID
-    const { data: deviceSession } = await supabase
-      .from("device_sessions")
-      .select("needs_verification")
-      .eq("session_id", deviceSessionId.value)
-      .eq("user_id", user.id)
-      .single();
-
-    if (!deviceSession) {
-      // Device session not found in DB, redirect to logout
-      const url = request.nextUrl.clone();
-      url.pathname = "/api/auth/logout";
-      return NextResponse.redirect(url);
-    }
-
-    // Redirect to verification if needed
-    if (deviceSession.needs_verification) {
-      const verificationPaths = [
-        "/auth/verify-device",
-        "/api/auth/verify-device",
-      ];
-      const isVerificationPath = verificationPaths.some((path) =>
-        request.nextUrl.pathname.startsWith(path)
-      );
-
-      if (!isVerificationPath) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/auth/verify-device";
-        return NextResponse.redirect(url);
-      }
-    }
-  }
-
   const protectedPaths = ["/dashboard", "/account", "/api/send-email-alert"];
   const authPaths = ["/", "/auth/login", "/auth/signup"];
   const passwordResetPath = "/auth/change-password";
@@ -101,6 +49,61 @@ export async function updateSession(request: NextRequest) {
   );
   const isPasswordResetPath = request.nextUrl.pathname === passwordResetPath;
   const isApiPath = request.nextUrl.pathname.startsWith("/api/");
+
+  if (user) {
+    const deviceSessionId = request.cookies.get("device_session_id");
+    // Allow post-auth and error routes to run without device session
+    if (
+      request.nextUrl.pathname === "/api/auth/post-auth" ||
+      request.nextUrl.pathname.startsWith("/auth/error")
+    ) {
+      return supabaseResponse;
+    }
+
+    // Only check device session on protected routes
+    if (isProtectedPath) {
+      if (!deviceSessionId) {
+        // No device session, redirect to error page instead of logout
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/error";
+        url.searchParams.set("error", "no_device_session");
+        url.searchParams.set("message", "Session expired. Please login again.");
+        return NextResponse.redirect(url);
+      }
+
+      // Query device session by ID
+      const { data: deviceSession } = await supabase
+        .from("device_sessions")
+        .select("needs_verification")
+        .eq("session_id", deviceSessionId.value)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!deviceSession) {
+        // Device session not found in DB, redirect to logout
+        const url = request.nextUrl.clone();
+        url.pathname = "/api/auth/logout";
+        return NextResponse.redirect(url);
+      }
+
+      // Redirect to verification if needed
+      if (deviceSession.needs_verification) {
+        const verificationPaths = [
+          "/auth/verify-device",
+          "/api/auth/verify-device",
+        ];
+        const isVerificationPath = verificationPaths.some((path) =>
+          request.nextUrl.pathname.startsWith(path)
+        );
+
+        if (!isVerificationPath) {
+          const url = request.nextUrl.clone();
+          url.pathname = "/auth/verify-device";
+          return NextResponse.redirect(url);
+        }
+      }
+    }
+  }
 
   // Redirect to login if accessing protected route while not authenticated
   if (!user && isProtectedPath) {

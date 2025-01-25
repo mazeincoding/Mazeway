@@ -487,11 +487,23 @@ Luckily, those things are super easy to do. You literally just need to set up 2 
 For development, do whatever you want. Set it up later if you want.
 
 ## Recommended for production
-The features listed below are completely optional for development.
+The features/things listed below are completely optional for development.
 
 If you want, you can do them right away. That's up to you.
 
 But I highly recommend you do it when you go in production.
+
+## Change Email OPT Expiration
+By default, Supabase likes to put it at 24 hours.
+
+That makes zero sense because then they tell you to lower it to 1 hour (or below).
+
+So let's go ahead and make Supabase (and your users) happy:
+1. Go to Supabase [Auth Providers](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/auth/providers)
+2. Expand the "Email" provider
+3. Scroll down to "Email OTP Expiration"
+4. Set it to "1800" (1 hour)
+5. Click "Save"
 
 ### API Rate limiting (with Upstash Redis)
 At first, the idea for implementing rate-limiting was to just create a Supabase table and store how many requests an IP made but:

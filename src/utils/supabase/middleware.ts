@@ -39,6 +39,10 @@ export async function updateSession(request: NextRequest) {
 
   if (user) {
     const deviceSessionId = request.cookies.get("device_session_id");
+    // Allow post-auth route to run without device session
+    if (request.nextUrl.pathname === "/api/auth/post-auth") {
+      return supabaseResponse;
+    }
 
     if (!deviceSessionId) {
       // No device session, redirect to logout

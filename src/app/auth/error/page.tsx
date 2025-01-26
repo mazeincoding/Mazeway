@@ -201,7 +201,7 @@ export default function ErrorPage() {
             {errorConfig.message}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-5">
           <div className="w-full flex flex-col gap-3 md:flex-row">
             {errorConfig.actions.map((action) => (
               <Link key={action.href} href={action.href} className="w-full">

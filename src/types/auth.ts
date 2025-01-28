@@ -1,4 +1,5 @@
 export interface TDeviceInfo {
+  user_id: string;
   device_name: string;
   browser: string | null;
   os: string | null;

@@ -27,8 +27,8 @@ export async function POST(request: Request) {
     // Clear Supabase session
     await supabase.auth.signOut();
 
-    // Create response
-    const response = NextResponse.redirect(new URL("/auth/login", request.url));
+    // Create response with success status
+    const response = NextResponse.json({ success: true });
 
     // Clear device session cookie
     response.cookies.delete("device_session_id");

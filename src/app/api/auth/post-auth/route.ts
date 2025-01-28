@@ -10,232 +10,215 @@ import {
   calculateDeviceConfidence,
   getConfidenceLevel,
 } from "@/utils/device-confidence";
-import { TApiErrorResponse } from "@/types/api";
+import { createDeviceSession } from "@/utils/device-sessions";
+import { TDeviceInfo } from "@/types/auth";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const provider = searchParams.get("provider");
-  const next = searchParams.get("next") ?? "/";
+  console.log("[DEBUG] Post-auth started");
+  const { searchParams } = new URL(request.url);
+  const provider = searchParams.get("provider") || "browser";
+  const next = searchParams.get("next") || "/dashboard";
+  const origin = process.env.NEXT_PUBLIC_SITE_URL;
+  const isLocalEnv = process.env.NODE_ENV === "development";
 
-  const supabase = await createClient();
-  const userAgent = request.headers.get("user-agent") || "";
-  const parser = new UAParser(userAgent);
+  console.log("[DEBUG] Post-auth params:", { provider, next, origin });
 
-  const device = parser.getDevice();
-  const browser = parser.getBrowser();
-  const os = parser.getOS();
+  try {
+    // Get the user with normal client for auth
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+    console.log("[DEBUG] Got user:", {
+      userId: user?.id,
+      error: userError?.message,
+    });
 
-  const deviceName =
-    device.vendor && device.model
-      ? `${device.vendor} ${device.model}`
-      : os.name
-        ? `${os.name} Device`
-        : "Privacy Browser";
+    if (userError || !user) throw new Error("No user found");
 
-  // Get user
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    // Verify user exists in our database
+    const { data: dbUser, error: dbError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", user.id)
+      .single();
+    console.log("[DEBUG] Database user check:", {
+      exists: !!dbUser,
+      error: dbError?.message,
+    });
 
-  if (userError || !user) {
-    return NextResponse.redirect(
-      `${origin}/auth/error?error=failed_to_get_user&message=${encodeURIComponent(userError?.message || "No user found")}`
+    // Create user if they don't exist
+    if (!dbUser) {
+      console.log("[DEBUG] Creating new user in database");
+      const { error: createError } = await supabase.from("users").insert({
+        id: user.id,
+        email: user.email,
+        name: user.email?.split("@")[0] || "User",
+        avatar_url: null,
+      });
+
+      if (createError) {
+        console.error("[DEBUG] Failed to create user:", createError);
+        throw new Error("Failed to create user");
+      }
+      console.log("[DEBUG] User created successfully");
+    }
+
+    // Get trusted sessions
+    const { data: trustedSessions, error: sessionsError } = await supabase
+      .from("device_sessions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_trusted", true);
+
+    console.log("[DEBUG] Trusted sessions:", {
+      count: trustedSessions?.length,
+      error: sessionsError?.message,
+    });
+
+    if (sessionsError) throw new Error("Failed to get trusted sessions");
+
+    // Parse user agent
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    const deviceName = parser.getDevice().model || "Unknown Device";
+    const browser = parser.getBrowser().name || "Unknown Browser";
+    const os = parser.getOS().name || "Unknown OS";
+
+    const currentDevice: TDeviceInfo = {
+      user_id: user.id,
+      device_name: deviceName,
+      browser,
+      os,
+      ip_address: request.headers.get("x-forwarded-for") || "::1",
+    };
+
+    console.log("[DEBUG] Current device:", currentDevice);
+
+    // Check the current device against trusted device sessions only
+    const score = calculateDeviceConfidence(
+      trustedSessions || null,
+      currentDevice
     );
-  }
 
-  // Check if user exists in DB
-  const { data: existingUser } = await supabase
-    .from("users")
-    .select("id")
-    .eq("id", user.id)
-    .single();
+    const confidenceLevel = getConfidenceLevel(score);
+    console.log("[DEBUG] Device confidence:", {
+      score,
+      level: confidenceLevel,
+    });
 
-  // Create user in DB if they don't exist
-  if (!existingUser) {
+    // Decide if verification for the device is needed
+    const needsVerification = process.env.RESEND_API_KEY
+      ? confidenceLevel === "low" ||
+        (confidenceLevel === "medium" && provider === "email")
+      : false;
+
+    // A device is trusted if Resend isn't configured OR has high confidence OR medium confidence from OAuth
+    const isTrusted =
+      !process.env.RESEND_API_KEY ||
+      confidenceLevel === "high" ||
+      (confidenceLevel === "medium" && provider !== "email");
+
+    console.log("[DEBUG] Device trust status:", {
+      needsVerification,
+      isTrusted,
+      hasResendKey: !!process.env.RESEND_API_KEY,
+    });
+
+    // Create the device session
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/create-user`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: user.id,
-            email: user.email!,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as TApiErrorResponse;
-        return NextResponse.redirect(
-          `${origin}/auth/error?error=failed_to_create_user&message=${encodeURIComponent(errorData.error)}`
-        );
-      }
-    } catch (error) {
-      const err = error as Error;
-      if (err.message.includes("duplicate key")) {
-        console.warn("Duplicate key error detected");
-      } else {
-        return NextResponse.redirect(
-          `${origin}/auth/error?error=failed_to_create_user&message=${encodeURIComponent(err.message)}`
-        );
-      }
-    }
-  }
-
-  // Get trusted sessions for confidence calculation
-  const trustedSessionsResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/device-sessions/trusted`,
-    {
-      headers: {
-        Cookie: request.headers.get("cookie") || "",
-      },
-    }
-  );
-  const { data: trustedSessions } = await trustedSessionsResponse.json();
-
-  const currentDevice = {
-    device_name: deviceName,
-    browser: browser.name || null,
-    os: os.name || null,
-    ip_address: request.headers.get("x-forwarded-for") || undefined,
-  };
-
-  // Check the current device against trusted device sessions only
-  const score = calculateDeviceConfidence(
-    trustedSessions || null,
-    currentDevice
-  );
-
-  const confidenceLevel = getConfidenceLevel(score);
-
-  // Decide if verification for the device is needed
-  const needsVerification = process.env.RESEND_API_KEY
-    ? confidenceLevel === "low" ||
-      (confidenceLevel === "medium" && provider === "email")
-    : false;
-
-  // A device is trusted if Resend isn't configured OR has high confidence OR medium confidence from OAuth
-  const isTrusted =
-    !process.env.RESEND_API_KEY ||
-    confidenceLevel === "high" ||
-    (confidenceLevel === "medium" && provider !== "email");
-
-  // Create session with these settings
-  const session_id = crypto.randomUUID();
-
-  // Create device session using the API
-  const createSessionResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/device-sessions`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Cookie: request.headers.get("cookie") || "",
-      },
-      body: JSON.stringify({
+      const session_id = await createDeviceSession({
         user_id: user.id,
-        session_id,
         device: currentDevice,
         confidence_score: score,
         needs_verification: needsVerification,
         is_trusted: isTrusted,
-      }),
-    }
-  );
+      });
+      console.log("[DEBUG] Device session created:", { session_id });
 
-  if (!createSessionResponse.ok) {
-    const error = await createSessionResponse.json();
-    console.error("Failed to create device session:", error);
-    return NextResponse.redirect(
-      `${origin}/auth/error?error=failed_to_create_session&message=${encodeURIComponent(error.error || "Unknown error")}`
-    );
-  }
+      // If verification is needed, send verification code
+      if (needsVerification) {
+        try {
+          const sendCodeResponse = await fetch(
+            `${origin}/api/auth/verify-device/send-code`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: request.headers.get("cookie") || "",
+              },
+              body: JSON.stringify({
+                device_session_id: session_id,
+                device_name: deviceName,
+              }),
+            }
+          );
 
-  // If verification is needed, send verification code
-  if (needsVerification) {
-    try {
-      const sendCodeResponse = await fetch(
-        `${origin}/api/auth/verify-device/send-code`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: request.headers.get("cookie") || "",
-          },
-          body: JSON.stringify({
-            device_session_id: session_id,
-            device_name: deviceName,
-          }),
+          if (!sendCodeResponse.ok) {
+            const error = await sendCodeResponse.json();
+            console.error("[DEBUG] Failed to send verification code:", error);
+            throw new Error(
+              error.error ||
+                "We couldn't send you a verification code right now."
+            );
+          }
+
+          console.log("[DEBUG] Verification code sent successfully");
+
+          // Redirect to verification page
+          return NextResponse.redirect(
+            `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}`
+          );
+        } catch (error) {
+          console.error("[DEBUG] Verification code error:", error);
+          throw new Error("network_error");
         }
-      );
-
-      if (!sendCodeResponse.ok) {
-        const error = await sendCodeResponse.json();
-        return NextResponse.redirect(
-          `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}&error=send_failed&message=${encodeURIComponent(error.error || "We couldn't send you a verification code right now.")}`
-        );
       }
 
-      // Redirect to verification page
-      return NextResponse.redirect(
-        `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}`
-      );
+      // If no verification needed, redirect to next page
+      const response = NextResponse.redirect(`${origin}${next}`, {
+        status: 302,
+      });
+
+      // Set the device session ID cookie
+      response.cookies.set("device_session_id", session_id, {
+        httpOnly: true,
+        secure: !isLocalEnv,
+        sameSite: "lax",
+      });
+
+      return response;
     } catch (error) {
-      console.error("Failed to send verification code:", error);
-      return NextResponse.redirect(
-        `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}&error=network_error`
-      );
+      console.error("[DEBUG] Device session creation failed:", error);
+      throw error;
     }
-  }
+  } catch (error) {
+    const err = error as Error;
+    console.error("[DEBUG] Post-auth error:", {
+      message: err.message,
+      stack: err.stack,
+    });
 
-  // Send email notification (if Resend is configured)
-  if (!process.env.RESEND_API_KEY) {
-    console.log(
-      "RESEND_API_KEY not configured. Login notification emails are disabled."
+    // Always logout on error
+    await fetch(`${origin}/api/auth/logout`, {
+      method: "POST",
+      headers: {
+        Cookie: request.headers.get("cookie") || "",
+      },
+    });
+
+    // Determine error type from message
+    let errorType = "unknown_error";
+    if (err.message.includes("No user found")) errorType = "failed_to_get_user";
+    else if (err.message.includes("row-level security policy"))
+      errorType = "failed_to_create_user";
+    else if (err.message.includes("device session"))
+      errorType = "failed_to_create_session";
+    else if (err.message.includes("trusted sessions"))
+      errorType = "failed_to_get_trusted_sessions";
+
+    return NextResponse.redirect(
+      `${origin}/auth/error?error=${errorType}&message=${encodeURIComponent(err.message)}`
     );
-  } else {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/send-email-alert`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: request.headers.get("cookie") || "",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(`Failed to send email: ${error.message}`);
-      }
-    } catch (emailError) {
-      // Log error but don't block auth flow
-      console.error("Failed to send login notification:", emailError);
-    }
   }
-
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const isLocalEnv = process.env.NODE_ENV === "development";
-
-  // Create the response with appropriate redirect
-  const response = isLocalEnv
-    ? NextResponse.redirect(`${origin}${next}`)
-    : forwardedHost
-      ? NextResponse.redirect(`https://${forwardedHost}${next}`)
-      : NextResponse.redirect(`${origin}${next}`);
-
-  // Set the device session ID cookie
-  response.cookies.set("device_session_id", session_id, {
-    httpOnly: true,
-    secure: !isLocalEnv,
-    sameSite: "lax",
-  });
-
-  return response;
 }

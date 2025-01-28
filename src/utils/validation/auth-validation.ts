@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export const authSchema = z.object({
   email: z
@@ -8,8 +9,37 @@ export const authSchema = z.object({
     .email("Invalid email format"),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .max(72, "Password cannot exceed 72 characters"),
+    .min(
+      AUTH_CONFIG.passwordRequirements.minLength,
+      `Password must be at least ${AUTH_CONFIG.passwordRequirements.minLength} characters`
+    )
+    .max(
+      AUTH_CONFIG.passwordRequirements.maxLength,
+      `Password cannot exceed ${AUTH_CONFIG.passwordRequirements.maxLength} characters`
+    )
+    .refine(
+      (password) =>
+        !AUTH_CONFIG.passwordRequirements.requireLowercase ||
+        /[a-z]/.test(password),
+      "Password must contain at least one lowercase letter"
+    )
+    .refine(
+      (password) =>
+        !AUTH_CONFIG.passwordRequirements.requireUppercase ||
+        /[A-Z]/.test(password),
+      "Password must contain at least one uppercase letter"
+    )
+    .refine(
+      (password) =>
+        !AUTH_CONFIG.passwordRequirements.requireNumbers || /\d/.test(password),
+      "Password must contain at least one number"
+    )
+    .refine(
+      (password) =>
+        !AUTH_CONFIG.passwordRequirements.requireSymbols ||
+        /[^A-Za-z0-9]/.test(password),
+      "Password must contain at least one symbol"
+    ),
 });
 
 export type AuthSchema = z.infer<typeof authSchema>;
@@ -154,5 +184,24 @@ export const validatePhoneNumber = (phone: string) => {
   return {
     isValid: result.success,
     error: !result.success ? result.error.issues[0]?.message : undefined,
+  };
+};
+
+// Add new helper function for password requirements
+export const getPasswordRequirements = (password: string) => {
+  return {
+    minLength: password.length >= AUTH_CONFIG.passwordRequirements.minLength,
+    maxLength: password.length <= AUTH_CONFIG.passwordRequirements.maxLength,
+    hasLowercase:
+      !AUTH_CONFIG.passwordRequirements.requireLowercase ||
+      /[a-z]/.test(password),
+    hasUppercase:
+      !AUTH_CONFIG.passwordRequirements.requireUppercase ||
+      /[A-Z]/.test(password),
+    hasNumber:
+      !AUTH_CONFIG.passwordRequirements.requireNumbers || /\d/.test(password),
+    hasSymbol:
+      !AUTH_CONFIG.passwordRequirements.requireSymbols ||
+      /[^A-Za-z0-9]/.test(password),
   };
 };

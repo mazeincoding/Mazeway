@@ -188,14 +188,48 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     EXECUTE FUNCTION update_updated_at_column();
     ```
 
+    **Create devices table**
+    ```sql
+    -- Create devices table
+    CREATE TABLE devices (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id uuid REFERENCES auth.users NOT NULL,
+      device_name text NOT NULL,
+      browser text,
+      os text,
+      ip_address text,
+      created_at timestamp with time zone DEFAULT now(),
+      updated_at timestamp with time zone DEFAULT now()
+    );
+    
+    -- Enable RLS
+    ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+    
+    -- Create RLS policies
+    CREATE POLICY "Users can create their own devices"
+    ON devices
+    FOR INSERT
+    WITH CHECK (user_id = auth.uid());
+    
+    CREATE POLICY "Users can view their own devices"
+    ON devices
+    FOR SELECT
+    USING (user_id = auth.uid());
+    
+    -- Create trigger for updated_at
+    CREATE TRIGGER update_devices_updated_at
+    BEFORE UPDATE ON devices
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+    ```
+
     **Create device sessions table**
     ```sql
     CREATE TABLE device_sessions (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id uuid REFERENCES users(id) ON DELETE CASCADE,
       session_id uuid NOT NULL,
-      -- We'll add the device_id column later.
-      -- This is because we need to create the devices table first, in order to reference it.
+      device_id uuid REFERENCES devices(id) ON DELETE CASCADE,
       is_trusted boolean DEFAULT false,
       needs_verification boolean DEFAULT false,
       confidence_score integer DEFAULT 0,  -- Keep this!
@@ -248,49 +282,6 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     -- Step 5: Create indexes for faster queries
     CREATE INDEX idx_device_sessions_user_id ON device_sessions(user_id);
     CREATE INDEX idx_device_sessions_device_id ON device_sessions(device_id);
-    ```
-    **Create devices table**
-    ```sql
-    -- Create devices table
-    CREATE TABLE devices (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      device_name text NOT NULL,
-      browser text,
-      os text,
-      ip_address text,
-      created_at timestamp with time zone DEFAULT now(),
-      updated_at timestamp with time zone DEFAULT now()
-    );
-    
-    -- Enable RLS
-    ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
-    
-    -- Create RLS policies
-    CREATE POLICY "Allow any authenticated user to insert devices"
-    ON devices
-    FOR INSERT
-    TO authenticated;
-    
-    CREATE POLICY "Allow users to view their devices"
-    ON devices
-    FOR SELECT
-    USING (
-      EXISTS (
-        SELECT 1 FROM device_sessions 
-        WHERE device_sessions.device_id = devices.id 
-        AND device_sessions.user_id = auth.uid()
-      )
-    );
-    
-    -- Create trigger for updated_at
-    CREATE TRIGGER update_devices_updated_at
-    BEFORE UPDATE ON devices
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-    ```
-    **Add device_id column to device_sessions table** (now we can run this because we have the devices table)
-    ```sql
-    ALTER TABLE device_sessions ADD COLUMN device_id uuid REFERENCES devices(id) ON DELETE CASCADE;
     ```
     **Create verification codes table**
     ```sql

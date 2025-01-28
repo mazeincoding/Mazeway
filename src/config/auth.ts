@@ -40,4 +40,16 @@ export const AUTH_CONFIG = {
   api_rate_limit: {
     enabled: true,
   },
+  passwordRequirements: {
+    // If you change the min length, make sure to change it in the Supabase dashboard as well.
+    // https://supabase.com/dashboard/project/_/settings/auth
+    // The other settings can be safely changed here. Please do not change "Password Requirements" in the Supabase dashboard.
+    // Our code (API and client) will handle all of it securely.
+    minLength: 8,
+    maxLength: 72,
+    requireLowercase: true,
+    requireUppercase: true,
+    requireNumbers: true,
+    requireSymbols: true,
+  },
 } as const;

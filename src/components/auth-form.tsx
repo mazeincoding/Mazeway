@@ -22,6 +22,7 @@ import {
 import { Confirm } from "./auth-confirm";
 import { TwoFactorVerifyForm } from "./2fa-verify-form";
 import { TTwoFactorMethod } from "@/types/auth";
+import { AUTH_CONFIG } from "@/config/auth";
 
 interface AuthFormProps {
   type: "login" | "signup";
@@ -31,6 +32,7 @@ export function AuthForm({ type }: AuthFormProps) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
@@ -46,8 +48,17 @@ export function AuthForm({ type }: AuthFormProps) {
 
   const passwordValidation = validatePassword(password);
   const emailValidation = validateEmail(email);
+  const isFormValid = passwordValidation.isValid && emailValidation.isValid;
 
   async function handleSubmit(formData: FormData) {
+    if (!isFormValid) {
+      setFormError(
+        passwordValidation.error || emailValidation.error || "Invalid form"
+      );
+      return;
+    }
+    setFormError(null);
+
     try {
       setIsPending(true);
       const response = await fetch(`/api/auth/email/${type}`, {
@@ -144,12 +155,10 @@ export function AuthForm({ type }: AuthFormProps) {
     setTwoFactorError(null);
   }
 
-  const isFormValid = passwordValidation.isValid && emailValidation.isValid;
-
   return (
     <>
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
+        <CardHeader className="text-center">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-2xl font-bold">
               {requiresTwoFactor
@@ -196,6 +205,7 @@ export function AuthForm({ type }: AuthFormProps) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={!!formError && !emailValidation.isValid}
                 />
               </div>
               <div className="flex flex-col gap-3">
@@ -208,14 +218,22 @@ export function AuthForm({ type }: AuthFormProps) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={!!formError && !passwordValidation.isValid}
                 />
               </div>
+
+              {formError && (
+                <p className="text-sm text-destructive">{formError}</p>
+              )}
 
               <div className="flex flex-col gap-4">
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={!isFormValid || isPending}
+                  disabled={
+                    isPending ||
+                    password.length < AUTH_CONFIG.passwordRequirements.minLength
+                  }
                 >
                   {isPending ? (
                     <span className="flex items-center gap-2">

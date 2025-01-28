@@ -51,7 +51,6 @@ export async function updateSession(request: NextRequest) {
   const isApiPath = request.nextUrl.pathname.startsWith("/api/");
 
   if (user) {
-    const deviceSessionId = request.cookies.get("device_session_id");
     // Allow post-auth and error routes to run without device session
     if (
       request.nextUrl.pathname === "/api/auth/post-auth" ||
@@ -62,12 +61,14 @@ export async function updateSession(request: NextRequest) {
 
     // Only check device session on protected routes
     if (isProtectedPath) {
+      const deviceSessionId = request.cookies.get("device_session_id");
+
       if (!deviceSessionId) {
-        // No device session, redirect to error page instead of logout
+        // No device session, redirect to post-auth to set up device session
         const url = request.nextUrl.clone();
-        url.pathname = "/auth/error";
-        url.searchParams.set("error", "no_device_session");
-        url.searchParams.set("message", "Session expired. Please login again.");
+        url.pathname = "/api/auth/post-auth";
+        url.searchParams.set("provider", "browser");
+        url.searchParams.set("next", request.nextUrl.pathname);
         return NextResponse.redirect(url);
       }
 

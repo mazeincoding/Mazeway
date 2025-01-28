@@ -68,7 +68,12 @@ export async function GET(request: Request) {
     // Get trusted sessions
     const { data: trustedSessions, error: sessionsError } = await supabase
       .from("device_sessions")
-      .select("*")
+      .select(
+        `
+        *,
+        device:devices(*)
+      `
+      )
       .eq("user_id", user.id)
       .eq("is_trusted", true);
 
@@ -76,6 +81,19 @@ export async function GET(request: Request) {
       count: trustedSessions?.length,
       error: sessionsError?.message,
     });
+
+    // Add detailed debugging of trusted sessions
+    console.log(
+      "[DEBUG] Trusted sessions raw data:",
+      JSON.stringify(trustedSessions, null, 2)
+    );
+    if (trustedSessions?.length) {
+      console.log("[DEBUG] First trusted session structure:", {
+        hasDevice: "device" in (trustedSessions[0] || {}),
+        keys: Object.keys(trustedSessions[0] || {}),
+        deviceInfo: trustedSessions[0]?.device,
+      });
+    }
 
     if (sessionsError) throw new Error("Failed to get trusted sessions");
 

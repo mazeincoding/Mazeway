@@ -423,27 +423,16 @@ export default function Security() {
             disabled={isLoading}
             error={errors.confirmPassword}
           />
-          <div className="space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading
-                ? hasPasswordAuth
-                  ? "Updating password..."
-                  : "Adding password..."
-                : hasPasswordAuth
-                  ? "Update password"
-                  : "Add password"}
-            </Button>
-            {hasPasswordAuth && (
-              <div className="text-center">
-                <Link
-                  href="/auth/forgot-password"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-            )}
-          </div>
+          {hasPasswordAuth && (
+            <div className="text-center">
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          )}
         </form>
       </SettingCard>
 

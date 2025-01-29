@@ -37,7 +37,12 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from("device_sessions")
-      .select("*")
+      .select(
+        `
+        *,
+        device:devices(*)
+      `
+      )
       .eq("user_id", user.id)
       .eq("is_trusted", true)
       .order("last_active", { ascending: false });

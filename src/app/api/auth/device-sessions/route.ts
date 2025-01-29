@@ -15,7 +15,12 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("device_sessions")
-      .select("*")
+      .select(
+        `
+        *,
+        device:devices(*)
+      `
+      )
       .eq("user_id", user.id)
       .order("last_active", { ascending: false });
 

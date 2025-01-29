@@ -24,9 +24,7 @@ export default function AccountLayout({
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full">
-        <div className="w-full">
-          <Header isInitiallyLoggedIn={true} />
-        </div>
+        <Header isInitiallyLoggedIn={true} />
         <div className="flex flex-1 w-full">
           <SettingsSidebar />
           <div className="flex-1 px-8 py-12">

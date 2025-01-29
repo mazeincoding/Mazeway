@@ -34,7 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatRelativeTime } from "@/lib/utils";
-import { isDeviceSessionActive } from "@/utils/device-sessions";
+import { isDeviceSessionActive } from "@/utils/device-sessions/client";
 import { Manage2FADialog } from "@/components/manage-2fa-dialog";
 import { createClient } from "@/utils/supabase/client";
 

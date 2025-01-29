@@ -1,17 +1,5 @@
-import { isWithinInterval, subMinutes } from "date-fns";
-import { AUTH_CONFIG } from "@/config/auth";
+import { createClient } from "@/utils/supabase/server";
 import { TDeviceInfo } from "@/types/auth";
-import { createClient } from "./supabase/server";
-
-export function isDeviceSessionActive(lastActive: Date) {
-  return isWithinInterval(new Date(lastActive), {
-    start: subMinutes(
-      new Date(),
-      AUTH_CONFIG.deviceSessions.considerActiveWithinMinutes
-    ),
-    end: new Date(),
-  });
-}
 
 // Only use this function on the server
 async function createDevice(device: TDeviceInfo) {
@@ -41,7 +29,7 @@ async function createDevice(device: TDeviceInfo) {
   return newDevice.id;
 }
 
-type TCreateDeviceSessionParams = {
+export type TCreateDeviceSessionParams = {
   user_id: string;
   device: TDeviceInfo;
   confidence_score: number;

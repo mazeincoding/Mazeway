@@ -41,7 +41,7 @@ function SettingsSidebar() {
 
   const items = [
     {
-      title: "Basic information",
+      title: "Account",
       href: "/account",
       icon: User,
     },

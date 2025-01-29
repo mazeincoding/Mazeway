@@ -121,6 +121,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Handle authenticator enrollment
+
+    // Check for existing unverified TOTP factors and remove them
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    if (factors?.all) {
+      const unverifiedTotpFactors = factors.all.filter(
+        (f) => f.factor_type === "totp" && f.status === "unverified"
+      );
+
+      // Remove any unverified TOTP factors
+      for (const factor of unverifiedTotpFactors) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      }
+    }
+
     const { data: factorData, error: factorError } =
       await supabase.auth.mfa.enroll({
         factorType: "totp",

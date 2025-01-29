@@ -74,7 +74,7 @@
 **Security Enhancements**
 
 - [ ] Recovery codes generation
-- [ ] Password complexity requirements
+- [x] Password complexity requirements
 - [ ] Password strength indicator
 - [ ] Password breach checking
 - [ ] CAPTCHA for login

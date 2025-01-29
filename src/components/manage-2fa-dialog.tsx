@@ -130,7 +130,7 @@ export function Manage2FADialog({
                 return (
                   <Card
                     key={method.type}
-                    className="p-4 flex items-center justify-between"
+                    className="p-4 flex items-center justify-between gap-2"
                   >
                     <div className="flex items-center gap-3">
                       <div className="text-muted-foreground">

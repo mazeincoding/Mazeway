@@ -109,7 +109,7 @@ export function Manage2FADialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldIcon className="h-5 w-5" />
@@ -130,7 +130,7 @@ export function Manage2FADialog({
                 return (
                   <Card
                     key={method.type}
-                    className="p-4 flex items-center justify-between gap-2"
+                    className="p-4 flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3">
                       <div className="text-muted-foreground">

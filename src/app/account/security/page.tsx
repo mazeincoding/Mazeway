@@ -442,10 +442,7 @@ export default function Security() {
           title="Two-factor authentication"
           description="Add an extra layer of security to your account."
         >
-          <Button
-            variant="outline"
-            onClick={() => setShowManage2FADialog(true)}
-          >
+          <Button onClick={() => setShowManage2FADialog(true)}>
             {user?.auth.twoFactorEnabled ? "Manage 2FA" : "Enable 2FA"}
           </Button>
         </SettingCard>

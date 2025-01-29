@@ -66,20 +66,23 @@ export async function GET(request: Request) {
     }
 
     // Get trusted sessions
-    const { data: trustedSessions, error: sessionsError } = await supabase
-      .from("device_sessions")
-      .select(
-        `
-        *,
-        device:devices(*)
-      `
-      )
-      .eq("user_id", user.id)
-      .eq("is_trusted", true);
+    const trustedSessionsResponse = await fetch(
+      `${origin}/api/auth/device-sessions/trusted`,
+      {
+        headers: {
+          Cookie: request.headers.get("cookie") || "",
+        },
+      }
+    );
+
+    if (!trustedSessionsResponse.ok) {
+      throw new Error("Failed to get trusted sessions");
+    }
+
+    const { data: trustedSessions } = await trustedSessionsResponse.json();
 
     console.log("[DEBUG] Trusted sessions:", {
       count: trustedSessions?.length,
-      error: sessionsError?.message,
     });
 
     // Add detailed debugging of trusted sessions
@@ -94,8 +97,6 @@ export async function GET(request: Request) {
         deviceInfo: trustedSessions[0]?.device,
       });
     }
-
-    if (sessionsError) throw new Error("Failed to get trusted sessions");
 
     // Parse user agent
     const parser = new UAParser(request.headers.get("user-agent") || "");

@@ -10,7 +10,7 @@ interface HeaderProps {
 
 export function Header({ isInitiallyLoggedIn }: HeaderProps) {
   return (
-    <header className="flex items-center justify-between p-4 px-6 backdrop-blur-xl border-b sticky top-0 z-10">
+    <header className="flex items-center justify-between p-4 px-6 backdrop-blur-xl border-b sticky top-0 z-20 bg-background">
       <h1 className="text-2xl font-bold">
         <Link href="/">Auth</Link>
       </h1>

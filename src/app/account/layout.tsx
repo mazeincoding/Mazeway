@@ -22,21 +22,23 @@ export default function AccountLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex flex-col min-h-screen">
-      <SidebarProvider>
-        <AppSidebar />
-        <div className="flex flex-col flex-grow">
+    <SidebarProvider>
+      <div className="flex flex-col min-h-screen w-full">
+        <div className="w-full">
           <Header isInitiallyLoggedIn={true} />
-          <div className="flex-grow max-w-4xl w-full mx-auto px-8 py-12">
-            {children}
+        </div>
+        <div className="flex flex-1 w-full">
+          <SettingsSidebar />
+          <div className="flex-1 px-8 py-12">
+            <div className="max-w-4xl mx-auto">{children}</div>
           </div>
         </div>
-      </SidebarProvider>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }
 
-function AppSidebar() {
+function SettingsSidebar() {
   const pathname = usePathname();
 
   const items = [

@@ -10,7 +10,7 @@ import {
   calculateDeviceConfidence,
   getConfidenceLevel,
 } from "@/utils/device-confidence";
-import { createDeviceSession } from "@/utils/device-sessions";
+import { createDeviceSession } from "@/utils/device-sessions/server";
 import { TDeviceInfo } from "@/types/auth";
 
 export async function GET(request: Request) {

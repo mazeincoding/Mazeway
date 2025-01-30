@@ -81,10 +81,32 @@ export async function updateSession(request: NextRequest) {
         .single();
 
       if (!deviceSession) {
-        // Device session not found in DB, redirect to logout
-        const url = request.nextUrl.clone();
-        url.pathname = "/api/auth/logout";
-        return NextResponse.redirect(url);
+        const origin = new URL(request.url).origin;
+        const logoutRequest = new Request(`${origin}/api/auth/logout`, {
+          method: "POST",
+          headers: request.headers,
+        });
+
+        try {
+          const logoutResponse = await fetch(logoutRequest);
+          if (!logoutResponse.ok) {
+            throw new Error("Logout failed");
+          }
+
+          // Create redirect response
+          const redirectResponse = NextResponse.redirect(
+            new URL("/auth/login", request.url)
+          );
+
+          // Copy the cookie deletions from the logout response
+          logoutResponse.headers.getSetCookie().forEach((cookie) => {
+            redirectResponse.headers.append("Set-Cookie", cookie);
+          });
+
+          return redirectResponse;
+        } catch (error) {
+          return NextResponse.redirect(new URL("/auth/error", request.url));
+        }
       }
 
       // Redirect to verification if needed

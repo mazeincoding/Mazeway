@@ -31,7 +31,6 @@ export interface TDeviceSession {
   needs_verification: boolean;
   confidence_score: number;
   last_verified: Date | null;
-  last_active: Date;
   created_at: Date;
   updated_at: Date;
 }

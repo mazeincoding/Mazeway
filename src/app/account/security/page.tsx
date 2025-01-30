@@ -497,7 +497,6 @@ interface DeviceItemProps {
   deviceName: string;
   browser: string;
   deviceIcon: React.ReactNode;
-  lastActive: Date;
   sessionId: string;
   onRevoke: (sessionId: string) => void;
   isRevoking: boolean;
@@ -507,7 +506,6 @@ function DeviceItem({
   deviceName,
   browser,
   deviceIcon,
-  lastActive,
   sessionId,
   onRevoke,
   isRevoking,
@@ -521,7 +519,6 @@ function DeviceItem({
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold">{deviceName}</h3>
-                <DeviceStatus lastActive={lastActive} />
               </div>
               <p className="text-sm text-muted-foreground">{browser}</p>
             </div>
@@ -537,7 +534,6 @@ function DeviceItem({
         </DialogHeader>
         <InfoItem label="Device name" value={deviceName} />
         <InfoItem label="Browser" value={browser} />
-        <InfoItem label="Last active" value={formatRelativeTime(lastActive)} />
         <DialogFooter>
           <Button
             variant="destructive"
@@ -744,7 +740,6 @@ function DeviceList() {
                 <LaptopMinimalIcon className="flex-shrink-0 w-8 h-8" />
               )
             }
-            lastActive={new Date(session.last_active)}
             onRevoke={handleRevoke}
             isRevoking={revokingSessionId === session.session_id}
           />

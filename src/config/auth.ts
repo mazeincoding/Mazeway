@@ -29,14 +29,6 @@ export const AUTH_CONFIG = {
     ],
     enabled: true,
   },
-  deviceSessions: {
-    /**
-     * Number of minutes within which a device session is considered "active".
-     * If a device's last_active timestamp is within this threshold from now,
-     * it will show as an active device with a green status indicator in the UI.
-     */
-    considerActiveWithinMinutes: 5,
-  },
   api_rate_limit: {
     enabled: true,
   },

@@ -232,9 +232,8 @@ If you get errors with that flag too, check out [this list](https://docs.google.
       device_id uuid REFERENCES devices(id) ON DELETE CASCADE,
       is_trusted boolean DEFAULT false,
       needs_verification boolean DEFAULT false,
-      confidence_score integer DEFAULT 0,  -- Keep this!
+      confidence_score integer DEFAULT 0,
       last_verified timestamp with time zone,
-      last_active timestamp with time zone DEFAULT now(),
       created_at timestamp with time zone DEFAULT now(),
       updated_at timestamp with time zone DEFAULT now()
     );

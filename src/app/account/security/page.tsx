@@ -34,7 +34,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatRelativeTime } from "@/lib/utils";
-import { isDeviceSessionActive } from "@/utils/device-sessions/client";
 import { Manage2FADialog } from "@/components/manage-2fa-dialog";
 import { createClient } from "@/utils/supabase/client";
 
@@ -497,7 +496,6 @@ interface DeviceItemProps {
   deviceName: string;
   browser: string;
   deviceIcon: React.ReactNode;
-  lastActive: Date;
   sessionId: string;
   onRevoke: (sessionId: string) => void;
   isRevoking: boolean;
@@ -507,7 +505,6 @@ function DeviceItem({
   deviceName,
   browser,
   deviceIcon,
-  lastActive,
   sessionId,
   onRevoke,
   isRevoking,
@@ -521,7 +518,6 @@ function DeviceItem({
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold">{deviceName}</h3>
-                <DeviceStatus lastActive={lastActive} />
               </div>
               <p className="text-sm text-muted-foreground">{browser}</p>
             </div>
@@ -537,7 +533,6 @@ function DeviceItem({
         </DialogHeader>
         <InfoItem label="Device name" value={deviceName} />
         <InfoItem label="Browser" value={browser} />
-        <InfoItem label="Last active" value={formatRelativeTime(lastActive)} />
         <DialogFooter>
           <Button
             variant="destructive"
@@ -550,27 +545,6 @@ function DeviceItem({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DeviceStatus({ lastActive }: { lastActive: Date }) {
-  const isActive = isDeviceSessionActive(lastActive);
-  const lastActiveText = formatRelativeTime(lastActive);
-
-  return (
-    <Tooltip delayDuration={300}>
-      <TooltipTrigger asChild>
-        <div
-          className={cn(
-            "w-2 h-2 rounded-full cursor-pointer",
-            isActive ? "bg-green-500" : "bg-red-500"
-          )}
-        />
-      </TooltipTrigger>
-      <TooltipContent>
-        {isActive ? "Currently active" : `Last active ${lastActiveText}`}
-      </TooltipContent>
-    </Tooltip>
   );
 }
 
@@ -744,7 +718,6 @@ function DeviceList() {
                 <LaptopMinimalIcon className="flex-shrink-0 w-8 h-8" />
               )
             }
-            lastActive={new Date(session.last_active)}
             onRevoke={handleRevoke}
             isRevoking={revokingSessionId === session.session_id}
           />

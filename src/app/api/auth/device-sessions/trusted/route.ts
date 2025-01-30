@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       )
       .eq("user_id", user.id)
       .eq("is_trusted", true)
-      .order("last_active", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
 

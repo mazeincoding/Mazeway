@@ -500,6 +500,7 @@ interface DeviceItemProps {
   lastActive: Date;
   sessionId: string;
   onRevoke: (sessionId: string) => void;
+  isRevoking: boolean;
 }
 
 function DeviceItem({
@@ -509,6 +510,7 @@ function DeviceItem({
   lastActive,
   sessionId,
   onRevoke,
+  isRevoking,
 }: DeviceItemProps) {
   return (
     <Dialog>
@@ -541,8 +543,9 @@ function DeviceItem({
             variant="destructive"
             className="w-full"
             onClick={() => onRevoke(sessionId)}
+            disabled={isRevoking}
           >
-            Log out from this device
+            {isRevoking ? "Logging out..." : "Log out from this device"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -590,9 +593,13 @@ function DeviceList() {
   } | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(
+    null
+  );
 
   const handleRevoke = async (sessionId: string) => {
     try {
+      setRevokingSessionId(sessionId);
       const response = await fetch(`/api/auth/device-sessions/${sessionId}`, {
         method: "DELETE",
       });
@@ -638,6 +645,8 @@ function DeviceList() {
         description: "Failed to revoke device session",
         duration: 3000,
       });
+    } finally {
+      setRevokingSessionId(null);
     }
   };
 
@@ -737,6 +746,7 @@ function DeviceList() {
             }
             lastActive={new Date(session.last_active)}
             onRevoke={handleRevoke}
+            isRevoking={revokingSessionId === session.session_id}
           />
         ))}
       </div>

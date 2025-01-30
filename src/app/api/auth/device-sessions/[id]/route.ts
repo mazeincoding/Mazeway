@@ -26,6 +26,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Even though TypeScript thinks "await" doesn't have an effect
+  // It does. It's required in Next.js dynamic API routes
+  const sessionId = (await params).id;
+
   if (apiRateLimit) {
     const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
     const { success } = await apiRateLimit.limit(ip);
@@ -54,7 +58,7 @@ export async function DELETE(
     const { data: session, error: sessionError } = await supabase
       .from("device_sessions")
       .select("session_id")
-      .eq("session_id", params.id)
+      .eq("session_id", sessionId)
       .eq("user_id", user.id)
       .single();
 
@@ -86,7 +90,7 @@ export async function DELETE(
           const { error: deleteError } = await supabase
             .from("device_sessions")
             .delete()
-            .eq("session_id", params.id);
+            .eq("session_id", sessionId);
 
           if (deleteError) throw deleteError;
 
@@ -114,7 +118,7 @@ export async function DELETE(
       if (twoFactorResult.requiresTwoFactor) {
         return NextResponse.json({
           ...twoFactorResult,
-          sessionId: params.id,
+          sessionId: sessionId,
         }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
       }
     } catch (error) {
@@ -129,7 +133,7 @@ export async function DELETE(
     const { error: deleteError } = await supabase
       .from("device_sessions")
       .delete()
-      .eq("session_id", params.id);
+      .eq("session_id", sessionId);
 
     if (deleteError) throw deleteError;
 

@@ -25,6 +25,7 @@ import { TwoFactorSetupDialog } from "@/components/2fa-setup-dialog";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface Manage2FADialogProps {
   open: boolean;
@@ -60,10 +61,8 @@ export function Manage2FADialog({
     sms: <MessageCircleIcon className="h-5 w-5" />,
   };
 
-  const handleMethodAction = async (
-    method: TTwoFactorMethod,
-    isEnabled: boolean
-  ) => {
+  const handleMethodAction = async (method: TTwoFactorMethod) => {
+    const isEnabled = enabledMethods.includes(method);
     try {
       if (isEnabled) {
         setSelectedMethod(method);
@@ -123,35 +122,66 @@ export function Manage2FADialog({
           </DialogHeader>
 
           <div className="space-y-4">
-            {AUTH_CONFIG.twoFactorAuth.methods
-              .filter((method) => method.enabled)
-              .map((method) => {
-                const isEnabled = enabledMethods.includes(method.type);
-                return (
-                  <Card
-                    key={method.type}
-                    className="p-4 flex items-center justify-between gap-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="text-muted-foreground">
-                        {methodIcons[method.type]}
-                      </div>
-                      <div>
-                        <h4 className="font-medium">{method.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {method.description}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant={isEnabled ? "outline" : "default"}
-                      onClick={() => handleMethodAction(method.type, isEnabled)}
+            <RadioGroup
+              value={selectedMethod || ""}
+              onValueChange={(value) =>
+                setSelectedMethod(value as TTwoFactorMethod)
+              }
+              className="space-y-4"
+            >
+              {AUTH_CONFIG.twoFactorAuth.methods
+                .filter((method) => method.enabled)
+                .map((method) => {
+                  const isEnabled = enabledMethods.includes(method.type);
+                  return (
+                    <div
+                      key={method.type}
+                      className={`relative flex items-center space-x-4 rounded-lg border p-4 ${
+                        isEnabled ? "opacity-50" : ""
+                      }`}
                     >
-                      {isEnabled ? "Disable" : "Enable"}
-                    </Button>
-                  </Card>
-                );
-              })}
+                      <RadioGroupItem
+                        value={method.type}
+                        id={method.type}
+                        disabled={isEnabled}
+                      />
+                      <div className="flex flex-1 items-center gap-3">
+                        <div className="text-muted-foreground">
+                          {methodIcons[method.type]}
+                        </div>
+                        <div>
+                          <Label
+                            htmlFor={method.type}
+                            className="text-base font-medium"
+                          >
+                            {method.title}
+                          </Label>
+                          <p className="text-sm text-muted-foreground">
+                            {method.description}
+                          </p>
+                        </div>
+                      </div>
+                      {isEnabled && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleMethodAction(method.type)}
+                        >
+                          Disable
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+            </RadioGroup>
+            {selectedMethod && !enabledMethods.includes(selectedMethod) && (
+            <Button
+              className="w-full"
+                onClick={() => handleMethodAction(selectedMethod)}
+            >
+              Continue
+            </Button>
+            )}
           </div>
 
           {enabledMethods.length > 0 && (

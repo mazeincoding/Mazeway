@@ -6,10 +6,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { UAParser } from "ua-parser-js";
-import {
-  calculateDeviceConfidence,
-  getConfidenceLevel,
-} from "@/utils/device-confidence";
+import { calculateDeviceConfidence, getConfidenceLevel } from "@/utils/auth";
 import { createDeviceSession } from "@/utils/device-sessions/server";
 import { TDeviceInfo } from "@/types/auth";
 

@@ -21,19 +21,12 @@ import {
   TPasswordChangeResponse,
 } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
-import {
-  checkTwoFactorRequirements,
-  verifyTwoFactorCode,
-} from "@/utils/two-factor";
+import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
 import {
   passwordChangeSchema,
   twoFactorVerificationSchema,
 } from "@/utils/validation/auth-validation";
-
-// Helper to check if user is OAuth-only
-function isOAuthOnlyUser(providers: string[]) {
-  return providers.length > 0 && !providers.includes("email");
-}
+import { isOAuthOnlyUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   if (apiRateLimit) {

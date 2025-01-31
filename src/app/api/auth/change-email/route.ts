@@ -2,10 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TChangeEmailResponse } from "@/types/api";
 import { apiRateLimit } from "@/utils/rate-limit";
-import {
-  checkTwoFactorRequirements,
-  verifyTwoFactorCode,
-} from "@/utils/two-factor";
+import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
 import {
   emailChangeSchema,
   twoFactorVerificationSchema,

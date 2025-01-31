@@ -3,7 +3,7 @@ import { validateFormData } from "@/utils/validation/auth-validation";
 import { NextResponse } from "next/server";
 import { authRateLimit } from "@/utils/rate-limit";
 import { TApiErrorResponse, TEmailLoginResponse } from "@/types/api";
-import { checkTwoFactorRequirements } from "@/utils/two-factor";
+import { checkTwoFactorRequirements } from "@/utils/auth";
 
 export async function POST(request: Request) {
   try {

@@ -46,11 +46,6 @@ export function AuthForm({ type }: AuthFormProps) {
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
-  const isFormValid =
-    type === "login"
-      ? !!(email && password) // just check if fields are not empty for login
-      : validatePassword(password).isValid && validateEmail(email).isValid;
-
   async function handleSubmit(formData: FormData) {
     if (type === "login") {
       // For login, only check if fields are empty
@@ -87,10 +82,10 @@ export function AuthForm({ type }: AuthFormProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error("Error", {
-          description: data.error,
-          duration: 3000,
-        });
+        setFormError(
+          data.error ||
+            "An unexpected error occurred. Refresh the page and try again."
+        );
         return;
       }
 
@@ -113,10 +108,7 @@ export function AuthForm({ type }: AuthFormProps) {
         router.push(data.redirectTo);
       }
     } catch (error) {
-      toast.error("Error", {
-        description: "An unexpected error occurred",
-        duration: 3000,
-      });
+      setFormError("An unexpected error occurred. Refresh the page and try again.");
     } finally {
       setIsPending(false);
     }

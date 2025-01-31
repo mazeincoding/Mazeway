@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/user-store";
 import { KeyRound, LaptopMinimalIcon, ShieldIcon } from "lucide-react";
@@ -27,7 +27,7 @@ import {
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { AUTH_CONFIG } from "@/config/auth";
-import { TTwoFactorMethod } from "@/types/auth";
+import { TDeviceSession, TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -499,6 +499,7 @@ interface DeviceItemProps {
   sessionId: string;
   onRevoke: (sessionId: string) => void;
   isRevoking: boolean;
+  isCurrentDevice?: boolean;
 }
 
 function DeviceItem({
@@ -508,22 +509,39 @@ function DeviceItem({
   sessionId,
   onRevoke,
   isRevoking,
+  isCurrentDevice,
 }: DeviceItemProps) {
+  const content = (
+    <div
+      className={cn(
+        "flex items-center justify-between border p-4 rounded-lg",
+        !isCurrentDevice && "cursor-pointer hover:bg-accent",
+      )}
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex-shrink-0 w-8 h-8">{deviceIcon}</div>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold">{deviceName}</h3>
+            {isCurrentDevice && (
+              <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                Current device
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{browser}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (isCurrentDevice) {
+    return content;
+  }
+
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <div className="flex items-center justify-between cursor-pointer border hover:bg-accent p-4 rounded-lg">
-          <div className="flex items-center gap-4">
-            <div className="flex-shrink-0 w-8 h-8">{deviceIcon}</div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">{deviceName}</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">{browser}</p>
-            </div>
-          </div>
-        </div>
-      </DialogTrigger>
+      <DialogTrigger asChild>{content}</DialogTrigger>
       <DialogContent>
         <DialogHeader className="sr-only">
           <DialogTitle>{deviceName}</DialogTitle>
@@ -569,6 +587,52 @@ function DeviceList() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(
     null
+  );
+  const [currentSession, setCurrentSession] = useState<TDeviceSession | null>(
+    null
+  );
+
+  // Get the current device session
+  useEffect(() => {
+    async function fetchCurrentSession() {
+      try {
+        const response = await fetch("/api/auth/device-sessions/current");
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error("[DEBUG] Failed to get current session:", data.error);
+          return;
+        }
+
+        setCurrentSession(data.data);
+      } catch (err) {
+        console.error("[DEBUG] Error fetching current session:", err);
+      }
+    }
+
+    fetchCurrentSession();
+  }, []);
+
+  // Log whenever sessions or currentSession changes
+  useEffect(() => {
+    console.log("[DEBUG] Current sessions:", sessions);
+    console.log("[DEBUG] Current session:", currentSession);
+  }, [sessions, currentSession]);
+
+  // Sort sessions to put current device first
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (a.session_id === currentSession?.session_id) return -1;
+    if (b.session_id === currentSession?.session_id) return 1;
+    return 0;
+  });
+
+  console.log(
+    "[DEBUG] Sorted sessions:",
+    sortedSessions.map((s) => ({
+      session_id: s.session_id,
+      is_current: s.session_id === currentSession?.session_id,
+      device_name: s.device.device_name,
+    }))
   );
 
   const handleRevoke = async (sessionId: string) => {
@@ -699,7 +763,7 @@ function DeviceList() {
   return (
     <>
       <div className="flex flex-col gap-6">
-        {sessions.map((session) => (
+        {sortedSessions.map((session) => (
           <DeviceItem
             key={session.id}
             sessionId={session.session_id}
@@ -715,6 +779,7 @@ function DeviceList() {
             }
             onRevoke={handleRevoke}
             isRevoking={revokingSessionId === session.session_id}
+            isCurrentDevice={session.session_id === currentSession?.session_id}
           />
         ))}
       </div>

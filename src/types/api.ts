@@ -100,3 +100,7 @@ export interface TGetUserResponse {
 
 // Generic success response
 export interface TEmptySuccessResponse {}
+
+export type TGetDeviceSessionResponse = {
+  data: TDeviceSession;
+};

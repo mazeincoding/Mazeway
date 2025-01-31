@@ -1,5 +1,4 @@
 import { createClient } from "@/utils/supabase/server";
-import { validateFormData } from "@/utils/validation/auth-validation";
 import { NextResponse } from "next/server";
 import { authRateLimit } from "@/utils/rate-limit";
 import { TApiErrorResponse, TEmailLoginResponse } from "@/types/api";
@@ -23,23 +22,25 @@ export async function POST(request: Request) {
     const redirectUrl = `${origin}/api/auth/post-auth?provider=email&next=/`;
 
     const body = await request.json();
-    const validation = validateFormData(body);
 
-    if (validation.error || !validation.data) {
+    // Basic check for required fields
+    if (!body.email || !body.password) {
       return NextResponse.json(
-        { error: validation.error || "Invalid input" },
+        { error: "Email and password are required" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
     const supabase = await createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword(
-      validation.data
-    );
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: body.email,
+      password: body.password,
+    });
 
     if (authError) {
+      // Generic error message for any auth failure
       return NextResponse.json(
-        { error: authError.message },
+        { error: "Invalid email or password" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }

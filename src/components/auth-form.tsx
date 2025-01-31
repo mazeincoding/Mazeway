@@ -46,16 +46,28 @@ export function AuthForm({ type }: AuthFormProps) {
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
-  const passwordValidation = validatePassword(password);
-  const emailValidation = validateEmail(email);
-  const isFormValid = passwordValidation.isValid && emailValidation.isValid;
+  const isFormValid =
+    type === "login"
+      ? !!(email && password) // just check if fields are not empty for login
+      : validatePassword(password).isValid && validateEmail(email).isValid;
 
   async function handleSubmit(formData: FormData) {
-    if (!isFormValid) {
-      setFormError(
-        passwordValidation.error || emailValidation.error || "Invalid form"
-      );
-      return;
+    if (type === "login") {
+      // For login, only check if fields are empty
+      if (!email || !password) {
+        setFormError("Please enter your email and password");
+        return;
+      }
+    } else {
+      // For signup, do full validation
+      const passwordValidation = validatePassword(password);
+      const emailValidation = validateEmail(email);
+      if (!passwordValidation.isValid || !emailValidation.isValid) {
+        setFormError(
+          passwordValidation.error || emailValidation.error || "Invalid form"
+        );
+        return;
+      }
     }
     setFormError(null);
 
@@ -205,7 +217,11 @@ export function AuthForm({ type }: AuthFormProps) {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  aria-invalid={!!formError && !emailValidation.isValid}
+                  aria-invalid={
+                    type === "signup" &&
+                    !!formError &&
+                    !validateEmail(email).isValid
+                  }
                 />
               </div>
               <div className="flex flex-col gap-3">
@@ -218,7 +234,11 @@ export function AuthForm({ type }: AuthFormProps) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  aria-invalid={!!formError && !passwordValidation.isValid}
+                  aria-invalid={
+                    type === "signup" &&
+                    !!formError &&
+                    !validatePassword(password).isValid
+                  }
                 />
               </div>
 
@@ -232,7 +252,9 @@ export function AuthForm({ type }: AuthFormProps) {
                   className="w-full"
                   disabled={
                     isPending ||
-                    password.length < AUTH_CONFIG.passwordRequirements.minLength
+                    (type === "signup" &&
+                      password.length <
+                        AUTH_CONFIG.passwordRequirements.minLength)
                   }
                 >
                   {isPending ? (

@@ -206,7 +206,14 @@ export function AuthForm({ type }: AuthFormProps) {
               />
             )
           ) : (
-            <form action={handleSubmit} className="flex flex-col gap-5">
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                await handleSubmit(formData);
+              }}
+              className="flex flex-col gap-5"
+            >
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3">
                   <Label htmlFor="email">Email</Label>

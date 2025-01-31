@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   console.log("Creating Supabase client with service role...");
   const supabase = await createClient({ useServiceRole: true });
   console.log("Service role status:", {

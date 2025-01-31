@@ -13,8 +13,6 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { SmartphoneIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Tooltip } from "@/components/ui/tooltip";
-import { TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -31,9 +29,6 @@ import { TDeviceSession, TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { formatRelativeTime } from "@/lib/utils";
 import { Manage2FADialog } from "@/components/manage-2fa-dialog";
 import { createClient } from "@/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";

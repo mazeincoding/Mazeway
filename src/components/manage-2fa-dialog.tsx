@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { AUTH_CONFIG } from "@/config/auth";
 import { TTwoFactorMethod } from "@/types/auth";
-import { Card } from "@/components/ui/card";
 import {
   QrCodeIcon,
   MessageCircleIcon,

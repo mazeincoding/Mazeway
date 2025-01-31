@@ -170,7 +170,7 @@ export function AuthForm({ type }: AuthFormProps) {
   return (
     <>
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-2xl font-bold">
               {requiresTwoFactor
@@ -206,45 +206,47 @@ export function AuthForm({ type }: AuthFormProps) {
               />
             )
           ) : (
-            <form action={handleSubmit} className="flex flex-col gap-6">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  aria-invalid={
-                    type === "signup" &&
-                    !!formError &&
-                    !validateEmail(email).isValid
-                  }
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  aria-invalid={
-                    type === "signup" &&
-                    !!formError &&
-                    !validatePassword(password).isValid
-                  }
-                />
-              </div>
+            <form action={handleSubmit} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={
+                      type === "signup" &&
+                      !!formError &&
+                      !validateEmail(email).isValid
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={
+                      type === "signup" &&
+                      !!formError &&
+                      !validatePassword(password).isValid
+                    }
+                  />
+                </div>
 
-              {formError && (
-                <p className="text-sm text-destructive">{formError}</p>
-              )}
+                {formError && (
+                  <p className="text-sm text-destructive">{formError}</p>
+                )}
+              </div>
 
               <div className="flex flex-col gap-4">
                 <Button

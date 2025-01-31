@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FaGoogle } from "react-icons/fa";
+import { Pencil } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -23,12 +24,9 @@ import { Confirm } from "./auth-confirm";
 import { TwoFactorVerifyForm } from "./2fa-verify-form";
 import { TTwoFactorMethod } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
+import { BackButton } from "./back-button";
 
-interface AuthFormProps {
-  type: "login" | "signup";
-}
-
-export function AuthForm({ type }: AuthFormProps) {
+export function AuthForm() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -45,9 +43,55 @@ export function AuthForm({ type }: AuthFormProps) {
   >([]);
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  const [showPasswordField, setShowPasswordField] = useState(false);
+  const [determinedType, setDeterminedType] = useState<
+    "login" | "signup" | null
+  >(null);
+
+  async function handleEmailCheck(email: string) {
+    try {
+      setIsPending(true);
+      const response = await fetch("/api/auth/email/check", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setFormError(data.error || "Failed to check email");
+        return;
+      }
+
+      setDeterminedType(data.exists ? "login" : "signup");
+      setShowPasswordField(true);
+    } catch (error) {
+      setFormError("An unexpected error occurred");
+    } finally {
+      setIsPending(false);
+    }
+  }
 
   async function handleSubmit(formData: FormData) {
-    if (type === "login") {
+    const emailValue = formData.get("email") as string;
+
+    // Initial email-only check
+    if (!showPasswordField) {
+      const emailValidation = validateEmail(emailValue);
+      if (!emailValidation.isValid) {
+        setFormError(emailValidation.error || "Invalid email");
+        return;
+      }
+      setFormError(null);
+      await handleEmailCheck(emailValue);
+      return;
+    }
+
+    // Full form submission
+    if (determinedType === "login") {
       // For login, only check if fields are empty
       if (!email || !password) {
         setFormError("Please enter your email and password");
@@ -68,7 +112,7 @@ export function AuthForm({ type }: AuthFormProps) {
 
     try {
       setIsPending(true);
-      const response = await fetch(`/api/auth/email/${type}`, {
+      const response = await fetch(`/api/auth/email/${determinedType}`, {
         method: "POST",
         body: JSON.stringify({
           email: formData.get("email"),
@@ -102,13 +146,15 @@ export function AuthForm({ type }: AuthFormProps) {
 
       // For signup, show confirmation dialog
       // For login, redirect to the URL from server
-      if (type === "signup") {
+      if (determinedType === "signup") {
         setShowConfirm(true);
       } else {
         router.push(data.redirectTo);
       }
     } catch (error) {
-      setFormError("An unexpected error occurred. Refresh the page and try again.");
+      setFormError(
+        "An unexpected error occurred. Refresh the page and try again."
+      );
     } finally {
       setIsPending(false);
     }
@@ -159,17 +205,34 @@ export function AuthForm({ type }: AuthFormProps) {
     setTwoFactorError(null);
   }
 
+  function handleBack() {
+    if (!showPasswordField) {
+      router.back();
+      return;
+    }
+
+    setPassword("");
+    setShowPasswordField(false);
+    setDeterminedType(null);
+    setFormError(null);
+  }
+
   return (
     <>
+      <div className="absolute top-0 left-0 p-4">
+        <BackButton onClick={handleBack} />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-2xl font-bold">
               {requiresTwoFactor
                 ? "Two-factor authentication"
-                : type === "login"
-                  ? "Welcome back"
-                  : "Create your account"}
+                : showPasswordField
+                  ? determinedType === "login"
+                    ? "Welcome back"
+                    : "Create your account"
+                  : "Sign up or log in"}
             </CardTitle>
             <CardDescription className="text-foreground/35">
               {requiresTwoFactor
@@ -178,12 +241,14 @@ export function AuthForm({ type }: AuthFormProps) {
                   : availableMethods[0]?.type === "authenticator"
                     ? "Enter the code from your authenticator app"
                     : "Enter the code sent to your phone"
-                : type === "login"
-                  ? "Enter your credentials to continue"
-                  : "Enter your details below to get started"}
+                : showPasswordField
+                  ? determinedType === "login"
+                    ? "Enter your password to continue"
+                    : "Create a password to get started"
+                  : "Enter your email to continue"}
             </CardDescription>
           </div>
-          {!requiresTwoFactor && <SocialButtons />}
+          {!requiresTwoFactor && !showPasswordField && <SocialButtons />}
         </CardHeader>
         <CardContent>
           {requiresTwoFactor ? (
@@ -209,38 +274,55 @@ export function AuthForm({ type }: AuthFormProps) {
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="name@example.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={
-                      type === "signup" &&
-                      !!formError &&
-                      !validateEmail(email).isValid
-                    }
-                  />
+                  <div className="relative">
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="name@example.com"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      aria-invalid={
+                        determinedType === "signup" &&
+                        !!formError &&
+                        !validateEmail(email).isValid
+                      }
+                      disabled={showPasswordField}
+                    />
+                    {showPasswordField && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent group"
+                        onClick={handleBack}
+                      >
+                        <Pencil className="h-3 w-3 flex-shrink-0 text-foreground/50 transition-colors group-hover:text-foreground" />
+                        <span className="sr-only">Edit email</span>
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-col gap-3">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    aria-invalid={
-                      type === "signup" &&
-                      !!formError &&
-                      !validatePassword(password).isValid
-                    }
-                  />
-                </div>
+                {showPasswordField && (
+                  <div className="flex flex-col gap-3">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      aria-invalid={
+                        determinedType === "signup" &&
+                        !!formError &&
+                        !validatePassword(password).isValid
+                      }
+                    />
+                  </div>
+                )}
 
                 {formError && (
                   <p className="text-sm text-destructive">{formError}</p>
@@ -253,7 +335,8 @@ export function AuthForm({ type }: AuthFormProps) {
                   className="w-full"
                   disabled={
                     isPending ||
-                    (type === "signup" &&
+                    (showPasswordField &&
+                      determinedType === "signup" &&
                       password.length <
                         AUTH_CONFIG.passwordRequirements.minLength)
                   }
@@ -261,53 +344,71 @@ export function AuthForm({ type }: AuthFormProps) {
                   {isPending ? (
                     <span className="flex items-center gap-2">
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      {type === "login"
-                        ? "Logging in..."
-                        : "Creating account..."}
+                      {showPasswordField
+                        ? determinedType === "login"
+                          ? "Logging in..."
+                          : "Creating account..."
+                        : "Continue"}
                     </span>
-                  ) : type === "login" ? (
-                    "Log in"
+                  ) : showPasswordField ? (
+                    determinedType === "login" ? (
+                      "Log in"
+                    ) : (
+                      "Create account"
+                    )
                   ) : (
-                    "Create account"
+                    "Continue"
                   )}
                 </Button>
-                {type === "login" && !requiresTwoFactor && (
-                  <Link href="/auth/login-help">
-                    <Button
-                      variant="outline"
-                      type="button"
-                      className="w-full text-sm"
-                    >
-                      Can't log in?
-                    </Button>
-                  </Link>
-                )}
+                {determinedType === "login" &&
+                  showPasswordField &&
+                  !requiresTwoFactor && (
+                    <Link href="/auth/login-help">
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="w-full text-sm"
+                      >
+                        Can't log in?
+                      </Button>
+                    </Link>
+                  )}
               </div>
             </form>
           )}
         </CardContent>
-        {!requiresTwoFactor && (
+        {!requiresTwoFactor && showPasswordField && (
           <CardFooter className="flex flex-col gap-2 border-t p-5">
             <p className="text-sm text-foreground/35 flex gap-1">
-              {type === "login" ? (
+              {determinedType === "login" ? (
                 <>
                   Don't have an account?{" "}
-                  <Link
-                    href="/auth/signup"
-                    className="text-foreground hover:underline"
+                  <Button
+                    variant="link"
+                    className="h-auto p-0"
+                    onClick={() => {
+                      setDeterminedType("signup");
+                      setPassword("");
+                      setFormError(null);
+                    }}
                   >
                     Sign up
-                  </Link>
+                  </Button>
                 </>
               ) : (
                 <>
                   Already have an account?{" "}
-                  <Link
-                    href="/auth/login"
-                    className="text-foreground hover:underline"
+                  <Button
+                    variant="link"
+                    className="h-auto p-0"
+                    onClick={() => {
+                      setDeterminedType("login");
+                      setPassword("");
+                      setFormError(null);
+                    }}
                   >
                     Log in
-                  </Link>
+                  </Button>
                 </>
               )}
             </p>

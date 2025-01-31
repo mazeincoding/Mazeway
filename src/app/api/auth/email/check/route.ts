@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
-import { validateFormData } from "@/utils/validation/auth-validation";
 import { NextResponse } from "next/server";
 import { authRateLimit } from "@/utils/rate-limit";
+import { validateEmail } from "@/utils/validation/auth-validation";
 
 export async function POST(request: Request) {
   try {
@@ -18,35 +18,33 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const validation = validateFormData(body);
+    const { email } = body;
 
-    if (validation.error || !validation.data) {
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
       return NextResponse.json(
-        { error: validation.error || "Invalid input" },
+        { error: emailValidation.error },
         { status: 400 }
       );
     }
 
     const supabase = await createClient();
-    const { data, error: authError } = await supabase.auth.signUp(
-      validation.data
-    );
 
-    if (authError) {
-      if (authError.code === "user_already_exists") {
-        return NextResponse.json(
-          {
-            error:
-              "This email is already in use. Please try logging in instead.",
-          },
-          { status: 400 }
-        );
-      }
-      return NextResponse.json({ error: authError.message }, { status: 400 });
-    }
+    // Try to sign up - if user exists, we'll get a specific error
+    const { error } = await supabase.auth.signUp({
+      email,
+      password: crypto.randomUUID(), // Random password as we only care about the error
+    });
 
-    return NextResponse.json({}, { status: 200 });
+    return NextResponse.json({
+      exists: error?.code === "user_already_exists",
+    });
   } catch (error) {
+    console.error("Email check error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

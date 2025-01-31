@@ -36,6 +36,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { formatRelativeTime } from "@/lib/utils";
 import { Manage2FADialog } from "@/components/manage-2fa-dialog";
 import { createClient } from "@/utils/supabase/client";
+import { Badge } from "@/components/ui/badge";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -524,9 +525,7 @@ function DeviceItem({
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold">{deviceName}</h3>
             {isCurrentDevice && (
-              <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                Current device
-              </span>
+              <Badge>Current device</Badge>
             )}
           </div>
           <p className="text-sm text-muted-foreground">{browser}</p>

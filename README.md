@@ -86,8 +86,6 @@ This is only the beginning. It's a great start. But if you're curious, check out
 
 ### ⚠️ Important notice
 The project is not done yet! It's not recommended to use in production until security gaps are fixed and the core auth feature are implemented fully. Changes are still being made to this README (like database updates, setup changes). You can come back to this repo and soon enough, it should be ready.
-
-✅ Update (Jan, 24th, 2025): the project is now complete and ready to be used. This important notice will disappear soon. Go nuts!
   
 ## Required setup
 

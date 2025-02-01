@@ -24,21 +24,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const supabase = await createClient();
-
-    // Verify user has a recovery session
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user || user.aud !== "recovery") {
-      return NextResponse.json(
-        { error: "Unauthorized. Please request a new password reset link." },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
     const { password } = await request.json();
 
     // Validate new password
@@ -49,6 +34,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    const supabase = await createClient();
 
     // Update password
     const { error: updateError } = await supabase.auth.updateUser({

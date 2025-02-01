@@ -26,6 +26,7 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +110,8 @@ export default function ChangePasswordPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={loading}
+                      showPassword={showPassword}
+                      onShowPasswordChange={setShowPassword}
                     />
                     <Input
                       type="password"
@@ -116,6 +119,8 @@ export default function ChangePasswordPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       disabled={loading}
+                      showPassword={showPassword}
+                      onShowPasswordChange={setShowPassword}
                     />
                   </div>
                   {error && <p className="text-sm text-destructive">{error}</p>}

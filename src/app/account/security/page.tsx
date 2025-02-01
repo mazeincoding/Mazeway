@@ -32,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Manage2FADialog } from "@/components/manage-2fa-dialog";
 import { createClient } from "@/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { TGeolocationResponse } from "@/types/api";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -496,6 +497,8 @@ interface DeviceItemProps {
   onRevoke: (sessionId: string) => void;
   isRevoking: boolean;
   isCurrentDevice?: boolean;
+  os: string | null;
+  ipAddress?: string;
 }
 
 function DeviceItem({
@@ -506,12 +509,57 @@ function DeviceItem({
   onRevoke,
   isRevoking,
   isCurrentDevice,
+  os,
+  ipAddress,
 }: DeviceItemProps) {
+  const [location, setLocation] = useState<TGeolocationResponse["data"] | null>(
+    null
+  );
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Fetch location data when component mounts
+  useEffect(() => {
+    async function fetchLocation() {
+      if (!ipAddress) return;
+
+      try {
+        setIsLoadingLocation(true);
+        setLocationError(null);
+        const response = await fetch(
+          `/api/auth/device-sessions/geolocation?ip=${encodeURIComponent(ipAddress)}`
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          // Don't show error for local IPs
+          if (!["127.0.0.1", "::1", "localhost"].includes(ipAddress)) {
+            setLocationError(
+              response.status === 429
+                ? "Location service is busy. Try again later."
+                : "Couldn't get location information."
+            );
+          }
+          return;
+        }
+
+        setLocation(data.data);
+      } catch (err) {
+        console.error("Error fetching location:", err);
+        setLocationError("Couldn't get location information.");
+      } finally {
+        setIsLoadingLocation(false);
+      }
+    }
+
+    fetchLocation();
+  }, [ipAddress]);
+
   const content = (
     <div
       className={cn(
         "flex items-center justify-between border p-4 rounded-lg",
-        !isCurrentDevice && "cursor-pointer hover:bg-accent",
+        !isCurrentDevice && "cursor-pointer hover:bg-accent"
       )}
     >
       <div className="flex items-center gap-4">
@@ -519,9 +567,7 @@ function DeviceItem({
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold">{deviceName}</h3>
-            {isCurrentDevice && (
-              <Badge>Current device</Badge>
-            )}
+            {isCurrentDevice && <Badge>Current device</Badge>}
           </div>
           <p className="text-sm text-muted-foreground">{browser}</p>
         </div>
@@ -545,6 +591,23 @@ function DeviceItem({
         </DialogHeader>
         <InfoItem label="Device name" value={deviceName} />
         <InfoItem label="Browser" value={browser} />
+        {os && <InfoItem label="Operating System" value={os} />}
+        {location && (
+          <InfoItem
+            label="Location"
+            value={[location.city, location.region, location.country]
+              .filter(Boolean)
+              .join(", ")}
+          />
+        )}
+        {isLoadingLocation && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="animate-spin">⏳</span> Loading location...
+          </div>
+        )}
+        {locationError && (
+          <div className="text-sm text-muted-foreground">{locationError}</div>
+        )}
         <DialogFooter>
           <Button
             variant="destructive"
@@ -774,6 +837,8 @@ function DeviceList() {
             onRevoke={handleRevoke}
             isRevoking={revokingSessionId === session.session_id}
             isCurrentDevice={session.session_id === currentSession?.session_id}
+            os={session.device.os}
+            ipAddress={session.device.ip_address}
           />
         ))}
       </div>

@@ -98,6 +98,17 @@ export interface TGetUserResponse {
   user: TUserWithAuth;
 }
 
+// /api/auth/device-sessions/geolocation
+export interface TGeolocationResponse {
+  data: {
+    city?: string;
+    region?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+}
+
 // Generic success response
 export interface TEmptySuccessResponse {}
 

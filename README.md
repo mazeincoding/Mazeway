@@ -780,17 +780,17 @@ Reasons:
 
 ### Difference between forgot password, change password and reset password
 Notice how we got 3, very similar API routes?
-- `auth/forgot-password`
-- `auth/change-password`
-- `auth/reset-password`
+- `/api/auth/forgot-password`
+- `/api/auth/change-password`
+- `/api/auth/reset-password`
 
 The names look similar, but they serve entirely different purposes.
 
--  `auth/forgot-password`: Sends a password reset email
+- `/api/auth/forgot-password`: Sends a password reset email
 
-- `auth/change-password`: Used to change the password of authenticated users. It accepts a current and new password.
+- `/api/auth/change-password`: Used to change the password of authenticated users. It accepts a current and new password.
 
-- `auth/reset-password`: Part of the forgot password flow: it takes a new password and a token, which it uses to update the password.
+- `/api/auth/reset-password`: Part of the forgot password flow: it takes a new password and a token, which it uses to update the password.
 
 ### API routes - returning success/error response VS redirecting
 We're doing both. Why? Because it's not about consistency or standardizing one approach.

@@ -296,16 +296,17 @@ export function AuthForm() {
                         !validateEmail(email).isValid
                       }
                       disabled={showPasswordField}
+                      className={showPasswordField ? "pr-10" : ""}
                     />
                     {showPasswordField && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 hover:bg-transparent group"
+                        className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
                         onClick={handleBack}
                       >
-                        <Pencil className="h-3 w-3 flex-shrink-0 text-foreground/50 transition-colors group-hover:text-foreground" />
+                        <Pencil className="h-4 w-4" />
                         <span className="sr-only">Edit email</span>
                       </Button>
                     )}

@@ -115,8 +115,8 @@ export function AuthForm() {
       const response = await fetch(`/api/auth/email/${determinedType}`, {
         method: "POST",
         body: JSON.stringify({
-          email: formData.get("email"),
-          password: formData.get("password"),
+          email: email,
+          password: password,
         }),
         headers: {
           "Content-Type": "application/json",

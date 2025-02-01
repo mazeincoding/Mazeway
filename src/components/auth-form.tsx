@@ -47,6 +47,7 @@ export function AuthForm() {
   const [determinedType, setDeterminedType] = useState<
     "login" | "signup" | null
   >(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleEmailCheck(email: string) {
     try {
@@ -326,6 +327,8 @@ export function AuthForm() {
                         !!formError &&
                         !validatePassword(password).isValid
                       }
+                      showPassword={showPassword}
+                      onShowPasswordChange={setShowPassword}
                     />
                   </div>
                 )}

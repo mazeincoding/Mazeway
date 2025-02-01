@@ -369,10 +369,11 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     **Reset Password**
     ```html
     <h2>Reset Password</h2>
-    
+
     <p>Follow this link to reset the password for your user:</p>
-    <p><a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}"></p>
+    <p><a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}">Reset Password</a></p>
     ```
+
 
 6. Set up Google OAuth and connect to Supabase
 

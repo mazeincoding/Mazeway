@@ -80,14 +80,13 @@ export default function ChangePasswordPage() {
                     Success!
                   </CardTitle>
                   <CardDescription className="text-center text-base">
-                    Your password has been changed. You can now log in with your
-                    new password.
+                    Your password has been changed. Continue with using the app.
                   </CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
-                <Link href="/auth/login" className="block w-full">
-                  <Button className="w-full">Go to login</Button>
+                <Link href="/dashboard" className="block w-full">
+                  <Button className="w-full">Continue</Button>
                 </Link>
               </CardContent>
             </>

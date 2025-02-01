@@ -123,21 +123,27 @@ export function AuthForm() {
         },
       });
 
+      // If it's a redirect, follow it
+      if (response.redirected || response.status === 307) {
+        window.location.href = response.url;
+        return;
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
         setFormError(
-          data.error ||
+          data?.error ||
             "An unexpected error occurred. Refresh the page and try again."
         );
         return;
       }
 
       // Store redirect URL for later use
-      setRedirectUrl(data.redirectTo);
+      setRedirectUrl(data?.redirectTo);
 
       // Check if 2FA is required
-      if (data.requiresTwoFactor) {
+      if (data?.requiresTwoFactor) {
         setRequiresTwoFactor(true);
         setFactorId(data.factorId);
         setAvailableMethods(data.availableMethods || []);
@@ -149,7 +155,7 @@ export function AuthForm() {
       if (determinedType === "signup") {
         setShowConfirm(true);
       } else {
-        router.push(data.redirectTo);
+        router.push(data?.redirectTo);
       }
     } catch (error) {
       setFormError(

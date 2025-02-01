@@ -95,10 +95,7 @@ export default function ForgotPassword() {
                     We've sent you instructions to reset your password.
                   </p>
                 </div>
-                <Button
-                  onClick={() => setIsSuccess(false)}
-                  className="mt-2"
-                >
+                <Button onClick={() => setIsSuccess(false)} className="mt-2">
                   Didn't receive the email? Try again
                 </Button>
               </div>
@@ -106,6 +103,8 @@ export default function ForgotPassword() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Input
+                    id="email"
+                    name="email"
                     type="email"
                     placeholder="Enter your email"
                     value={email}

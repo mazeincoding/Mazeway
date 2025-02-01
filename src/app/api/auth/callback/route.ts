@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent(error.message)}`
       );
     }
-    return NextResponse.redirect(`${origin}/auth/change-password`);
+    return NextResponse.redirect(`${origin}/auth/reset-password`);
   }
 
   // No valid callback parameters

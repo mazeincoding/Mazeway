@@ -39,7 +39,7 @@ export async function updateSession(request: NextRequest) {
 
   const protectedPaths = ["/dashboard", "/account", "/api/send-email-alert"];
   const authPaths = ["/", "/auth/login", "/auth/signup"];
-  const passwordResetPath = "/auth/change-password";
+  const passwordResetPath = "/auth/reset-password";
 
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TGeolocationResponse } from "@/types/api";
-import { apiRateLimit } from "@/utils/rate-limit";
+import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 
 // List of development/local IPs that don't need geolocation
 const LOCAL_IPS = new Set(["127.0.0.1", "::1", "localhost"]);
 
 export async function GET(request: NextRequest) {
   if (apiRateLimit) {
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const ip = getClientIp(request);
     const { success } = await apiRateLimit.limit(ip);
 
     if (!success) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const ipAddress = request.nextUrl.searchParams.get("ip");
+  const ipAddress = getClientIp(request);
   if (!ipAddress) {
     return NextResponse.json(
       { error: "IP address is required" },

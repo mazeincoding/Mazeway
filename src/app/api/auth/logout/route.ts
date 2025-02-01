@@ -1,11 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-import { NextResponse } from "next/server";
-import { basicRateLimit } from "@/utils/rate-limit";
+import { NextRequest, NextResponse } from "next/server";
+import { basicRateLimit, getClientIp } from "@/utils/rate-limit";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     if (basicRateLimit) {
-      const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+      const ip = getClientIp(request);
       const { success } = await basicRateLimit.limit(ip);
 
       if (!success) {

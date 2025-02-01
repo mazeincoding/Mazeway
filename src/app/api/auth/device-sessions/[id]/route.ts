@@ -5,7 +5,7 @@ import {
   TEmptySuccessResponse,
   TRevokeDeviceSessionResponse,
 } from "@/types/api";
-import { apiRateLimit } from "@/utils/rate-limit";
+import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
 import { twoFactorVerificationSchema } from "@/utils/validation/auth-validation";
 
@@ -28,7 +28,7 @@ export async function DELETE(
   const sessionId = (await params).id;
 
   if (apiRateLimit) {
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const ip = getClientIp(request);
     const { success } = await apiRateLimit.limit(ip);
 
     if (!success) {

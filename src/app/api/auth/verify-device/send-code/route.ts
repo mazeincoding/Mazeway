@@ -6,7 +6,7 @@ import DeviceVerificationEmail from "@emails/templates/device-verification";
 import { randomBytes } from "crypto";
 import type { TDeviceSession, TUser } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
-import { authRateLimit } from "@/utils/rate-limit";
+import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 
 function generateVerificationCode(): string {
   const codeLength = AUTH_CONFIG.deviceVerification.codeLength;
@@ -19,7 +19,7 @@ function generateVerificationCode(): string {
 
 export async function POST(request: NextRequest) {
   if (authRateLimit) {
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const ip = getClientIp(request);
     const { success } = await authRateLimit.limit(ip);
 
     if (!success) {

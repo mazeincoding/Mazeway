@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TChangeEmailResponse } from "@/types/api";
-import { apiRateLimit } from "@/utils/rate-limit";
+import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
 import {
   emailChangeSchema,
@@ -21,7 +21,7 @@ async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
 
 export async function POST(request: NextRequest) {
   if (apiRateLimit) {
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    const ip = getClientIp(request);
     const { success } = await apiRateLimit.limit(ip);
 
     if (!success) {

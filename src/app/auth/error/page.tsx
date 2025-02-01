@@ -202,10 +202,13 @@ export default function ErrorPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pb-5">
-          <div className="w-full flex flex-col gap-3 md:flex-row">
+          <div className="w-full flex flex-col gap-3">
             {errorConfig.actions.map((action) => (
               <Link key={action.href} href={action.href} className="w-full">
-                <Button variant={action.type} className="w-full">
+                <Button
+                  variant={action.type === "default" ? "default" : "outline"}
+                  className="w-full"
+                >
                   {action.label}
                 </Button>
               </Link>

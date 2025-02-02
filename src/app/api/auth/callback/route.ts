@@ -8,33 +8,10 @@ export async function GET(request: Request) {
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type");
 
-  if (!token_hash || !type) {
-    return NextResponse.redirect(
-      `${origin}/auth/error?error=invalid_callback&message=${encodeURIComponent("Missing parameters")}`
-    );
-  }
-
   const supabase = await createClient();
 
-  // Handle password reset callback
-  if (type === "recovery") {
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash,
-      type,
-    });
-
-    if (error) {
-      return NextResponse.redirect(
-        `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent(error.message)}`
-      );
-    }
-
-    // Redirect to reset password page on success
-    return NextResponse.redirect(`${origin}/auth/reset-password`);
-  }
-
   // Handle OAuth callback (Google)
-  if (type === "oauth" && code) {
+  if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
@@ -46,6 +23,48 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       `${origin}/api/auth/post-auth?provider=google&next=${next}`
     );
+  }
+
+  // For non-OAuth flows, verify required parameters
+  if (!token_hash || !type) {
+    return NextResponse.redirect(
+      `${origin}/auth/error?error=invalid_callback&message=${encodeURIComponent("Missing parameters")}`
+    );
+  }
+
+  // Handle password reset callback
+  if (type === "recovery") {
+    // Check initial state
+    const { data: preCheck } = await supabase.auth.getSession();
+    console.log("Pre-verification state:", {
+      hasSession: !!preCheck.session,
+      hasAccessToken: !!preCheck.session?.access_token,
+      hasUser: !!preCheck.session?.user,
+      sessionData: preCheck.session,
+    });
+
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash,
+      type,
+    });
+
+    if (error) {
+      return NextResponse.redirect(
+        `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent(error.message)}`
+      );
+    }
+
+    // Verify we have a valid session after OTP verification
+    const { data: postCheck } = await supabase.auth.getSession();
+    console.log("Post-verification state:", {
+      hasSession: !!postCheck.session,
+      hasAccessToken: !!postCheck.session?.access_token,
+      hasUser: !!postCheck.session?.user,
+      sessionData: postCheck.session,
+    });
+
+    // Redirect to reset password page on success
+    return NextResponse.redirect(`${origin}/auth/reset-password`);
   }
 
   // Invalid type

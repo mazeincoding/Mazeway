@@ -378,7 +378,7 @@ If you get errors with that flag too, check out [this list](https://docs.google.
 
 This will allow users to sign in with Google.
 
-If you don't want it, good news:
+Good to know:
 - this project is moving towards a "config-based" approach
 - where you can enable/disable what you want
 - that means, Google Auth is going to an optional feature

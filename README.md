@@ -681,6 +681,9 @@ What you need to know:
 6. Enable "Enforce SSL on incoming connections" in Supabase:
     - [Database Settings](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/settings/database)
 7. Change email OPT expiration (see how in "Recommended for production")
+8. Publish your Google OAuth app:
+    - Go to [Google Cloud Console OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent?inv=1&invt=AbohWw)
+    - Click the "Publish app" button to make it available to all users
 
 ## Get to know the project better
 

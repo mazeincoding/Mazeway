@@ -10,8 +10,8 @@
 > Update: Yes they do! They have `Reset password`
 
 - [x] Create API endpoints for changing/forgot password:
-    [x] `/api/auth/forgot-password`
-    [x] `/api/auth/change-password`
+    - [x] `/api/auth/forgot-password`
+    - [x] `/api/auth/change-password`
 
 > Why not just combine them? Because the code is so different, and they serve different purposes. One will need to receive the current password to change it. The other will receive an email to send a "forgot password" email.
 

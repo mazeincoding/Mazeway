@@ -382,7 +382,7 @@ Good to know:
 - this project is moving towards a "config-based" approach
 - where you can enable/disable what you want
 - that means, Google Auth is going to an optional feature
-- for now, it's required (but thankfully super simple to do)
+- for now, it's required (but super simple to do)
 
     1. Get your Google OAuth credentials
         - Go to [Google Cloud Console](https://console.cloud.google.com/)

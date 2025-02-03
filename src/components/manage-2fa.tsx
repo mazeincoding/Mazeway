@@ -84,10 +84,14 @@ export function ManageTwoFactorDialog({
   isVerifying = false,
   verificationError = null,
 }: TwoFactorDialogProps) {
+  const { user } = useUserStore();
+  const hasPasswordAuth = !isOAuthOnlyUser(user?.auth.providers || []);
   const [selectedMethod, setSelectedMethod] = useState<TTwoFactorMethod | null>(
     null
   );
-  const [currentStep, setCurrentStep] = useState<TSetupStep>("password-verify");
+  const [currentStep, setCurrentStep] = useState<TSetupStep>(
+    hasPasswordAuth ? "password-verify" : "select"
+  );
   const [isDisabling, setIsDisabling] = useState(false);
   const [password, setPassword] = useState("");
   const [isDisablingAll, setIsDisablingAll] = useState(false);
@@ -97,14 +101,13 @@ export function ManageTwoFactorDialog({
   const [copied, setCopied] = useState(false);
   const [verifiedPassword, setVerifiedPassword] = useState<string>("");
   const [isEnrolling, setIsEnrolling] = useState(false);
-  const { user } = useUserStore();
-  const hasPasswordAuth = isOAuthOnlyUser(user?.auth.providers || []);
 
   useEffect(() => {
-    if (!hasPasswordAuth) {
-      setCurrentStep("select");
-      setVerifiedPassword("");
-    }
+    // Reset to appropriate initial state when auth status changes
+    setCurrentStep(hasPasswordAuth ? "password-verify" : "select");
+    setVerifiedPassword("");
+    setSelectedMethod(null);
+    setPassword("");
   }, [hasPasswordAuth]);
 
   const methodIcons: Record<TTwoFactorMethod, React.ReactNode> = {

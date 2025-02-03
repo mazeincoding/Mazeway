@@ -471,9 +471,9 @@ export function ManageTwoFactorDialog({
                 <Button
                   className="w-full"
                   onClick={handlePhoneSubmit}
-                  disabled={isVerifying || !phone}
+                  disabled={isEnrolling || !phone}
                 >
-                  {isVerifying ? "Sending code..." : "Send verification code"}
+                  {isEnrolling ? "Sending code..." : "Send verification code"}
                 </Button>
                 <Button
                   variant="outline"

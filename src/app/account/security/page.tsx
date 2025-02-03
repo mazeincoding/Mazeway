@@ -29,7 +29,7 @@ import { TDeviceSession, TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Manage2FADialog } from "@/components/manage-2fa-dialog";
+import { ManageTwoFactorDialog } from "@/components/manage-2fa";
 import { createClient } from "@/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { TGeolocationResponse } from "@/types/api";
@@ -55,6 +55,9 @@ export default function Security() {
     newPassword: string;
     password: string;
   } | null>(null);
+  const [qrCode, setQrCode] = useState<string>("");
+  const [secret, setSecret] = useState<string>("");
+  const [factorId, setFactorId] = useState<string>("");
   const supabase = createClient();
   const { refreshUser } = useUserStore();
 
@@ -266,25 +269,39 @@ export default function Security() {
     }
   };
 
-  const handleEnable2FA = async (method: TTwoFactorMethod) => {
+  const handleEnable2FA = async (
+    method: TTwoFactorMethod,
+    password: string,
+    phone?: string
+  ) => {
     try {
+      console.log("[DEBUG] Enabling 2FA with password:", password);
       const response = await fetch("/api/auth/2fa/enroll", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ method }),
+        body: JSON.stringify({ method, password, phone }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        toast.error("Error", {
-          description: data.error || "Failed to start 2FA enrollment",
-        });
-        return;
+        if (response.status === 401) {
+          throw new Error("Incorrect password. Please try again.");
+        }
+        throw new Error(data.error || "Failed to start 2FA enrollment");
       }
 
       const data = await response.json();
+
+      // Store data based on method
+      if (method === "authenticator") {
+        setQrCode(data.qr_code);
+        setSecret(data.secret);
+      }
+      // Store factor ID for both methods
+      setFactorId(data.factor_id);
+
       return data;
     } catch (err) {
       console.error("Error enabling 2FA:", err);
@@ -292,6 +309,7 @@ export default function Security() {
         description:
           err instanceof Error ? err.message : "Failed to enable 2FA",
       });
+      throw err;
     }
   };
 
@@ -366,6 +384,63 @@ export default function Security() {
         description:
           err instanceof Error ? err.message : "Failed to disable 2FA",
       });
+    }
+  };
+
+  const handleVerifyEnrollment = async (
+    method: TTwoFactorMethod,
+    code: string,
+    phone?: string
+  ) => {
+    try {
+      setIsVerifying(true);
+      setError(null);
+
+      const response = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          factorId,
+          code,
+          method,
+          phone,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        setError(data.error || "Failed to verify code");
+        return;
+      }
+
+      // Success
+      toast.success("2FA enabled", {
+        description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been enabled successfully.`,
+        duration: 3000,
+      });
+
+      // Clear state and close dialog
+      setQrCode("");
+      setSecret("");
+      setFactorId("");
+      setShowManage2FADialog(false);
+      await refreshUser();
+    } catch (err) {
+      console.error("Error verifying 2FA:", err);
+      setError("Failed to verify code. Please try again.");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -444,15 +519,28 @@ export default function Security() {
         </SettingCard>
       )}
 
-      <Manage2FADialog
+      <ManageTwoFactorDialog
         open={showManage2FADialog}
-        onOpenChange={setShowManage2FADialog}
+        onOpenChange={(open) => {
+          setShowManage2FADialog(open);
+          if (!open) {
+            // Clear state when dialog closes
+            setQrCode("");
+            setSecret("");
+            setFactorId("");
+          }
+        }}
         enabledMethods={user?.auth.twoFactorMethods || []}
         onMethodSetup={handleEnable2FA}
-        onMethodDisable={(method) =>
+        onMethodDisable={(method: TTwoFactorMethod) =>
           handleDisableMethod(method, formData.currentPassword)
         }
-        onDisableAll={(password) => handleDisableAll(password)}
+        onDisableAll={(password: string) => handleDisableAll(password)}
+        onVerify={handleVerifyEnrollment}
+        qrCode={qrCode}
+        secret={secret}
+        isVerifying={isVerifying}
+        verificationError={error}
       />
 
       {showTwoFactorDialog && twoFactorData && (

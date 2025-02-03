@@ -8,6 +8,7 @@ import {
 import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
 import { smsEnrollmentSchema } from "@/utils/validation/auth-validation";
+import { isOAuthOnlyUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,35 @@ export async function POST(request: NextRequest) {
     // 2. Get and validate request body
     const body = (await request.json()) as TEnroll2FARequest;
     const method = body.method || "authenticator";
+    const password = body.password;
+
+    // Get user's auth providers
+    const providers = user.app_metadata.providers || [];
+    const isOAuthUser = isOAuthOnlyUser(providers);
+
+    // Only verify password for non-OAuth users
+    if (!isOAuthUser) {
+      // Verify password is provided
+      if (!password) {
+        return NextResponse.json(
+          { error: "Password is required" },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      // Verify password is correct
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password,
+      });
+
+      if (signInError) {
+        return NextResponse.json(
+          { error: "Invalid password" },
+          { status: 401 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
 
     // 3. Validate method configuration
     const methodConfig = AUTH_CONFIG.twoFactorAuth.methods.find(

@@ -33,12 +33,18 @@ export interface TDisable2FARequest {
 // /api/auth/2fa/enroll
 export interface TEnroll2FARequest {
   method: TTwoFactorMethod;
+  password: string;
   phone?: string; // Only required for SMS method
 }
 
 // /api/auth/change-email
 export interface TChangeEmailRequest {
   newEmail: string;
+}
+
+// /api/auth/verify-password
+export interface TVerifyPasswordRequest {
+  password: string;
 }
 
 // ===== RESPONSE TYPES =====

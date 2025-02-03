@@ -63,11 +63,32 @@ export async function GET(request: Request) {
       sessionData: postCheck.session,
     });
 
-    // Use our logout endpoint to ensure consistent logout behavior
-    await fetch(`${origin}/api/auth/logout`, { method: "POST" });
+    // Create response for reset password redirect
+    const response = NextResponse.redirect(`${origin}/auth/reset-password`);
 
-    // Redirect to reset password page on success
-    return NextResponse.redirect(`${origin}/auth/reset-password`);
+    /**
+     * Supabase currently gives the user a full session after clicking the reset link
+     * So we're working around it by logging out the user and creating a recovery session
+     */
+
+    // Set secure HTTP-only recovery cookie with 15 minute expiry
+    response.cookies.set("recovery_session", "true", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 15 * 60, // 15 minutes
+      path: "/",
+    });
+
+    // Call logout endpoint to clear Supabase session
+    await fetch(`${origin}/api/auth/logout`, {
+      method: "POST",
+      headers: {
+        Cookie: request.headers.get("cookie") || "",
+      },
+    });
+
+    return response;
   }
 
   // Invalid type

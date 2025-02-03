@@ -184,11 +184,14 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Block access to password reset without recovery session
+    // Allow password reset paths if recovery cookie is present
     if (isPasswordResetPath) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth/login";
-      return NextResponse.redirect(url);
+      const hasRecoveryCookie = request.cookies.has("recovery_session");
+      if (!hasRecoveryCookie) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/login";
+        return NextResponse.redirect(url);
+      }
     }
   }
 

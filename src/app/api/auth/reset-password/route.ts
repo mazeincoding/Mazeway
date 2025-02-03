@@ -12,6 +12,15 @@ import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify recovery cookie is present
+    const hasRecoveryCookie = request.cookies.has("recovery_session");
+    if (!hasRecoveryCookie) {
+      return NextResponse.json(
+        { error: "Invalid password reset session" },
+        { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     if (authRateLimit) {
       const ip = getClientIp(request);
       const { success } = await authRateLimit.limit(ip);
@@ -50,11 +59,22 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Return success response
-    return NextResponse.json(
+    // Create success response
+    const response = NextResponse.json(
       {},
       { status: 200 }
     ) satisfies NextResponse<TEmptySuccessResponse>;
+
+    // Clear recovery cookie
+    response.cookies.set("recovery_session", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 0,
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Error in reset password:", error);
     return NextResponse.json(

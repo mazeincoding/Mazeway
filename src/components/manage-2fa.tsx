@@ -386,21 +386,30 @@ export function ManageTwoFactorDialog({
                 })}
             </div>
 
-            <Button
-              className="w-full"
-              onClick={() => handleMethodAction(selectedMethod!)}
-              disabled={
-                !selectedMethod ||
-                enabledMethods.includes(selectedMethod) ||
-                isEnrolling
-              }
-            >
-              {isEnrolling ? "Setting up..." : "Continue"}
-            </Button>
+            {/* Only show Continue button if there are methods that can be enabled */}
+            {AUTH_CONFIG.twoFactorAuth.methods.some(
+              (method) =>
+                method.enabled && !enabledMethods.includes(method.type)
+            ) && (
+              <Button
+                className="w-full"
+                onClick={() => handleMethodAction(selectedMethod!)}
+                disabled={
+                  !selectedMethod ||
+                  enabledMethods.includes(selectedMethod) ||
+                  isEnrolling
+                }
+              >
+                {isEnrolling ? "Setting up..." : "Continue"}
+              </Button>
+            )}
 
-            <Button variant="outline" className="w-full" onClick={handleBack}>
-              Back
-            </Button>
+            {/* Only show Back button if we came from password verification */}
+            {currentStep === "select" && verifiedPassword && (
+              <Button variant="outline" className="w-full" onClick={handleBack}>
+                Back
+              </Button>
+            )}
 
             {enabledMethods.length > 0 && (
               <>

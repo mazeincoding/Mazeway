@@ -63,6 +63,9 @@ export async function GET(request: Request) {
       sessionData: postCheck.session,
     });
 
+    // Use our logout endpoint to ensure consistent logout behavior
+    await fetch(`${origin}/api/auth/logout`, { method: "POST" });
+
     // Redirect to reset password page on success
     return NextResponse.redirect(`${origin}/auth/reset-password`);
   }

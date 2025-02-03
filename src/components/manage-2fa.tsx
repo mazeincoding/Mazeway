@@ -19,7 +19,6 @@ import {
   Check,
   Copy,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -29,7 +28,6 @@ import { validatePhoneNumber } from "@/utils/validation/auth-validation";
 import { PhoneInput } from "./ui/phone-input";
 import Image from "next/image";
 import type { E164Number } from "libphonenumber-js/core";
-import { Checkbox } from "./ui/checkbox";
 import { cn } from "@/lib/utils";
 import { TVerifyPasswordRequest } from "@/types/api";
 import { useUserStore } from "@/store/user-store";
@@ -117,12 +115,11 @@ export function ManageTwoFactorDialog({
   const handleMethodAction = async (method: TTwoFactorMethod) => {
     const isEnabled = enabledMethods.includes(method);
     try {
+      setSelectedMethod(method);
       if (isEnabled) {
-        setSelectedMethod(method);
         setIsDisablingAll(false);
         setCurrentStep(hasPasswordAuth ? "password" : "select");
       } else {
-        setSelectedMethod(method);
         if (method === "sms") {
           setCurrentStep("setup");
         } else {
@@ -333,23 +330,8 @@ export function ManageTwoFactorDialog({
                       key={method.type}
                       className={cn(
                         "w-full p-4 flex items-center justify-between rounded-md border",
-                        isEnabled
-                          ? "hover:bg-background cursor-default"
-                          : "hover:bg-muted/50 cursor-pointer",
-                        "text-sm font-medium ring-offset-background",
-                        selectedMethod === method.type &&
-                          !isEnabled &&
-                          "bg-muted/50"
+                        "text-sm font-medium ring-offset-background"
                       )}
-                      onClick={() => {
-                        if (!isEnabled) {
-                          setSelectedMethod(
-                            selectedMethod === method.type ? null : method.type
-                          );
-                        }
-                      }}
-                      role="button"
-                      tabIndex={isEnabled ? -1 : 0}
                     >
                       <div className="flex items-center gap-4">
                         <div className="text-muted-foreground">
@@ -375,34 +357,24 @@ export function ManageTwoFactorDialog({
                             Disable
                           </Button>
                         ) : (
-                          <Checkbox
-                            checked={selectedMethod === method.type}
-                            onKeyDown={(e) => e.stopPropagation()}
-                          />
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMethodAction(method.type);
+                            }}
+                            disabled={isEnrolling}
+                          >
+                            {isEnrolling && selectedMethod === method.type
+                              ? "Setting up..."
+                              : "Enable"}
+                          </Button>
                         )}
                       </div>
                     </div>
                   );
                 })}
             </div>
-
-            {/* Only show Continue button if there are methods that can be enabled */}
-            {AUTH_CONFIG.twoFactorAuth.methods.some(
-              (method) =>
-                method.enabled && !enabledMethods.includes(method.type)
-            ) && (
-              <Button
-                className="w-full"
-                onClick={() => handleMethodAction(selectedMethod!)}
-                disabled={
-                  !selectedMethod ||
-                  enabledMethods.includes(selectedMethod) ||
-                  isEnrolling
-                }
-              >
-                {isEnrolling ? "Setting up..." : "Continue"}
-              </Button>
-            )}
 
             {/* Only show Back button if we came from password verification */}
             {currentStep === "select" && verifiedPassword && (

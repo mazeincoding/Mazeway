@@ -8,12 +8,13 @@ import {
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
 import { twoFactorVerificationSchema } from "@/utils/validation/auth-validation";
+import { AUTH_CONFIG } from "@/config/auth";
 
 /**
  * Deletes a device session. Security is enforced through multiple layers:
  * 1. Validates the auth token via getUser() to ensure the request is authenticated
  * 2. Verifies the authenticated user owns the device session they're trying to delete
- * 3. Requires 2FA verification for additional security if not already provided
+ * 3. Requires 2FA verification for additional security if enabled in config and not already provided
  *
  * The endpoint handles both initial deletion requests and 2FA verification:
  * - Initial request: Checks if 2FA is needed and returns requirements
@@ -108,25 +109,30 @@ export async function DELETE(
       }
     }
 
-    // If we reach here, this is an initial request - check if 2FA is required
-    try {
-      const twoFactorResult = await checkTwoFactorRequirements(supabase);
+    // If we reach here, this is an initial request - check if 2FA is required based on config
+    if (
+      AUTH_CONFIG.twoFactorAuth.enabled &&
+      AUTH_CONFIG.twoFactorAuth.requireFor.deviceLogout
+    ) {
+      try {
+        const twoFactorResult = await checkTwoFactorRequirements(supabase);
 
-      if (twoFactorResult.requiresTwoFactor) {
-        return NextResponse.json({
-          ...twoFactorResult,
-          sessionId: sessionId,
-        }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+        if (twoFactorResult.requiresTwoFactor) {
+          return NextResponse.json({
+            ...twoFactorResult,
+            sessionId: sessionId,
+          }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+        }
+      } catch (error) {
+        console.error("Error checking 2FA requirements:", error);
+        return NextResponse.json(
+          { error: "Failed to check 2FA status" },
+          { status: 500 }
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
-    } catch (error) {
-      console.error("Error checking 2FA requirements:", error);
-      return NextResponse.json(
-        { error: "Failed to check 2FA status" },
-        { status: 500 }
-      ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // If no 2FA required, delete the session
+    // If no 2FA required or it's disabled in config, delete the session
     const { error: deleteError } = await supabase
       .from("device_sessions")
       .delete()

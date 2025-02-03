@@ -28,6 +28,11 @@ export const AUTH_CONFIG = {
       },
     ],
     enabled: true,
+    // Controls whether 2FA is required for sensitive operations
+    requireFor: {
+      // Whether 2FA is required to log out other devices
+      deviceLogout: false,
+    },
   },
   api_rate_limit: {
     enabled: true,

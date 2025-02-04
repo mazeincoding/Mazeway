@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createRecoveryToken } from "@/utils/auth/recovery-token";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -63,16 +64,20 @@ export async function GET(request: Request) {
       sessionData: postCheck.session,
     });
 
+    if (!postCheck.session?.user?.id) {
+      return NextResponse.redirect(
+        `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent("Invalid user session")}`
+      );
+    }
+
     // Create response for reset password redirect
     const response = NextResponse.redirect(`${origin}/auth/reset-password`);
 
-    /**
-     * Supabase currently gives the user a full session after clicking the reset link
-     * So we're working around it by logging out the user and creating a recovery session
-     */
+    // Create encrypted recovery token with user ID
+    const recoveryToken = createRecoveryToken(postCheck.session.user.id);
 
     // Set secure HTTP-only recovery cookie with 15 minute expiry
-    response.cookies.set("recovery_session", "true", {
+    response.cookies.set("recovery_session", recoveryToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

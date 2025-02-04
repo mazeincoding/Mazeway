@@ -9,14 +9,23 @@ import { createClient } from "@/utils/supabase/server";
 import { validatePassword } from "@/utils/validation/auth-validation";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
+import { verifyRecoveryToken } from "@/utils/auth/recovery-token";
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify recovery cookie is present
-    const hasRecoveryCookie = request.cookies.has("recovery_session");
-    if (!hasRecoveryCookie) {
+    // Get and verify recovery token
+    const recoveryToken = request.cookies.get("recovery_session")?.value;
+    if (!recoveryToken) {
       return NextResponse.json(
         { error: "Invalid password reset session" },
+        { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    const userId = verifyRecoveryToken(recoveryToken);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Invalid or expired recovery session" },
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
@@ -46,10 +55,11 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Update password
-    const { error: updateError } = await supabase.auth.updateUser({
-      password,
-    });
+    // Update password using admin client to bypass session requirement
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      userId,
+      { password }
+    );
 
     if (updateError) {
       console.error("Failed to reset password:", updateError);

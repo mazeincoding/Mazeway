@@ -116,11 +116,6 @@ If you get errors with that flag too, check out [this list](https://docs.google.
         - `NEXT_PUBLIC_SUPABASE_URL`: your project URL from step 2
         - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your anon/publishable key from step 2
         - `SUPABASE_SERVICE_ROLE_KEY`: your service role/secret key from step 2
-        - `RECOVERY_TOKEN_SECRET`: generate this by running:
-          ```bash
-          openssl rand -hex 32
-          ```
-          This creates a secure 32-byte random hex string for encrypting password reset tokens.
 
     > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys)
 4. Create Supabase tables

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createRecoveryToken } from "@/utils/auth/recovery-token";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -73,25 +74,28 @@ export async function GET(request: Request) {
     // Create response for reset password redirect
     const response = NextResponse.redirect(`${origin}/auth/reset-password`);
 
-    // Create encrypted recovery token with user ID
-    const recoveryToken = createRecoveryToken(postCheck.session.user.id);
+    // Only do recovery token flow if relogin is required
+    if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
+      // Create encrypted recovery token with user ID
+      const recoveryToken = createRecoveryToken(postCheck.session.user.id);
 
-    // Set secure HTTP-only recovery cookie with 15 minute expiry
-    response.cookies.set("recovery_session", recoveryToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 15 * 60, // 15 minutes
-      path: "/",
-    });
+      // Set secure HTTP-only recovery cookie with 15 minute expiry
+      response.cookies.set("recovery_session", recoveryToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 15 * 60, // 15 minutes
+        path: "/",
+      });
 
-    // Call logout endpoint to clear Supabase session
-    await fetch(`${origin}/api/auth/logout`, {
-      method: "POST",
-      headers: {
-        Cookie: request.headers.get("cookie") || "",
-      },
-    });
+      // Call logout endpoint to clear Supabase session
+      await fetch(`${origin}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("cookie") || "",
+        },
+      });
+    }
 
     return response;
   }

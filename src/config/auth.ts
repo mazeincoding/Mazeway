@@ -34,6 +34,13 @@ export const AUTH_CONFIG = {
       deviceLogout: false,
     },
   },
+  passwordReset: {
+    // Whether users need to log in again after resetting their password
+    // Disabled by default since user already proved ownership via email
+    // To enable: generate RECOVERY_TOKEN_SECRET with `openssl rand -hex 32`
+    // And add to `.env.local` like `RECOVERY_TOKEN_SECRET=generated-token`
+    requireReloginAfterReset: false,
+  },
   api_rate_limit: {
     enabled: true,
   },

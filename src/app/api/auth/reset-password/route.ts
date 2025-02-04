@@ -10,24 +10,43 @@ import { validatePassword } from "@/utils/validation/auth-validation";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { verifyRecoveryToken } from "@/utils/auth/recovery-token";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get and verify recovery token
-    const recoveryToken = request.cookies.get("recovery_session")?.value;
-    if (!recoveryToken) {
-      return NextResponse.json(
-        { error: "Invalid password reset session" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
+    const supabase = await createClient();
+    let userId: string | null = null;
 
-    const userId = verifyRecoveryToken(recoveryToken);
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Invalid or expired recovery session" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
+    // If re-login is required, verify recovery token
+    if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
+      const recoveryToken = request.cookies.get("recovery_session")?.value;
+      if (!recoveryToken) {
+        return NextResponse.json(
+          { error: "Invalid password reset session" },
+          { status: 401 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      userId = verifyRecoveryToken(recoveryToken);
+      if (!userId) {
+        return NextResponse.json(
+          { error: "Invalid or expired recovery session" },
+          { status: 401 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    } else {
+      // Otherwise verify current user through Supabase
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) {
+        return NextResponse.json(
+          { error: "No authenticated user" },
+          { status: 401 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+      userId = user.id;
     }
 
     if (authRateLimit) {
@@ -53,13 +72,11 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const supabase = await createClient();
-
-    // Update password using admin client to bypass session requirement
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      userId,
-      { password }
-    );
+    // Update password using appropriate method
+    const { error: updateError } = AUTH_CONFIG.passwordReset
+      .requireReloginAfterReset
+      ? await supabase.auth.admin.updateUserById(userId, { password })
+      : await supabase.auth.updateUser({ password });
 
     if (updateError) {
       console.error("Failed to reset password:", updateError);
@@ -75,14 +92,16 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     ) satisfies NextResponse<TEmptySuccessResponse>;
 
-    // Clear recovery cookie
-    response.cookies.set("recovery_session", "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 0,
-      path: "/",
-    });
+    // Clear recovery cookie if it was used
+    if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
+      response.cookies.set("recovery_session", "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 0,
+        path: "/",
+      });
+    }
 
     return response;
   } catch (error) {

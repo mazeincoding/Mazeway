@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { checkTwoFactorRequirements } from "@/utils/auth";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -90,6 +91,29 @@ export async function updateSession(request: NextRequest) {
         request.nextUrl.pathname.startsWith("/auth/error")
       ) {
         return supabaseResponse;
+      }
+
+      // Check if 2FA is required for this user
+      const twoFactorRequirements = await checkTwoFactorRequirements(supabase);
+
+      // Only check AAL2 requirement for protected routes when 2FA is required
+      if (isProtectedPath && twoFactorRequirements.requiresTwoFactor) {
+        const { data: aalData, error: aalError } =
+          await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+        if (!aalError && aalData.currentLevel !== "aal2") {
+          // User needs AAL2 but doesn't have it - block access
+          if (isApiPath) {
+            return NextResponse.json(
+              { message: "Two-factor authentication required" },
+              { status: 401 }
+            );
+          }
+          // For non-API routes, redirect to login
+          const url = request.nextUrl.clone();
+          url.pathname = "/auth/login";
+          return NextResponse.redirect(url);
+        }
       }
 
       // Only check device session on protected routes
@@ -197,16 +221,3 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse;
 }
-
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * Feel free to modify this pattern to include more paths.
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};

@@ -1,3 +1,5 @@
+"use client";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ import {
   type TwoFactorVerificationSchema,
 } from "@/utils/validation/auth-validation";
 import { TTwoFactorMethod } from "@/types/auth";
+import { useState, useEffect } from "react";
 
 interface TwoFactorMethod {
   type: TTwoFactorMethod;
@@ -58,11 +61,64 @@ export function TwoFactorVerifyForm({
         availableMethods.find((m) => m.factorId === factorId)?.type ||
         "authenticator",
     },
+    mode: "onSubmit",
   });
 
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // Debug form state
+  useEffect(() => {
+    console.log("Form State:", {
+      isDirty: form.formState.isDirty,
+      isSubmitted: form.formState.isSubmitted,
+      submitCount: form.formState.submitCount,
+      errors: form.formState.errors,
+      touchedFields: form.formState.touchedFields,
+    });
+  }, [form.formState]);
+
+  // Debug API error changes
+  useEffect(() => {
+    console.log("API Error changed:", { error, apiError });
+  }, [error, apiError]);
+
+  useEffect(() => {
+    setApiError(error || null);
+  }, [error]);
+
   const onSubmit = form.handleSubmit(async (data) => {
+    console.log("Form submitted with:", data);
     await onVerify(data.code);
   });
+
+  const handleCodeChange = (
+    value: string,
+    onChange: (value: string) => void
+  ) => {
+    console.log("Code changing to:", value);
+    console.log("Current form errors:", form.formState.errors);
+
+    setApiError(null);
+    // Reset the entire form state
+    form.reset(
+      {
+        ...form.getValues(),
+        code: value,
+      },
+      {
+        keepValues: true,
+        keepDirty: false,
+        keepErrors: false,
+        keepTouched: false,
+        keepSubmitCount: false,
+        keepIsSubmitted: false,
+        keepIsValid: false,
+      }
+    );
+    onChange(value);
+
+    console.log("After clearing - form errors:", form.formState.errors);
+  };
 
   const currentMethod = availableMethods.find(
     (m) => m.factorId === factorId
@@ -121,7 +177,12 @@ export function TwoFactorVerifyForm({
                   : "Enter the code sent to your phone"}
               </FormLabel>
               <FormControl>
-                <InputOTP maxLength={6} className="gap-2" {...field}>
+                <InputOTP
+                  maxLength={6}
+                  className="gap-2"
+                  value={field.value}
+                  onChange={(value) => handleCodeChange(value, field.onChange)}
+                >
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />
@@ -132,7 +193,9 @@ export function TwoFactorVerifyForm({
                   </InputOTPGroup>
                 </InputOTP>
               </FormControl>
-              <FormMessage>{error}</FormMessage>
+              <FormMessage>
+                {apiError || form.formState.errors.code?.message}
+              </FormMessage>
             </FormItem>
           )}
         />

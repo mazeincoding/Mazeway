@@ -11,11 +11,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -99,11 +95,15 @@ export function TwoFactorVerifyForm({
     console.log("Current form errors:", form.formState.errors);
 
     setApiError(null);
+
+    // Only allow numbers and limit to 6 digits
+    const sanitizedValue = value.replace(/[^0-9]/g, "").slice(0, 6);
+
     // Reset the entire form state
     form.reset(
       {
         ...form.getValues(),
-        code: value,
+        code: sanitizedValue,
       },
       {
         keepValues: true,
@@ -115,7 +115,7 @@ export function TwoFactorVerifyForm({
         keepIsValid: false,
       }
     );
-    onChange(value);
+    onChange(sanitizedValue);
 
     console.log("After clearing - form errors:", form.formState.errors);
   };
@@ -177,21 +177,18 @@ export function TwoFactorVerifyForm({
                   : "Enter the code sent to your phone"}
               </FormLabel>
               <FormControl>
-                <InputOTP
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={6}
-                  className="gap-2"
+                  placeholder="000000"
                   value={field.value}
-                  onChange={(value) => handleCodeChange(value, field.onChange)}
-                >
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
+                  onChange={(e) =>
+                    handleCodeChange(e.target.value, field.onChange)
+                  }
+                  disabled={isVerifying}
+                />
               </FormControl>
               <FormMessage>
                 {apiError || form.formState.errors.code?.message}

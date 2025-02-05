@@ -23,7 +23,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { InputOTP, InputOTPSlot } from "./ui/input-otp";
 import { validatePhoneNumber } from "@/utils/validation/auth-validation";
 import { PhoneInput } from "./ui/phone-input";
 import Image from "next/image";
@@ -232,6 +231,12 @@ export function ManageTwoFactorDialog({
     } finally {
       setIsEnrolling(false);
     }
+  };
+
+  const handleVerificationCodeChange = (value: string) => {
+    // Only allow numbers and limit to 6 digits
+    const sanitizedValue = value.replace(/[^0-9]/g, "").slice(0, 6);
+    setVerificationCode(sanitizedValue);
   };
 
   const handleVerify = async () => {
@@ -492,19 +497,16 @@ export function ManageTwoFactorDialog({
         return (
           <div className="flex flex-col items-center gap-4">
             <div className="flex flex-col items-center gap-4 w-full">
-              <InputOTP
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 maxLength={6}
-                className="gap-2"
+                placeholder="000000"
                 value={verificationCode}
-                onChange={setVerificationCode}
-              >
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTP>
+                onChange={(e) => handleVerificationCodeChange(e.target.value)}
+                disabled={isVerifying}
+              />
               {verificationError && (
                 <p className="text-sm text-destructive w-full">
                   {verificationError}

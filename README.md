@@ -90,6 +90,8 @@ This is only the beginning. It's a great start. But if you're curious, check out
 
 ### ⚠️ Important notice
 The project is not done yet! It's not recommended to use in production until security gaps are fixed and the core auth feature are implemented fully. Changes are still being made to this README (like database updates, setup changes). You can come back to this repo and soon enough, it should be ready.
+
+You can check out the GitHub issues to see what cool stuff is being worked on though :)
   
 ## Required setup
 

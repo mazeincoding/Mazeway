@@ -10,6 +10,8 @@ interface FormFieldProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   error?: string;
+  showPassword?: boolean;
+  onShowPasswordChange?: (show: boolean) => void;
 }
 
 export function FormField({
@@ -21,6 +23,8 @@ export function FormField({
   value,
   onChange,
   error,
+  showPassword,
+  onShowPasswordChange,
 }: FormFieldProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -36,6 +40,8 @@ export function FormField({
         value={value}
         onChange={onChange}
         className={error ? "border-red-500" : ""}
+        showPassword={showPassword}
+        onShowPasswordChange={onShowPasswordChange}
       />
       {error && <span className="text-sm text-red-500">{error}</span>}
     </div>

@@ -44,6 +44,11 @@ export default function Security() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [showPasswords, setShowPasswords] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
   const [errors, setErrors] = useState<FormErrors>({});
   const [showManage2FADialog, setShowManage2FADialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +79,15 @@ export default function Security() {
         [name]: undefined,
       }));
     }
+  };
+
+  const handlePasswordVisibilityChange = (field: string, show: boolean) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [field]: show,
+      // Sync confirm password visibility with new password
+      ...(field === "newPassword" ? { confirmPassword: show } : {}),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -474,6 +488,10 @@ export default function Security() {
               onChange={handleChange}
               disabled={isLoading}
               error={errors.currentPassword}
+              showPassword={showPasswords.currentPassword}
+              onShowPasswordChange={(show) =>
+                handlePasswordVisibilityChange("currentPassword", show)
+              }
             />
           )}
           <FormField
@@ -484,6 +502,10 @@ export default function Security() {
             onChange={handleChange}
             disabled={isLoading}
             error={errors.newPassword}
+            showPassword={showPasswords.newPassword}
+            onShowPasswordChange={(show) =>
+              handlePasswordVisibilityChange("newPassword", show)
+            }
           />
           <FormField
             id="confirmPassword"
@@ -493,6 +515,10 @@ export default function Security() {
             onChange={handleChange}
             disabled={isLoading}
             error={errors.confirmPassword}
+            showPassword={showPasswords.confirmPassword}
+            onShowPasswordChange={(show) =>
+              handlePasswordVisibilityChange("confirmPassword", show)
+            }
           />
           {hasPasswordAuth && (
             <div className="text-center">

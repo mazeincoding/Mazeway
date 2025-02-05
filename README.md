@@ -12,6 +12,7 @@ People like [Shadcn UI](ui.shadcn.com) because:
 - they don't belong in a node_modules folder
 
 Comparing Shadcn UI to bootstrap is like comparing Mazeway to Clerk:
+
 **Clerk**:
 - locked in
 - gets expensive quick

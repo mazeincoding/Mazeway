@@ -81,7 +81,7 @@ This starter pack includes all of that, and more.
     - Email alerts for new logins
   - Account activity tracking:
     - View activity history (logins, disable 2FA, etc)
-    - Get alerts for suspicious activity
+    - Get alerts for sensitive activity (unknown device login, etc)
   - Enable and disable 2FA (including individual methods)
 - API rate limiting with Upstash Redis
 - Bonus: a nice auth config in the project for devs to easily customize

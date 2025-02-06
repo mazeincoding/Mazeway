@@ -96,36 +96,58 @@ export async function updateSession(request: NextRequest) {
       // Check if 2FA is required for this user
       const twoFactorRequirements = await checkTwoFactorRequirements(supabase);
 
-      // Only check AAL2 requirement for protected routes when 2FA is required
-      if (isProtectedPath && twoFactorRequirements.requiresTwoFactor) {
+      // If 2FA is required, check AAL2 status
+      if (twoFactorRequirements.requiresTwoFactor) {
         const { data: aalData, error: aalError } =
           await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
+        // If user needs AAL2 but doesn't have it, treat them as unauthenticated
         if (!aalError && aalData.currentLevel !== "aal2") {
-          // User needs AAL2 but doesn't have it - block access
-          if (isApiPath) {
-            return NextResponse.json(
-              { message: "Two-factor authentication required" },
-              { status: 401 }
-            );
+          // Block protected routes and APIs
+          if (isProtectedPath) {
+            if (isApiPath) {
+              return NextResponse.json(
+                { message: "Two-factor authentication required" },
+                { status: 401 }
+              );
+            }
+            // Redirect to login for protected routes
+            const url = request.nextUrl.clone();
+            url.pathname = "/auth/login";
+            return NextResponse.redirect(url);
           }
-          // For non-API routes, redirect to login
-          const url = request.nextUrl.clone();
-          url.pathname = "/auth/login";
-          return NextResponse.redirect(url);
+          // Allow access to public routes
+          return supabaseResponse;
         }
       }
 
       // Only check device session on protected routes
       if (isProtectedPath) {
         const deviceSessionId = request.cookies.get("device_session_id");
+        const verificationPaths = [
+          "/auth/verify-device",
+          "/api/auth/verify-device",
+        ];
+        const isVerificationPath = verificationPaths.some((path) =>
+          request.nextUrl.pathname.startsWith(path)
+        );
 
+        // Allow verification paths even without device session
+        if (isVerificationPath) {
+          return supabaseResponse;
+        }
+
+        // For all other protected routes, require valid device session
         if (!deviceSessionId) {
-          // No device session, redirect to post-auth to set up device session
+          if (isApiPath) {
+            return NextResponse.json(
+              { message: "Unauthorized - No device session" },
+              { status: 401 }
+            );
+          }
+          // Redirect to login instead of post-auth
           const url = request.nextUrl.clone();
-          url.pathname = "/api/auth/post-auth";
-          url.searchParams.set("provider", "browser");
-          url.searchParams.set("next", request.nextUrl.pathname);
+          url.pathname = "/auth/login";
           return NextResponse.redirect(url);
         }
 
@@ -138,44 +160,20 @@ export async function updateSession(request: NextRequest) {
           .single();
 
         if (!deviceSession) {
-          const origin = new URL(request.url).origin;
-          const logoutRequest = new Request(`${origin}/api/auth/logout`, {
-            method: "POST",
-            headers: request.headers,
-          });
-
-          try {
-            const logoutResponse = await fetch(logoutRequest);
-            if (!logoutResponse.ok) {
-              throw new Error("Logout failed");
-            }
-
-            // Create redirect response
-            const redirectResponse = NextResponse.redirect(
-              new URL("/auth/login", request.url)
+          if (isApiPath) {
+            return NextResponse.json(
+              { message: "Unauthorized - Invalid device session" },
+              { status: 401 }
             );
-
-            // Copy the cookie deletions from the logout response
-            logoutResponse.headers.getSetCookie().forEach((cookie) => {
-              redirectResponse.headers.append("Set-Cookie", cookie);
-            });
-
-            return redirectResponse;
-          } catch (error) {
-            return NextResponse.redirect(new URL("/auth/error", request.url));
           }
+          // Redirect to login instead of post-auth
+          const url = request.nextUrl.clone();
+          url.pathname = "/auth/login";
+          return NextResponse.redirect(url);
         }
 
         // Redirect to verification if needed
         if (deviceSession.needs_verification) {
-          const verificationPaths = [
-            "/auth/verify-device",
-            "/api/auth/verify-device",
-          ];
-          const isVerificationPath = verificationPaths.some((path) =>
-            request.nextUrl.pathname.startsWith(path)
-          );
-
           if (!isVerificationPath) {
             const url = request.nextUrl.clone();
             url.pathname = "/auth/verify-device";

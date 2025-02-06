@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
+import { checkTwoFactorRequirements } from "@/utils/auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -37,13 +38,15 @@ export async function GET(request: Request) {
   // Handle password reset callback
   if (type === "recovery") {
     // Check initial state
-    const { data: preCheck } = await supabase.auth.getSession();
+    const { data: preCheck, error: preError } = await supabase.auth.getUser();
     console.log("Pre-verification state:", {
-      hasSession: !!preCheck.session,
-      hasAccessToken: !!preCheck.session?.access_token,
-      hasUser: !!preCheck.session?.user,
-      sessionData: preCheck.session,
+      hasUser: !!preCheck.user,
+      userData: preCheck.user,
     });
+
+    if (preError) {
+      console.error("Pre-verification error:", preError);
+    }
 
     const { error } = await supabase.auth.verifyOtp({
       token_hash,
@@ -56,28 +59,43 @@ export async function GET(request: Request) {
       );
     }
 
-    // Verify we have a valid session after OTP verification
-    const { data: postCheck } = await supabase.auth.getSession();
+    // Verify we have a valid user after OTP verification
+    const { data: postCheck, error: postError } = await supabase.auth.getUser();
     console.log("Post-verification state:", {
-      hasSession: !!postCheck.session,
-      hasAccessToken: !!postCheck.session?.access_token,
-      hasUser: !!postCheck.session?.user,
-      sessionData: postCheck.session,
+      hasUser: !!postCheck.user,
+      userData: postCheck.user,
     });
 
-    if (!postCheck.session?.user?.id) {
+    if (postError || !postCheck.user?.id) {
+      const errorMessage = postError?.message || "Invalid user session";
       return NextResponse.redirect(
-        `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent("Invalid user session")}`
+        `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent(errorMessage)}`
       );
     }
 
+    // Check if 2FA is required
+    const twoFactorResult = await checkTwoFactorRequirements(supabase);
+    const resetUrl = new URL(`${origin}/auth/reset-password`);
+
+    if (twoFactorResult.requiresTwoFactor) {
+      // Add 2FA requirements to URL
+      resetUrl.searchParams.set("requires_2fa", "true");
+      if (twoFactorResult.factorId) {
+        resetUrl.searchParams.set("factor_id", twoFactorResult.factorId);
+        resetUrl.searchParams.set(
+          "available_methods",
+          JSON.stringify(twoFactorResult.availableMethods)
+        );
+      }
+    }
+
     // Create response for reset password redirect
-    const response = NextResponse.redirect(`${origin}/auth/reset-password`);
+    const response = NextResponse.redirect(resetUrl);
 
     // Only do recovery token flow if relogin is required
     if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
       // Create encrypted recovery token with user ID
-      const recoveryToken = createRecoveryToken(postCheck.session.user.id);
+      const recoveryToken = createRecoveryToken(postCheck.user.id);
 
       // Set secure HTTP-only recovery cookie with 15 minute expiry
       response.cookies.set("recovery_session", recoveryToken, {

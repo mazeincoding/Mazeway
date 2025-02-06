@@ -19,14 +19,80 @@ import { useState } from "react";
 import { validatePassword } from "@/utils/validation/auth-validation";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
+import { TTwoFactorMethod } from "@/types/auth";
 
 export default function ChangePasswordPage() {
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(
+    searchParams.get("requires_2fa") === "true"
+  );
+  const [factorId, setFactorId] = useState<string | null>(
+    searchParams.get("factor_id")
+  );
+  const [availableMethods, setAvailableMethods] = useState<
+    Array<{
+      type: TTwoFactorMethod;
+      factorId: string;
+    }>
+  >(() => {
+    const methods = searchParams.get("available_methods");
+    return methods ? JSON.parse(methods) : [];
+  });
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+  const [loginRequired, setLoginRequired] = useState(false);
+  const [redirectTo, setRedirectTo] = useState("/dashboard");
+
+  const handleVerify = async (code: string) => {
+    if (!factorId) return;
+
+    try {
+      setLoading(true);
+      setTwoFactorError(null);
+
+      const response = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          factorId,
+          code,
+          method:
+            availableMethods.find((m) => m.factorId === factorId)?.type ||
+            "authenticator",
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        setTwoFactorError(data.error);
+        return;
+      }
+
+      // After successful 2FA, show password form
+      setRequires2FA(false);
+    } catch (error) {
+      setTwoFactorError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMethodChange = (method: {
+    type: TTwoFactorMethod;
+    factorId: string;
+  }) => {
+    setFactorId(method.factorId);
+    setTwoFactorError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,13 +117,24 @@ export default function ChangePasswordPage() {
         body: JSON.stringify({ password }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
+        // Check if we need 2FA
+        if (data.requiresTwoFactor) {
+          setRequires2FA(true);
+          setFactorId(data.factorId);
+          setAvailableMethods(data.availableMethods || []);
+          return;
+        }
+
         setError(data.error || "Failed to reset password");
         return;
       }
 
       setIsSuccess(true);
+      setLoginRequired(data.loginRequired);
+      setRedirectTo(data.redirectTo);
     } catch (err) {
       setError("An error occurred while resetting your password");
     } finally {
@@ -81,14 +158,45 @@ export default function ChangePasswordPage() {
                     Success!
                   </CardTitle>
                   <CardDescription className="text-center text-base">
-                    Your password has been changed. Continue with using the app.
+                    {loginRequired
+                      ? "Your password has been changed. Please log in with your new password."
+                      : "Your password has been changed. Continue with using the app."}
                   </CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
-                <Link href="/dashboard" className="block w-full">
-                  <Button className="w-full">Continue</Button>
+                <Link href={redirectTo} className="block w-full">
+                  <Button className="w-full">
+                    {loginRequired ? "Log in" : "Continue"}
+                  </Button>
                 </Link>
+              </CardContent>
+            </>
+          ) : requires2FA ? (
+            <>
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold">
+                  Two-factor authentication
+                </CardTitle>
+                <CardDescription>
+                  {availableMethods.length > 1
+                    ? "Choose a verification method"
+                    : availableMethods[0]?.type === "authenticator"
+                      ? "Enter the code from your authenticator app"
+                      : "Enter the code sent to your phone"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {factorId && (
+                  <TwoFactorVerifyForm
+                    factorId={factorId}
+                    availableMethods={availableMethods}
+                    onVerify={handleVerify}
+                    onMethodChange={handleMethodChange}
+                    isVerifying={loading}
+                    error={twoFactorError}
+                  />
+                )}
               </CardContent>
             </>
           ) : (

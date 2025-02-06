@@ -84,6 +84,11 @@ export interface TEmailLoginResponse extends TwoFactorRequirement {
   redirectTo: string;
 }
 
+// /api/auth/reset-password
+export interface TResetPasswordResponse extends TwoFactorRequirement {
+  newPassword?: string;
+}
+
 // /api/auth/change-password
 export interface TPasswordChangeResponse extends TwoFactorRequirement {
   newPassword?: string;

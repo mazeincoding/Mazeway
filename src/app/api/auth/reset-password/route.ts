@@ -7,10 +7,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { validatePassword } from "@/utils/validation/auth-validation";
-import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import {
+  TApiErrorResponse,
+  TEmptySuccessResponse,
+  TResetPasswordResponse,
+} from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { verifyRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
+import { checkTwoFactorRequirements } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,6 +77,22 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    // Check if 2FA is required
+    const twoFactorResult = await checkTwoFactorRequirements(supabase);
+
+    if (twoFactorResult.requiresTwoFactor) {
+      // Check current AAL level
+      const { data: aalData, error: aalError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+      if (aalError || aalData.currentLevel !== "aal2") {
+        return NextResponse.json({
+          ...twoFactorResult,
+          newPassword: password,
+        }) satisfies NextResponse<TResetPasswordResponse>;
+      }
+    }
+
     // Update password using appropriate method
     const { error: updateError } = AUTH_CONFIG.passwordReset
       .requireReloginAfterReset
@@ -86,9 +107,16 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Create success response
+    // Create success response with login required flag
     const response = NextResponse.json(
-      {},
+      {
+        loginRequired: AUTH_CONFIG.passwordReset.requireReloginAfterReset,
+        redirectTo: AUTH_CONFIG.passwordReset.requireReloginAfterReset
+          ? `/auth/login?message=${encodeURIComponent(
+              "Password reset successful. Please log in with your new password."
+            )}`
+          : "/dashboard",
+      },
       { status: 200 }
     ) satisfies NextResponse<TEmptySuccessResponse>;
 

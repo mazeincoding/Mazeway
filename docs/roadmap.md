@@ -57,13 +57,18 @@
     - Be consistent with using API routes for actual logic.
 - [x] Revise flow
     - When 2FA is enabled:
-        - [x] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first? (yes)
-            - They're two different things
-            - And serve different purposes
-            - Device verification isn't just security
-            - It's about keeping a list of trusted devices
-            - A history of logged in devices
-            - And build trust with future devices
+        - [x] Should a user need to verify a device after unknown login, even if 2FA is enabled and needs to be passed first? ~~(yes)~~ (NO)
+            ~~- They're two different things~~
+            ~~- And serve different purposes~~
+            ~~- Device verification isn't just security~~
+            ~~- It's about keeping a list of trusted devices~~
+            ~~- A history of logged in devices~~
+            ~~- And build trust with future devices~~
+            
+            Update Feb 2025: This was overcomplicated BS. Making users verify device ownership AFTER they've already proven ownership through 2FA is redundant and bad UX. We can still track devices and sessions, we just trust them after 2FA (which makes sense since it's a stronger verification). Both methods prove "something you have", 2FA is just stronger. All the benefits of device tracking (session history, device trust, activity monitoring) still work the same way - we're just skipping the weaker verification when we already have a stronger one.
+
+            The previous points assumed we wouldn't even create the device session, which isn't true at all. We should create the device session, but mark it as trusted. Simple as that. If you still don't understand, let me break down why each point is stupid.
+
         - [x] Will they need to verify through 2FA on ALL logins? (yes)
 - [ ] Double check flow (just through the code) to ensure shit makes sense and it follows our initial plan.
 - [ ] Figure out what the fuck we're gonna do with dev/production in Supabase. We'll (probably) need to update the README to clarify things or even more steps. (please never finish the other things so we never get to this painful thing)

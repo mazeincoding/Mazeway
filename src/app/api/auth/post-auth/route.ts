@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { UAParser } from "ua-parser-js";
-import { calculateDeviceConfidence, getConfidenceLevel } from "@/utils/auth";
+import { calculateDeviceConfidence, checkTwoFactorRequirements, getConfidenceLevel } from "@/utils/auth";
 import { createDeviceSession } from "@/utils/device-sessions/server";
 import { TDeviceInfo } from "@/types/auth";
 
@@ -123,17 +123,22 @@ export async function GET(request: Request) {
       level: confidenceLevel,
     });
 
+    // Check if 2FA is required for this user
+    const twoFactorResult = await checkTwoFactorRequirements(supabase);
+
     // Decide if verification for the device is needed
     const needsVerification = process.env.RESEND_API_KEY
-      ? confidenceLevel === "low" ||
-        (confidenceLevel === "medium" && provider === "email")
+      ? (confidenceLevel === "low" ||
+          (confidenceLevel === "medium" && provider === "email")) &&
+        !twoFactorResult.requiresTwoFactor // Skip device verification if 2FA is enabled
       : false;
 
-    // A device is trusted if Resend isn't configured OR has high confidence OR medium confidence from OAuth
+    // A device is trusted if Resend isn't configured OR has high confidence OR medium confidence from OAuth OR 2FA is enabled
     const isTrusted =
       !process.env.RESEND_API_KEY ||
       confidenceLevel === "high" ||
-      (confidenceLevel === "medium" && provider !== "email");
+      (confidenceLevel === "medium" && provider !== "email") ||
+      twoFactorResult.requiresTwoFactor;
 
     console.log("[DEBUG] Device trust status:", {
       needsVerification,

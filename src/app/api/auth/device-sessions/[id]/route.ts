@@ -6,9 +6,10 @@ import {
   TRevokeDeviceSessionResponse,
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
-import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
+import { verifyTwoFactorCode } from "@/utils/auth";
 import { twoFactorVerificationSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
+import { TTwoFactorMethod } from "@/types/auth";
 
 /**
  * Deletes a device session. Security is enforced through multiple layers:
@@ -114,22 +115,28 @@ export async function DELETE(
       AUTH_CONFIG.twoFactorAuth.enabled &&
       AUTH_CONFIG.twoFactorAuth.requireFor.deviceLogout
     ) {
-      try {
-        const twoFactorResult = await checkTwoFactorRequirements(supabase);
+      // Get user's available 2FA methods
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const verifiedFactors = factors?.all?.filter(
+        (factor) => factor.status === "verified"
+      );
 
-        if (twoFactorResult.requiresTwoFactor) {
-          return NextResponse.json({
-            ...twoFactorResult,
-            sessionId: sessionId,
-          }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
-        }
-      } catch (error) {
-        console.error("Error checking 2FA requirements:", error);
+      if (!verifiedFactors?.length) {
         return NextResponse.json(
-          { error: "Failed to check 2FA status" },
-          { status: 500 }
+          { error: "Two-factor authentication is required but not set up" },
+          { status: 403 }
         ) satisfies NextResponse<TApiErrorResponse>;
       }
+
+      // Return available methods for 2FA verification
+      return NextResponse.json({
+        requiresTwoFactor: true,
+        availableMethods: verifiedFactors.map((factor) => ({
+          type: factor.factor_type as TTwoFactorMethod,
+          factorId: factor.id,
+        })),
+        sessionId: sessionId,
+      }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
     }
 
     // If no 2FA required or it's disabled in config, delete the session

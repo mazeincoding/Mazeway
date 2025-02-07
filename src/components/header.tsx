@@ -6,14 +6,18 @@ import { UserDropdown } from "./user-dropdown";
 
 interface HeaderProps {
   isInitiallyLoggedIn: boolean;
+  sidebar?: React.ReactNode;
 }
 
-export function Header({ isInitiallyLoggedIn }: HeaderProps) {
+export function Header({ isInitiallyLoggedIn, sidebar }: HeaderProps) {
   return (
-    <header className="flex items-center justify-between py-4 backdrop-blur-xl border-b sticky top-0 z-30 bg-background flex-1">
-      <h1 className="text-xl mt-0.5 font-bold">
-        <Link href="/">Auth</Link>
-      </h1>
+    <header className="flex items-center justify-between p-4 backdrop-blur-xl border-b sticky top-0 z-30 bg-background flex-1">
+      <div className="flex items-center gap-2">
+        {sidebar}
+        <h1 className="text-xl mt-0.5 font-bold">
+          <Link href="/">Auth</Link>
+        </h1>
+      </div>
       {isInitiallyLoggedIn ? (
         <UserDropdown />
       ) : (

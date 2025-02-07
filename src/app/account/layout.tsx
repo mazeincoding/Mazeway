@@ -26,9 +26,11 @@ export default function AccountLayout({
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="md:hidden" />
-          <Header isInitiallyLoggedIn={true} />
+        <div className="flex items-center gap-2">
+          <Header
+            isInitiallyLoggedIn={true}
+            sidebar={<SidebarTrigger className="md:hidden" />}
+          />
         </div>
         <div className="flex flex-1 w-full">
           <SettingsSidebar />

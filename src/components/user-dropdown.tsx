@@ -32,7 +32,7 @@ export function UserDropdown() {
       onClick: () => router.push("/account"),
     },
     {
-      label: "Dark mode",
+      label: theme === "light" ? "Light mode" : "Dark mode",
       icon: <MoonIcon className="h-4 w-4" />,
       onClick: () => setTheme(theme === "light" ? "dark" : "light"),
     },

@@ -285,6 +285,64 @@ export default function Security() {
     }
   };
 
+  const handleVerifyEnrollment = async (
+    method: TTwoFactorMethod,
+    code: string,
+    phone?: string
+  ) => {
+    try {
+      setIsVerifying(true);
+      setError(null);
+
+      const response = await fetch("/api/auth/2fa/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          factorId,
+          code,
+          method,
+          phone,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 4000,
+          });
+          return;
+        }
+
+        setError(data.error || "Failed to verify code");
+        return;
+      }
+
+      // Success
+      toast.success("2FA enabled", {
+        description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been enabled successfully.`,
+        duration: 3000,
+      });
+
+      // Clear state and close dialog
+      setQrCode("");
+      setSecret("");
+      setFactorId("");
+      setError(null);
+      setShowManage2FADialog(false);
+      await refreshUser();
+    } catch (err) {
+      console.error("Error verifying 2FA:", err);
+      setError("Failed to verify code. Please try again.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const handleEnable2FA = async (
     method: TTwoFactorMethod,
     password: string,
@@ -314,12 +372,22 @@ export default function Security() {
       if (method === "authenticator") {
         setQrCode(data.qr_code);
         setSecret(data.secret);
+      } else {
+        // Clear authenticator-specific states if enrolling SMS
+        setQrCode("");
+        setSecret("");
       }
       // Store factor ID for both methods
       setFactorId(data.factor_id);
+      setError(null);
 
       return data;
     } catch (err) {
+      // Clean up all states on error
+      setQrCode("");
+      setSecret("");
+      setFactorId("");
+      setError(err instanceof Error ? err.message : "Failed to enable 2FA");
       console.error("Error enabling 2FA:", err);
       toast.error("Error", {
         description:
@@ -400,63 +468,6 @@ export default function Security() {
         description:
           err instanceof Error ? err.message : "Failed to disable 2FA",
       });
-    }
-  };
-
-  const handleVerifyEnrollment = async (
-    method: TTwoFactorMethod,
-    code: string,
-    phone?: string
-  ) => {
-    try {
-      setIsVerifying(true);
-      setError(null);
-
-      const response = await fetch("/api/auth/2fa/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          factorId,
-          code,
-          method,
-          phone,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Too many attempts", {
-            description: "Please wait a moment before trying again.",
-            duration: 4000,
-          });
-          return;
-        }
-
-        setError(data.error || "Failed to verify code");
-        return;
-      }
-
-      // Success
-      toast.success("2FA enabled", {
-        description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been enabled successfully.`,
-        duration: 3000,
-      });
-
-      // Clear state and close dialog
-      setQrCode("");
-      setSecret("");
-      setFactorId("");
-      setShowManage2FADialog(false);
-      await refreshUser();
-    } catch (err) {
-      console.error("Error verifying 2FA:", err);
-      setError("Failed to verify code. Please try again.");
-    } finally {
-      setIsVerifying(false);
     }
   };
 

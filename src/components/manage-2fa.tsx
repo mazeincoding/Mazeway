@@ -131,6 +131,12 @@ export function ManageTwoFactorDialog({
         }
       }
     } catch (error) {
+      // Clean up states on error
+      setCurrentStep(hasPasswordAuth ? "password-verify" : "select");
+      setSelectedMethod(null);
+      setPhone(undefined);
+      setPhoneError(null);
+      setVerificationCode("");
       toast.error("Error", {
         description: "Failed to update 2FA method. Please try again.",
       });
@@ -259,6 +265,8 @@ export function ManageTwoFactorDialog({
         setCurrentStep("select");
         setSelectedMethod(null);
         setPassword("");
+        setPhone(undefined);
+        setPhoneError(null);
         break;
       case "verify":
         if (selectedMethod === "sms") {
@@ -266,9 +274,9 @@ export function ManageTwoFactorDialog({
         } else {
           setCurrentStep("select");
         }
+        setVerificationCode("");
         break;
       case "select":
-        // Go back to password verification
         setCurrentStep("password-verify");
         setVerifiedPassword("");
         setSelectedMethod(null);
@@ -283,7 +291,10 @@ export function ManageTwoFactorDialog({
     setPassword("");
     setVerifiedPassword("");
     setPhone(undefined);
+    setPhoneError(null);
     setVerificationCode("");
+    setCopied(false);
+    setIsEnrolling(false);
   };
 
   const renderContent = () => {

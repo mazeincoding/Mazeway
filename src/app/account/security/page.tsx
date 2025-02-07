@@ -85,8 +85,10 @@ export default function Security() {
     setShowPasswords((prev) => ({
       ...prev,
       [field]: show,
-      // Sync confirm password visibility with new password
-      ...(field === "newPassword" ? { confirmPassword: show } : {}),
+      // Sync new password and confirm password visibility
+      ...(field === "newPassword" || field === "confirmPassword"
+        ? { newPassword: show, confirmPassword: show }
+        : {}),
     }));
   };
 

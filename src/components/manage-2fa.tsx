@@ -586,7 +586,7 @@ export function ManageTwoFactorDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center justify-center sm:justify-start gap-2">
             <ShieldIcon className="h-5 w-5" />
             Two-Factor Authentication
           </DialogTitle>

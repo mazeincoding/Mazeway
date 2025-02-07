@@ -269,12 +269,6 @@ If you get errors with that flag too, check out [this list](https://docs.google.
       (needs_verification IS NOT DISTINCT FROM OLD.needs_verification)
     );
     
-    -- Allow users to delete their own device sessions
-    CREATE POLICY "Allow users to delete their own device sessions"
-    ON device_sessions
-    FOR DELETE
-    USING (auth.uid() = user_id);
-    
     -- Step 4: Create trigger to update the "updated_at" column
     CREATE TRIGGER update_device_sessions_updated_at
     BEFORE UPDATE ON device_sessions

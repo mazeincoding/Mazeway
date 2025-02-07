@@ -85,8 +85,11 @@ export async function DELETE(
           // Verify 2FA code
           await verifyTwoFactorCode(supabase, factorId, code);
 
+          // Create service role client for deletion
+          const adminClient = await createClient({ useServiceRole: true });
+
           // Delete the session after successful 2FA verification
-          const { error: deleteError } = await supabase
+          const { error: deleteError } = await adminClient
             .from("device_sessions")
             .delete()
             .eq("session_id", sessionId);
@@ -140,7 +143,8 @@ export async function DELETE(
     }
 
     // If no 2FA required or it's disabled in config, delete the session
-    const { error: deleteError } = await supabase
+    const adminClient = await createClient({ useServiceRole: true });
+    const { error: deleteError } = await adminClient
       .from("device_sessions")
       .delete()
       .eq("session_id", sessionId);

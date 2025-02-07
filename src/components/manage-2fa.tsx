@@ -373,9 +373,7 @@ export function ManageTwoFactorDialog({
                             }}
                             disabled={isEnrolling}
                           >
-                            {isEnrolling && selectedMethod === method.type
-                              ? "Setting up..."
-                              : "Enable"}
+                            Enable
                           </Button>
                         )}
                       </div>

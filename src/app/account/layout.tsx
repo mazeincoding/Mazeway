@@ -12,6 +12,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { KeyRound, User } from "lucide-react";
 import Link from "next/link";
@@ -42,6 +43,7 @@ export default function AccountLayout({
 
 function SettingsSidebar() {
   const pathname = usePathname();
+  const { setOpenMobile, isMobile } = useSidebar();
 
   const items = [
     {
@@ -55,6 +57,12 @@ function SettingsSidebar() {
       icon: KeyRound,
     },
   ];
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar>
@@ -70,7 +78,7 @@ function SettingsSidebar() {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={handleLinkClick}>
                         <item.icon />
                         <span>{item.title}</span>
                       </Link>

@@ -385,7 +385,7 @@ export function ManageTwoFactorDialog({
                     <div
                       key={method.type}
                       className={cn(
-                        "w-full p-4 flex items-center justify-between rounded-md border",
+                        "w-full p-4 flex items-center justify-between rounded-md border gap-4",
                         "text-sm font-medium ring-offset-background"
                       )}
                     >

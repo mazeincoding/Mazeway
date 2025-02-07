@@ -120,7 +120,13 @@ export function ManageTwoFactorDialog({
       setSelectedMethod(method);
       if (isEnabled) {
         setIsDisablingAll(false);
-        setCurrentStep(hasPasswordAuth ? "password" : "select");
+        if (hasPasswordAuth) {
+          setCurrentStep("password");
+        } else {
+          // For non-password accounts, directly call onMethodDisable
+          // Ideally, we'd show the UX to add a password instead but later on that
+          await onMethodDisable(method, "");
+        }
       } else {
         if (method === "sms") {
           setCurrentStep("setup");
@@ -297,6 +303,37 @@ export function ManageTwoFactorDialog({
     setIsEnrolling(false);
   };
 
+  // Add a click handler to the disable button
+  const renderMethodButton = (method: TTwoFactorMethod, isEnabled: boolean) => {
+    if (isEnabled) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleMethodAction(method);
+          }}
+          disabled={isDisabling}
+        >
+          {isDisabling ? "Disabling..." : "Disable"}
+        </Button>
+      );
+    }
+    return (
+      <Button
+        size="sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleMethodAction(method);
+        }}
+        disabled={isEnrolling}
+      >
+        Enable
+      </Button>
+    );
+  };
+
   const renderContent = () => {
     switch (currentStep) {
       case "password-verify":
@@ -364,29 +401,7 @@ export function ManageTwoFactorDialog({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isEnabled ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMethodAction(method.type);
-                            }}
-                          >
-                            Disable
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMethodAction(method.type);
-                            }}
-                            disabled={isEnrolling}
-                          >
-                            Enable
-                          </Button>
-                        )}
+                        {renderMethodButton(method.type, isEnabled)}
                       </div>
                     </div>
                   );

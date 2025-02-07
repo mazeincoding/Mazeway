@@ -146,11 +146,11 @@ export const disable2FASchema = z.discriminatedUnion("type", [
       .min(6, "Code must be 6 digits")
       .max(6, "Code must be 6 digits")
       .regex(/^\d+$/, "Code must contain only numbers"),
-    password: z.string().min(1, "Current password is required"),
+    password: z.string().optional(),
   }),
   z.object({
     type: z.literal("all"),
-    password: z.string().min(1, "Current password is required"),
+    password: z.string().optional(),
     code: z
       .string()
       .min(6, "Code must be 6 digits")

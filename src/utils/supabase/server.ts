@@ -16,9 +16,10 @@ export async function createClient({
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return useServiceRole ? [] : cookieStore.getAll();
         },
         setAll(cookiesToSet) {
+          if (useServiceRole) return;
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)

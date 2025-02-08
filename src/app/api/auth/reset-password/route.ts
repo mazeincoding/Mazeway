@@ -19,7 +19,7 @@ import { checkTwoFactorRequirements } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createClient({ useServiceRole: true });
     let userId: string | null = null;
 
     // If re-login is required, verify recovery token

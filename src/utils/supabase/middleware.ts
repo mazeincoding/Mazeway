@@ -5,17 +5,30 @@ import { AUTH_CONFIG } from "@/config/auth";
 
 async function handleInvalidDeviceSession(request: NextRequest) {
   // Call logout API to clean up all auth state
-  await fetch(`${request.nextUrl.origin}/api/auth/logout`, {
-    method: "POST",
-    headers: {
-      Cookie: request.headers.get("cookie") || "",
-    },
-  });
+  const logoutResponse = await fetch(
+    `${request.nextUrl.origin}/api/auth/logout`,
+    {
+      method: "POST",
+      headers: {
+        Cookie: request.headers.get("cookie") || "",
+      },
+    }
+  );
 
-  // Redirect to login
+  // Redirect to login with cookies from logout response
   const url = request.nextUrl.clone();
   url.pathname = "/auth/login";
-  return NextResponse.redirect(url);
+  const response = NextResponse.redirect(url);
+
+  // Forward the Set-Cookie headers from logout response
+  const setCookieHeader = logoutResponse.headers.get("Set-Cookie");
+  if (setCookieHeader) {
+    setCookieHeader.split(",").forEach((cookie) => {
+      response.headers.append("Set-Cookie", cookie.trim());
+    });
+  }
+
+  return response;
 }
 
 export async function updateSession(request: NextRequest) {

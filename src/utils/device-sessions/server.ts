@@ -1,7 +1,11 @@
 import { createClient } from "@/utils/supabase/server";
-import { TDeviceInfo } from "@/types/auth";
+import { TDeviceInfo, TDeviceSessionOptions } from "@/types/auth";
+import { UAParser } from "ua-parser-js";
+import { Provider } from "@supabase/auth-js";
 
-// Only use this function on the server
+// Only the providers we actually support
+export type TDeviceSessionProvider = "browser" | "google" | "email";
+
 async function createDevice(device: TDeviceInfo) {
   if (typeof window !== "undefined") {
     throw new Error("Cannot create or find device on the client");
@@ -36,6 +40,66 @@ export type TCreateDeviceSessionParams = {
   needs_verification: boolean;
   is_trusted: boolean;
 };
+
+/**
+ * Creates a device session with proper trust and verification settings based on the auth flow
+ * @param request The incoming request object
+ * @param user_id The ID of the user to create the session for
+ * @param options Configuration options for the session
+ * @returns The created session ID
+ */
+export async function setupDeviceSession(
+  request: Request,
+  user_id: string,
+  options: TDeviceSessionOptions
+): Promise<string> {
+  // Parse user agent for device info
+  const parser = new UAParser(request.headers.get("user-agent") || "");
+  const currentDevice: TDeviceInfo = {
+    user_id,
+    device_name: parser.getDevice().model || "Unknown Device",
+    browser: parser.getBrowser().name || "Unknown Browser",
+    os: parser.getOS().name || "Unknown OS",
+    ip_address: request.headers.get("x-forwarded-for") || "::1",
+  };
+
+  // Calculate confidence and verification needs based on trust level
+  let confidence_score: number;
+  let needs_verification: boolean;
+  let is_trusted: boolean;
+
+  switch (options.trustLevel) {
+    case "high":
+      // High trust for password reset, email verification, etc.
+      confidence_score = 100;
+      needs_verification = false;
+      is_trusted = true;
+      break;
+    case "oauth":
+      // OAuth providers are generally trusted
+      confidence_score = 85;
+      needs_verification = false;
+      is_trusted = true;
+      break;
+    case "normal":
+      // Regular email/password login
+      confidence_score = 70;
+      needs_verification = !options.skipVerification;
+      is_trusted = false;
+      break;
+  }
+
+  // Create the session
+  const session_id = await createDeviceSession({
+    user_id,
+    device: currentDevice,
+    confidence_score,
+    needs_verification,
+    is_trusted,
+  });
+
+  return session_id;
+}
 
 // Only use this function on the server
 export async function createDeviceSession(params: TCreateDeviceSessionParams) {

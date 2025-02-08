@@ -16,6 +16,7 @@ import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { verifyRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
 import { checkTwoFactorRequirements } from "@/utils/auth";
+import { setupDeviceSession } from "@/utils/device-sessions/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,6 +123,22 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     ) satisfies NextResponse<TEmptySuccessResponse>;
+
+    // Set up device session if not requiring relogin
+    if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
+      const session_id = await setupDeviceSession(request, userId, {
+        trustLevel: "high",
+        skipVerification: true, // User proved ownership via email
+        provider: "browser",
+      });
+
+      // Set device session cookie
+      response.cookies.set("device_session_id", session_id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      });
+    }
 
     // Clear recovery cookie if it was used
     if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {

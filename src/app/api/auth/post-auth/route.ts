@@ -6,14 +6,20 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { UAParser } from "ua-parser-js";
-import { calculateDeviceConfidence, checkTwoFactorRequirements, getConfidenceLevel } from "@/utils/auth";
-import { createDeviceSession } from "@/utils/device-sessions/server";
+import {
+  calculateDeviceConfidence,
+  checkTwoFactorRequirements,
+  getConfidenceLevel,
+} from "@/utils/auth";
 import { TDeviceInfo } from "@/types/auth";
+import { setupDeviceSession } from "@/utils/device-sessions/server";
+import type { TDeviceSessionProvider } from "@/utils/device-sessions/server";
 
 export async function GET(request: Request) {
   console.log("[DEBUG] Post-auth started");
   const { searchParams } = new URL(request.url);
-  const provider = searchParams.get("provider") || "browser";
+  const provider = (searchParams.get("provider") ||
+    "browser") as TDeviceSessionProvider;
   const next = searchParams.get("next") || "/dashboard";
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
   const isLocalEnv = process.env.NODE_ENV === "development";
@@ -21,6 +27,13 @@ export async function GET(request: Request) {
   console.log("[DEBUG] Post-auth params:", { provider, next, origin });
 
   try {
+    // Validate provider is one we actually support
+    const isValidProvider =
+      provider === "browser" || provider === "google" || provider === "email";
+    if (!isValidProvider) {
+      throw new Error("Invalid provider");
+    }
+
     // Get the user with normal client for auth
     const supabase = await createClient();
     const {
@@ -82,11 +95,6 @@ export async function GET(request: Request) {
       count: trustedSessions?.length,
     });
 
-    // Add detailed debugging of trusted sessions
-    console.log(
-      "[DEBUG] Trusted sessions raw data:",
-      JSON.stringify(trustedSessions, null, 2)
-    );
     if (trustedSessions?.length) {
       console.log("[DEBUG] First trusted session structure:", {
         hasDevice: "device" in (trustedSessions[0] || {}),
@@ -126,93 +134,70 @@ export async function GET(request: Request) {
     // Check if 2FA is required for this user
     const twoFactorResult = await checkTwoFactorRequirements(supabase);
 
-    // Decide if verification for the device is needed
-    const needsVerification = process.env.RESEND_API_KEY
-      ? (confidenceLevel === "low" ||
-          (confidenceLevel === "medium" && provider === "email")) &&
-        !twoFactorResult.requiresTwoFactor // Skip device verification if 2FA is enabled
-      : false;
-
-    // A device is trusted if Resend isn't configured OR has high confidence OR medium confidence from OAuth OR 2FA is enabled
-    const isTrusted =
-      !process.env.RESEND_API_KEY ||
-      confidenceLevel === "high" ||
-      (confidenceLevel === "medium" && provider !== "email") ||
-      twoFactorResult.requiresTwoFactor;
-
-    console.log("[DEBUG] Device trust status:", {
-      needsVerification,
-      isTrusted,
-      hasResendKey: !!process.env.RESEND_API_KEY,
+    // Create device session with appropriate trust level
+    const session_id = await setupDeviceSession(request, user.id, {
+      trustLevel: provider === "google" ? "oauth" : "normal",
+      skipVerification: twoFactorResult.requiresTwoFactor, // Skip device verification if 2FA is enabled
+      provider,
     });
 
-    // Create the device session
-    try {
-      const session_id = await createDeviceSession({
-        user_id: user.id,
-        device: currentDevice,
-        confidence_score: score,
-        needs_verification: needsVerification,
-        is_trusted: isTrusted,
-      });
-      console.log("[DEBUG] Device session created:", { session_id });
+    // If verification is needed, redirect to verification page
+    const { data: session } = await supabase
+      .from("device_sessions")
+      .select("needs_verification")
+      .eq("session_id", session_id)
+      .single();
 
-      // If verification is needed, send verification code
-      if (needsVerification) {
-        try {
-          const sendCodeResponse = await fetch(
-            `${origin}/api/auth/verify-device/send-code`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Cookie: request.headers.get("cookie") || "",
-              },
-              body: JSON.stringify({
-                device_session_id: session_id,
-                device_name: deviceName,
-              }),
-            }
-          );
-
-          if (!sendCodeResponse.ok) {
-            const error = await sendCodeResponse.json();
-            console.error("[DEBUG] Failed to send verification code:", error);
-            throw new Error(
-              error.error ||
-                "We couldn't send you a verification code right now."
-            );
+    if (session?.needs_verification) {
+      try {
+        const sendCodeResponse = await fetch(
+          `${origin}/api/auth/verify-device/send-code`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Cookie: request.headers.get("cookie") || "",
+            },
+            body: JSON.stringify({
+              device_session_id: session_id,
+              device_name: deviceName,
+            }),
           }
+        );
 
-          console.log("[DEBUG] Verification code sent successfully");
-
-          // Redirect to verification page
-          return NextResponse.redirect(
-            `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}`
+        if (!sendCodeResponse.ok) {
+          const error = await sendCodeResponse.json();
+          console.error("[DEBUG] Failed to send verification code:", error);
+          throw new Error(
+            error.error || "We couldn't send you a verification code right now."
           );
-        } catch (error) {
-          console.error("[DEBUG] Verification code error:", error);
-          throw new Error("network_error");
         }
+
+        console.log("[DEBUG] Verification code sent successfully");
+
+        // Redirect to verification page
+        return NextResponse.redirect(
+          `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}`
+        );
+      } catch (error) {
+        console.error("[DEBUG] Verification code error:", error);
+        throw new Error("network_error");
       }
-
-      // If no verification needed, redirect to next page
-      const response = NextResponse.redirect(`${origin}${next}`, {
-        status: 302,
-      });
-
-      // Set the device session ID cookie
-      response.cookies.set("device_session_id", session_id, {
-        httpOnly: true,
-        secure: !isLocalEnv,
-        sameSite: "lax",
-      });
-
-      return response;
-    } catch (error) {
-      console.error("[DEBUG] Device session creation failed:", error);
-      throw error;
     }
+
+    // If no verification needed, redirect to next page
+    const response = NextResponse.redirect(`${origin}${next}`, {
+      status: 302,
+    });
+
+    // Set the device session ID cookie
+    response.cookies.set("device_session_id", session_id, {
+      httpOnly: true,
+      secure: !isLocalEnv,
+      sameSite: "lax",
+    });
+
+    return response;
   } catch (error) {
     const err = error as Error;
     console.error("[DEBUG] Post-auth error:", {

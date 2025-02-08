@@ -1,9 +1,17 @@
+import { TDeviceSessionProvider } from "@/utils/device-sessions/server";
+
 export interface TDeviceInfo {
   user_id: string;
   device_name: string;
   browser: string | null;
   os: string | null;
   ip_address?: string;
+}
+
+export interface TDeviceSessionOptions {
+  trustLevel: "high" | "oauth" | "normal";
+  skipVerification?: boolean;
+  provider?: TDeviceSessionProvider;
 }
 
 export type TAccessLevel = "full" | "verified" | "restricted";

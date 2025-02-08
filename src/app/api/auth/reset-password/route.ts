@@ -19,7 +19,10 @@ import { checkTwoFactorRequirements } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient({ useServiceRole: true });
+    // Regular client for 2FA checks
+    const supabase = await createClient();
+    // Service role client for admin operations
+    const adminClient = await createClient({ useServiceRole: true });
     let userId: string | null = null;
 
     // If re-login is required, verify recovery token
@@ -93,10 +96,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update password using appropriate method
+    // Update password using appropriate method and client
     const { error: updateError } = AUTH_CONFIG.passwordReset
       .requireReloginAfterReset
-      ? await supabase.auth.admin.updateUserById(userId, { password })
+      ? await adminClient.auth.admin.updateUserById(userId, { password })
       : await supabase.auth.updateUser({ password });
 
     if (updateError) {

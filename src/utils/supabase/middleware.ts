@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { checkTwoFactorRequirements } from "@/utils/auth";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -206,13 +207,16 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Allow password reset paths if recovery cookie is present
+    // Allow password reset paths if recovery cookie is present (when required)
     if (isPasswordResetPath) {
-      const hasRecoveryCookie = request.cookies.has("recovery_session");
-      if (!hasRecoveryCookie) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/auth/login";
-        return NextResponse.redirect(url);
+      // Only check for recovery cookie if relogin is required after reset
+      if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
+        const hasRecoveryCookie = request.cookies.has("recovery_session");
+        if (!hasRecoveryCookie) {
+          const url = request.nextUrl.clone();
+          url.pathname = "/auth/login";
+          return NextResponse.redirect(url);
+        }
       }
     }
   }

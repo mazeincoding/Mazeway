@@ -32,7 +32,7 @@ export default function AccountLayout({
         />
         <div className="flex flex-1 w-full">
           <SettingsSidebar />
-          <div className="flex-1 px-4 md:px-8 py-12">
+          <div className="flex-1 px-4 md:px-8 py-10">
             <div className="max-w-4xl mx-auto">{children}</div>
           </div>
         </div>

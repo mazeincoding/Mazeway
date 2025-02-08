@@ -644,11 +644,12 @@ function DeviceItem({
   );
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Fetch location data when component mounts
+  // Only fetch location when dialog opens and we haven't fetched it yet
   useEffect(() => {
     async function fetchLocation() {
-      if (!ipAddress) return;
+      if (!ipAddress || !dialogOpen || location || isLoadingLocation) return;
 
       try {
         setIsLoadingLocation(true);
@@ -680,7 +681,7 @@ function DeviceItem({
     }
 
     fetchLocation();
-  }, [ipAddress]);
+  }, [ipAddress, dialogOpen, location, isLoadingLocation]);
 
   const content = (
     <div
@@ -707,7 +708,7 @@ function DeviceItem({
   }
 
   return (
-    <Dialog>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>{content}</DialogTrigger>
       <DialogContent>
         <DialogHeader className="sr-only">

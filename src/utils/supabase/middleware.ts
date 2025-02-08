@@ -3,6 +3,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { checkTwoFactorRequirements } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 
+async function handleInvalidDeviceSession(request: NextRequest) {
+  // Call logout API to clean up all auth state
+  await fetch(`${request.nextUrl.origin}/api/auth/logout`, {
+    method: "POST",
+    headers: {
+      Cookie: request.headers.get("cookie") || "",
+    },
+  });
+
+  // Redirect to login
+  const url = request.nextUrl.clone();
+  url.pathname = "/auth/login";
+  return NextResponse.redirect(url);
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -146,10 +161,7 @@ export async function updateSession(request: NextRequest) {
               { status: 401 }
             );
           }
-          // Redirect to login instead of post-auth
-          const url = request.nextUrl.clone();
-          url.pathname = "/auth/login";
-          return NextResponse.redirect(url);
+          return handleInvalidDeviceSession(request);
         }
 
         // Query device session by ID
@@ -167,10 +179,7 @@ export async function updateSession(request: NextRequest) {
               { status: 401 }
             );
           }
-          // Redirect to login instead of post-auth
-          const url = request.nextUrl.clone();
-          url.pathname = "/auth/login";
-          return NextResponse.redirect(url);
+          return handleInvalidDeviceSession(request);
         }
 
         // Redirect to verification if needed

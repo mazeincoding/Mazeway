@@ -124,25 +124,21 @@ export async function DELETE(
         (factor) => factor.status === "verified"
       );
 
-      if (!verifiedFactors?.length) {
-        return NextResponse.json(
-          { error: "Two-factor authentication is required but not set up" },
-          { status: 403 }
-        ) satisfies NextResponse<TApiErrorResponse>;
+      // Only require 2FA if user has it enabled (has verified factors)
+      if (verifiedFactors?.length) {
+        // Return available methods for 2FA verification
+        return NextResponse.json({
+          requiresTwoFactor: true,
+          availableMethods: verifiedFactors.map((factor) => ({
+            type: factor.factor_type as TTwoFactorMethod,
+            factorId: factor.id,
+          })),
+          sessionId: sessionId,
+        }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
       }
-
-      // Return available methods for 2FA verification
-      return NextResponse.json({
-        requiresTwoFactor: true,
-        availableMethods: verifiedFactors.map((factor) => ({
-          type: factor.factor_type as TTwoFactorMethod,
-          factorId: factor.id,
-        })),
-        sessionId: sessionId,
-      }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
     }
 
-    // If no 2FA required or it's disabled in config, delete the session
+    // If no 2FA required, disabled in config, or user doesn't have 2FA enabled, delete the session
     const adminClient = await createClient({ useServiceRole: true });
     const { error: deleteError } = await adminClient
       .from("device_sessions")

@@ -80,14 +80,10 @@ export default function Security() {
   };
 
   const handlePasswordVisibilityChange = (field: string, show: boolean) => {
-    setShowPasswords((prev) => ({
-      ...prev,
-      [field]: show,
-      // Sync new password and confirm password visibility
-      ...(field === "newPassword" || field === "confirmPassword"
-        ? { newPassword: show, confirmPassword: show }
-        : {}),
-    }));
+    setShowPasswords({
+      currentPassword: show,
+      newPassword: show,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

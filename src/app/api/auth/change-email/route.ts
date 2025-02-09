@@ -49,6 +49,28 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    // Get user data including has_password
+    const { data: dbUser, error: dbError } = await supabase
+      .from("users")
+      .select("has_password")
+      .eq("id", user.id)
+      .single();
+
+    if (dbError || !dbUser) {
+      return NextResponse.json(
+        { error: "Failed to get user data" },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // OAuth only users should change email through their provider
+    if (!dbUser.has_password) {
+      return NextResponse.json(
+        { error: "Please change your email through your OAuth provider" },
+        { status: 403 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     const body = await request.json();
 
     // Handle 2FA verification request

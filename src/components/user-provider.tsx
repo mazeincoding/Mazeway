@@ -29,7 +29,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const { user } = (await response.json()) as TGetUserResponse;
+    const { user } = (await response.json()) as TGetUserResponse;
       setUser(user);
       setLoading(false);
     }

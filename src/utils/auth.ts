@@ -12,15 +12,6 @@ import {
  */
 
 /**
- * Checks if a user is OAuth-only by examining their providers
- * @param providers Array of authentication providers for the user
- * @returns boolean indicating if the user is OAuth-only
- */
-export function isOAuthOnlyUser(providers: string[]) {
-  return providers.length > 0 && !providers.includes("email");
-}
-
-/**
  * Calculates confidence score for a device login by comparing with stored sessions
  * @param storedSessions Array of user's previous device sessions
  * @param current Current device information

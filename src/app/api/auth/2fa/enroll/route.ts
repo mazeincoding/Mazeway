@@ -8,7 +8,6 @@ import {
 import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
 import { smsEnrollmentSchema } from "@/utils/validation/auth-validation";
-import { isOAuthOnlyUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,17 +34,27 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    // Get user data including has_password
+    const { data: dbUser, error: dbError } = await supabase
+      .from("users")
+      .select("has_password")
+      .eq("id", user.id)
+      .single();
+
+    if (dbError || !dbUser) {
+      return NextResponse.json(
+        { error: "Failed to get user data" },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     // 2. Get and validate request body
     const body = (await request.json()) as TEnroll2FARequest;
     const method = body.method || "authenticator";
     const password = body.password;
 
-    // Get user's auth providers
-    const providers = user.app_metadata.providers || [];
-    const isOAuthUser = isOAuthOnlyUser(providers);
-
-    // Only verify password for non-OAuth users
-    if (!isOAuthUser) {
+    // Only verify password for users with password auth
+    if (dbUser.has_password) {
       // Verify password is provided
       if (!password) {
         return NextResponse.json(

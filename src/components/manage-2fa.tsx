@@ -30,7 +30,6 @@ import type { E164Number } from "libphonenumber-js/core";
 import { cn } from "@/lib/utils";
 import { TVerifyPasswordRequest } from "@/types/api";
 import { useUserStore } from "@/store/user-store";
-import { isOAuthOnlyUser } from "@/utils/auth";
 
 interface TwoFactorDialogProps {
   open: boolean;
@@ -84,7 +83,7 @@ export function ManageTwoFactorDialog({
   verificationError = null,
 }: TwoFactorDialogProps) {
   const { user } = useUserStore();
-  const hasPasswordAuth = !isOAuthOnlyUser(user?.auth.providers || []);
+  const hasPasswordAuth = user?.has_password ?? false;
   const [selectedMethod, setSelectedMethod] = useState<TTwoFactorMethod | null>(
     null
   );

@@ -55,7 +55,6 @@ export interface TUser {
 
 export interface TUserWithAuth extends TUser {
   auth: {
-    providers: string[];
     emailVerified: boolean;
     lastSignInAt: string;
     twoFactorEnabled: boolean;

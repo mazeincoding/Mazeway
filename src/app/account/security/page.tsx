@@ -38,7 +38,7 @@ type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
 export default function Security() {
   const { isLoading, user } = useUserStore();
-  const hasPasswordAuth = user?.auth.providers.includes("email");
+  const hasPasswordAuth = user?.has_password ?? false;
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",

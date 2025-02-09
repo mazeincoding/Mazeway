@@ -26,7 +26,6 @@ import {
   passwordChangeSchema,
   twoFactorVerificationSchema,
 } from "@/utils/validation/auth-validation";
-import { isOAuthOnlyUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   if (apiRateLimit) {
@@ -57,9 +56,19 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get user's auth providers from the user object
-    const providers = user.app_metadata.providers || [];
-    const isOAuthUser = isOAuthOnlyUser(providers);
+    // Get user data including has_password
+    const { data: dbUser, error: dbError } = await supabase
+      .from("users")
+      .select("has_password")
+      .eq("id", user.id)
+      .single();
+
+    if (dbError || !dbUser) {
+      return NextResponse.json(
+        { error: "Failed to get user data" },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
 
     const body = await request.json();
 
@@ -112,9 +121,9 @@ export async function POST(request: NextRequest) {
 
     const { currentPassword, newPassword } = validation.data;
 
-    // For OAuth users, skip current password verification
-    if (!isOAuthUser) {
-      // Verify current password for non-OAuth users
+    // For users with password auth, verify current password
+    if (dbUser.has_password) {
+      // Verify current password
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email!,
         password: currentPassword,
@@ -153,7 +162,10 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       // Special handling for OAuth users
-      if (isOAuthUser && updateError.message.includes("identity_not_found")) {
+      if (
+        dbUser.has_password &&
+        updateError.message.includes("identity_not_found")
+      ) {
         return NextResponse.json(
           { error: "Cannot add password. Please contact support." },
           { status: 400 }

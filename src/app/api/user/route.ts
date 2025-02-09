@@ -63,8 +63,6 @@ export async function GET(request: NextRequest) {
     const userWithAuth: TUserWithAuth = {
       ...userData,
       auth: {
-        providers:
-          authUser.identities?.map((identity) => identity.provider) || [],
         emailVerified: !!authUser.email_confirmed_at,
         lastSignInAt: authUser.last_sign_in_at,
         twoFactorEnabled: enabledMethods.length > 0,

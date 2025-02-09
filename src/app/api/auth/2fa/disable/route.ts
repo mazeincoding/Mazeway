@@ -4,7 +4,6 @@ import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
-import { isOAuthOnlyUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +27,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // Get user data including has_password
+    const { data: dbUser, error: dbError } = await supabase
+      .from("users")
+      .select("has_password")
+      .eq("id", user.id)
+      .single();
+
+    if (dbError || !dbUser) {
+      return NextResponse.json(
+        { error: "Failed to get user data" },
+        { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
@@ -58,12 +71,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. Check if user is OAuth-only
-    const providers = user.app_metadata.providers || [];
-    const isOAuthUser = isOAuthOnlyUser(providers);
-
-    // 6. Verify password only for non-OAuth users
-    if (!isOAuthUser) {
+    // 5. Verify password for users with password authentication
+    if (dbUser.has_password) {
       // Verify password is provided
       if (!password) {
         return NextResponse.json(
@@ -86,7 +95,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Create challenge
+    // 6. Create challenge
     const { data: challengeData, error: challengeError } =
       await supabase.auth.mfa.challenge({ factorId });
     if (challengeError) {
@@ -97,7 +106,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 8. Verify the code
+    // 7. Verify the code
     const { error: verifyError } = await supabase.auth.mfa.verify({
       factorId,
       challengeId: challengeData.id,
@@ -112,7 +121,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 9. Handle disabling based on type
+    // 8. Handle disabling based on type
     if (validation.data.type === "all") {
       // Get all enrolled factors
       const { data: factors } = await supabase.auth.mfa.listFactors();

@@ -198,6 +198,12 @@ export async function GET(request: Request) {
       sameSite: "lax",
     });
 
+    // Add refresh flag if needed
+    const shouldRefresh = searchParams.get("should_refresh") === "true";
+    if (shouldRefresh) {
+      response.headers.set("X-Should-Refresh-User", "true");
+    }
+
     return response;
   } catch (error) {
     const err = error as Error;

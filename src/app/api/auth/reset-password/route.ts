@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json(
       {
         loginRequired: AUTH_CONFIG.passwordReset.requireReloginAfterReset,
+        shouldRefreshUser: !AUTH_CONFIG.passwordReset.requireReloginAfterReset,
         redirectTo: AUTH_CONFIG.passwordReset.requireReloginAfterReset
           ? `/auth/login?message=${encodeURIComponent(
               "Password reset successful. Please log in with your new password."

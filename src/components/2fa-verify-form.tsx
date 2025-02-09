@@ -25,6 +25,8 @@ import {
 } from "@/utils/validation/auth-validation";
 import { TTwoFactorMethod } from "@/types/auth";
 import { useState, useEffect } from "react";
+import { useUserStore } from "@/store/user-store";
+import { toast } from "sonner";
 
 interface TwoFactorMethod {
   type: TTwoFactorMethod;
@@ -48,6 +50,7 @@ export function TwoFactorVerifyForm({
   isVerifying = false,
   error,
 }: TwoFactorVerifyFormProps) {
+  const { refreshUser } = useUserStore();
   const form = useForm<TwoFactorVerificationSchema>({
     resolver: zodResolver(twoFactorVerificationSchema),
     defaultValues: {
@@ -84,7 +87,7 @@ export function TwoFactorVerifyForm({
 
   const onSubmit = form.handleSubmit(async (data) => {
     console.log("Form submitted with:", data);
-    await onVerify(data.code);
+    await handleSubmit(data);
   });
 
   const handleCodeChange = (
@@ -130,6 +133,18 @@ export function TwoFactorVerifyForm({
       onMethodChange(method);
     }
   };
+
+  async function handleSubmit(data: TwoFactorVerificationSchema) {
+    try {
+      await onVerify(data.code);
+      await refreshUser();
+    } catch (error) {
+      toast.error("Error", {
+        description: "Failed to verify 2FA",
+        duration: 3000,
+      });
+    }
+  }
 
   return (
     <Form {...form}>

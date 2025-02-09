@@ -25,9 +25,11 @@ import { TwoFactorVerifyForm } from "./2fa-verify-form";
 import { TTwoFactorMethod } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { BackButton } from "./back-button";
+import { useUserStore } from "@/store/user-store";
 
 export function AuthForm() {
   const router = useRouter();
+  const { refreshUser } = useUserStore();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -156,6 +158,12 @@ export function AuthForm() {
       if (determinedType === "signup") {
         setShowConfirm(true);
       } else {
+        // Check if response has refresh header
+        const shouldRefresh =
+          response.headers.get("X-Should-Refresh-User") === "true";
+        if (shouldRefresh) {
+          await refreshUser();
+        }
         router.push(data?.redirectTo);
       }
     } catch (error) {
@@ -436,6 +444,7 @@ export function AuthForm() {
 
 export function SocialButtons() {
   const [isPending, setIsPending] = useState(false);
+  const { refreshUser } = useUserStore();
 
   /**
    * Handles Google sign-in flow:

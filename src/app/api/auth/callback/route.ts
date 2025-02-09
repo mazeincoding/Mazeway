@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.redirect(
-      `${origin}/api/auth/post-auth?provider=google&next=${next}`
+      `${origin}/api/auth/post-auth?provider=google&next=${next}&should_refresh=true`
     );
   }
 

@@ -111,6 +111,17 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    // Set has_password flag after successful password reset
+    const { error: flagError } = await supabase
+      .from("users")
+      .update({ has_password: true })
+      .eq("id", userId);
+
+    if (flagError) {
+      console.error("Failed to update has_password flag:", flagError);
+      // Continue anyway - password was reset successfully
+    }
+
     // Create success response with login required flag
     const response = NextResponse.json(
       {

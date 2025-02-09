@@ -151,6 +151,7 @@ If you get errors with that flag too, check out [this list](https://docs.google.
       email text UNIQUE NOT NULL,
       name text NOT NULL,
       avatar_url text,
+      has_password boolean DEFAULT false,
       created_at timestamp with time zone DEFAULT now(),
       updated_at timestamp with time zone DEFAULT now()
     );

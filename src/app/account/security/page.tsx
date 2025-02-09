@@ -534,7 +534,7 @@ export default function Security() {
             {hasPasswordAuth && (
               <Link
                 href="/auth/forgot-password"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors -mt-1"
+                className="text-sm transition-colors"
               >
                 Forgot password?
               </Link>

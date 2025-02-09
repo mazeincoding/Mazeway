@@ -99,6 +99,7 @@ export function ManageTwoFactorDialog({
   const [copied, setCopied] = useState(false);
   const [verifiedPassword, setVerifiedPassword] = useState<string>("");
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 
   useEffect(() => {
     // Reset to appropriate initial state when auth status changes
@@ -351,6 +352,8 @@ export function ManageTwoFactorDialog({
                     handlePasswordVerify();
                   }
                 }}
+                showPassword={showCurrentPassword}
+                onShowPasswordChange={(show) => setShowCurrentPassword(show)}
               />
             </div>
             <div className="flex flex-col gap-3">

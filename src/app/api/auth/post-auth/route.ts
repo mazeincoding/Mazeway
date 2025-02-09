@@ -66,6 +66,7 @@ export async function GET(request: Request) {
         email: user.email,
         name: user.email?.split("@")[0] || "User",
         avatar_url: null,
+        has_password: provider === "email", // only has password if signed up with email
       });
 
       if (createError) {

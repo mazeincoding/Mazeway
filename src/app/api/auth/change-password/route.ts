@@ -162,6 +162,17 @@ export async function POST(request: NextRequest) {
       throw updateError;
     }
 
+    // Update has_password flag
+    const { error: flagError } = await supabase
+      .from("users")
+      .update({ has_password: true })
+      .eq("id", user.id);
+
+    if (flagError) {
+      console.error("Failed to update has_password flag:", flagError);
+      // Don't throw - password was updated successfully
+    }
+
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {
     console.error("Error changing password:", error);

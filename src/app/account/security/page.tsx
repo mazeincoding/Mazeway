@@ -476,47 +476,51 @@ export default function Security() {
               : "Add a password to your account. You'll still be able to use your current login method."}
           </SettingCard.Description>
         </SettingCard.Header>
-        <SettingCard.Content>
+        <SettingCard.Content className="pb-4">
           <form
             id="password-form"
             onSubmit={handleSubmit}
-            className="flex flex-col gap-5"
+            className="flex flex-col gap-2"
           >
-            {hasPasswordAuth && (
+            <div className="flex flex-col gap-6">
+              {hasPasswordAuth && (
+                <FormField
+                  id="currentPassword"
+                  label="Current password"
+                  type="password"
+                  value={formData.currentPassword}
+                  onChange={handleChange}
+                  disabled={isLoading}
+                  error={errors.currentPassword}
+                  showPassword={showPasswords.currentPassword}
+                  onShowPasswordChange={(show) =>
+                    handlePasswordVisibilityChange("currentPassword", show)
+                  }
+                />
+              )}
               <FormField
-                id="currentPassword"
-                label="Current password"
+                id="newPassword"
+                label="New password"
                 type="password"
-                value={formData.currentPassword}
+                value={formData.newPassword}
                 onChange={handleChange}
                 disabled={isLoading}
-                error={errors.currentPassword}
-                showPassword={showPasswords.currentPassword}
+                error={errors.newPassword}
+                showPassword={showPasswords.newPassword}
                 onShowPasswordChange={(show) =>
-                  handlePasswordVisibilityChange("currentPassword", show)
+                  handlePasswordVisibilityChange("newPassword", show)
                 }
               />
-            )}
-            <FormField
-              id="newPassword"
-              label="New password"
-              type="password"
-              value={formData.newPassword}
-              onChange={handleChange}
-              disabled={isLoading}
-              error={errors.newPassword}
-              showPassword={showPasswords.newPassword}
-              onShowPasswordChange={(show) =>
-                handlePasswordVisibilityChange("newPassword", show)
-              }
-            />
+            </div>
             {hasPasswordAuth && (
-              <Link
-                href="/auth/forgot-password"
-                className="text-sm transition-colors"
-              >
-                Forgot password?
-              </Link>
+              <div className="mt-2">
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             )}
           </form>
         </SettingCard.Content>

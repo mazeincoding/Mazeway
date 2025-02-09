@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     // Check if 2FA is enabled in config
     if (!AUTH_CONFIG.twoFactorAuth.enabled) {
       return NextResponse.json(
-        { error: "Two-factor authentication is not enabled" },
+        { error: "Two-factor authentication is not enabled in the config" },
         { status: 403 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }

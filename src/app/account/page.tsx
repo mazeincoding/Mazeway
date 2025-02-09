@@ -246,41 +246,45 @@ export default function Account() {
 
   return (
     <div className="space-y-12">
-      <SettingCard
-        icon={UserIcon}
-        title="Basic information"
-        description="Manage your basic information."
-        footer={
+      <SettingCard icon={UserIcon}>
+        <SettingCard.Header>
+          <SettingCard.Title>Basic information</SettingCard.Title>
+          <SettingCard.Description>
+            Manage your basic information.
+          </SettingCard.Description>
+        </SettingCard.Header>
+        <SettingCard.Content>
+          <form
+            id="account-form"
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-6"
+          >
+            <FormField
+              id="name"
+              label="Name"
+              placeholder="John Doe"
+              value={formData.name}
+              onChange={handleChange}
+              disabled={isUpdating}
+              error={errors.name}
+            />
+            <FormField
+              id="email"
+              label="Email"
+              type="email"
+              placeholder="john.doe@example.com"
+              value={formData.email}
+              onChange={handleChange}
+              disabled={isUpdating}
+              error={errors.email}
+            />
+          </form>
+        </SettingCard.Content>
+        <SettingCard.Footer>
           <Button type="submit" form="account-form" disabled={isUpdating}>
             Save
           </Button>
-        }
-      >
-        <form
-          id="account-form"
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-6"
-        >
-          <FormField
-            id="name"
-            label="Name"
-            placeholder="John Doe"
-            value={formData.name}
-            onChange={handleChange}
-            disabled={isUpdating}
-            error={errors.name}
-          />
-          <FormField
-            id="email"
-            label="Email"
-            type="email"
-            placeholder="john.doe@example.com"
-            value={formData.email}
-            onChange={handleChange}
-            disabled={isUpdating}
-            error={errors.email}
-          />
-        </form>
+        </SettingCard.Footer>
       </SettingCard>
 
       {showTwoFactorDialog && twoFactorData && (

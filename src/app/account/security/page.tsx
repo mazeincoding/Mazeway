@@ -473,88 +473,94 @@ export default function Security() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SettingCard
-        icon={KeyRound}
-        title={hasPasswordAuth ? "Change password" : "Add password"}
-        description={
-          hasPasswordAuth
-            ? "Update your account password."
-            : "Add a password to your account. You'll still be able to use your current login method."
-        }
-        footer={
-          <Button type="submit" form="password-form" disabled={isLoading}>
-            {hasPasswordAuth ? "Update password" : "Add password"}
-          </Button>
-        }
-      >
-        <form
-          id="password-form"
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-6"
-        >
-          {hasPasswordAuth && (
+      <SettingCard icon={KeyRound}>
+        <SettingCard.Header>
+          <SettingCard.Title>
+            {hasPasswordAuth ? "Change password" : "Add password"}
+          </SettingCard.Title>
+          <SettingCard.Description>
+            {hasPasswordAuth
+              ? "Update your account password."
+              : "Add a password to your account. You'll still be able to use your current login method."}
+          </SettingCard.Description>
+        </SettingCard.Header>
+        <SettingCard.Content>
+          <form
+            id="password-form"
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-5"
+          >
+            {hasPasswordAuth && (
+              <FormField
+                id="currentPassword"
+                label="Current password"
+                type="password"
+                value={formData.currentPassword}
+                onChange={handleChange}
+                disabled={isLoading}
+                error={errors.currentPassword}
+                showPassword={showPasswords.currentPassword}
+                onShowPasswordChange={(show) =>
+                  handlePasswordVisibilityChange("currentPassword", show)
+                }
+              />
+            )}
             <FormField
-              id="currentPassword"
-              label="Current password"
+              id="newPassword"
+              label="New password"
               type="password"
-              value={formData.currentPassword}
+              value={formData.newPassword}
               onChange={handleChange}
               disabled={isLoading}
-              error={errors.currentPassword}
-              showPassword={showPasswords.currentPassword}
+              error={errors.newPassword}
+              showPassword={showPasswords.newPassword}
               onShowPasswordChange={(show) =>
-                handlePasswordVisibilityChange("currentPassword", show)
+                handlePasswordVisibilityChange("newPassword", show)
               }
             />
-          )}
-          <FormField
-            id="newPassword"
-            label="New password"
-            type="password"
-            value={formData.newPassword}
-            onChange={handleChange}
-            disabled={isLoading}
-            error={errors.newPassword}
-            showPassword={showPasswords.newPassword}
-            onShowPasswordChange={(show) =>
-              handlePasswordVisibilityChange("newPassword", show)
-            }
-          />
-          <FormField
-            id="confirmPassword"
-            label="Confirm password"
-            type="password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            disabled={isLoading}
-            error={errors.confirmPassword}
-            showPassword={showPasswords.confirmPassword}
-            onShowPasswordChange={(show) =>
-              handlePasswordVisibilityChange("confirmPassword", show)
-            }
-          />
-          {hasPasswordAuth && (
-            <div className="text-center">
+            <FormField
+              id="confirmPassword"
+              label="Confirm password"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              disabled={isLoading}
+              error={errors.confirmPassword}
+              showPassword={showPasswords.confirmPassword}
+              onShowPasswordChange={(show) =>
+                handlePasswordVisibilityChange("confirmPassword", show)
+              }
+            />
+            {hasPasswordAuth && (
               <Link
                 href="/auth/forgot-password"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors -mt-1"
               >
                 Forgot password?
               </Link>
-            </div>
-          )}
-        </form>
+            )}
+          </form>
+        </SettingCard.Content>
+        <SettingCard.Footer>
+          <Button type="submit" form="password-form" disabled={isLoading}>
+            {hasPasswordAuth ? "Update password" : "Add password"}
+          </Button>
+        </SettingCard.Footer>
       </SettingCard>
 
       {AUTH_CONFIG.twoFactorAuth.enabled && (
-        <SettingCard
-          icon={ShieldIcon}
-          title="Two-factor authentication"
-          description="Add an extra layer of security to your account."
-        >
-          <Button onClick={() => setShowManage2FADialog(true)}>
-            {user?.auth.twoFactorEnabled ? "Manage 2FA" : "Enable 2FA"}
-          </Button>
+        <SettingCard icon={ShieldIcon}>
+          <SettingCard.Header>
+            <SettingCard.Title>Two-factor authentication</SettingCard.Title>
+            <SettingCard.Description>
+              Add an extra layer of security to your account.
+            </SettingCard.Description>
+          </SettingCard.Header>
+          <SettingCard.Content>
+            <Button onClick={() => setShowManage2FADialog(true)}>
+              {user?.auth.twoFactorEnabled ? "Manage 2FA" : "Enable 2FA"}
+            </Button>
+          </SettingCard.Content>
         </SettingCard>
       )}
 
@@ -582,35 +588,16 @@ export default function Security() {
         verificationError={error}
       />
 
-      {showTwoFactorDialog && twoFactorData && (
-        <Dialog
-          open={showTwoFactorDialog}
-          onOpenChange={setShowTwoFactorDialog}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Verify your identity</DialogTitle>
-              <DialogDescription>
-                Please enter your two-factor authentication code to continue.
-              </DialogDescription>
-            </DialogHeader>
-            <TwoFactorVerifyForm
-              factorId={twoFactorData.factorId}
-              availableMethods={twoFactorData.availableMethods}
-              onVerify={handleVerify2FA}
-              isVerifying={isVerifying}
-              error={error}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
-
-      <SettingCard
-        icon={ShieldIcon}
-        title="Manage devices"
-        description="Manage the devices you're logged into."
-      >
-        <DeviceList />
+      <SettingCard icon={ShieldIcon}>
+        <SettingCard.Header>
+          <SettingCard.Title>Manage devices</SettingCard.Title>
+          <SettingCard.Description>
+            Manage the devices you're logged into.
+          </SettingCard.Description>
+        </SettingCard.Header>
+        <SettingCard.Content>
+          <DeviceList />
+        </SettingCard.Content>
       </SettingCard>
     </div>
   );

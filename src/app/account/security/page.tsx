@@ -42,12 +42,10 @@ export default function Security() {
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
-    confirmPassword: "",
   });
   const [showPasswords, setShowPasswords] = useState({
     currentPassword: false,
     newPassword: false,
-    confirmPassword: false,
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [showManage2FADialog, setShowManage2FADialog] = useState(false);
@@ -164,7 +162,6 @@ export default function Security() {
       setFormData({
         currentPassword: "",
         newPassword: "",
-        confirmPassword: "",
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -273,7 +270,6 @@ export default function Security() {
       setFormData({
         currentPassword: "",
         newPassword: "",
-        confirmPassword: "",
       });
       setTwoFactorData(null);
       setShowTwoFactorDialog(false);
@@ -516,19 +512,6 @@ export default function Security() {
               showPassword={showPasswords.newPassword}
               onShowPasswordChange={(show) =>
                 handlePasswordVisibilityChange("newPassword", show)
-              }
-            />
-            <FormField
-              id="confirmPassword"
-              label="Confirm password"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              disabled={isLoading}
-              error={errors.confirmPassword}
-              showPassword={showPasswords.confirmPassword}
-              onShowPasswordChange={(show) =>
-                handlePasswordVisibilityChange("confirmPassword", show)
               }
             />
             {hasPasswordAuth && (

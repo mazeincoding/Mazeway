@@ -100,16 +100,10 @@ export const emailChangeSchema = z.object({
 
 export type EmailChangeSchema = z.infer<typeof emailChangeSchema>;
 
-export const passwordChangeSchema = z
-  .object({
-    currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: authSchema.shape.password,
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: authSchema.shape.password,
+});
 
 export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;
 

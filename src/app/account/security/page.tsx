@@ -859,6 +859,10 @@ function DeviceList() {
           body: JSON.stringify({
             factorId: twoFactorData.factorId,
             code,
+            method:
+              twoFactorData.availableMethods.find(
+                (m) => m.factorId === twoFactorData.factorId
+              )?.type || "authenticator",
           }),
         }
       );

@@ -9,7 +9,7 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { verifyTwoFactorCode } from "@/utils/auth";
 import { twoFactorVerificationSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
-import { TTwoFactorMethod } from "@/types/auth";
+import { checkTwoFactorRequirements } from "@/utils/auth";
 
 /**
  * Deletes a device session. Security is enforced through multiple layers:
@@ -118,23 +118,23 @@ export async function DELETE(
       AUTH_CONFIG.twoFactorAuth.enabled &&
       AUTH_CONFIG.twoFactorAuth.requireFor.deviceLogout
     ) {
-      // Get user's available 2FA methods
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const verifiedFactors = factors?.all?.filter(
-        (factor) => factor.status === "verified"
-      );
+      try {
+        // Use the existing utility to check 2FA requirements
+        const twoFactorResult = await checkTwoFactorRequirements(supabase);
 
-      // Only require 2FA if user has it enabled (has verified factors)
-      if (verifiedFactors?.length) {
-        // Return available methods for 2FA verification
-        return NextResponse.json({
-          requiresTwoFactor: true,
-          availableMethods: verifiedFactors.map((factor) => ({
-            type: factor.factor_type as TTwoFactorMethod,
-            factorId: factor.id,
-          })),
-          sessionId: sessionId,
-        }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+        // Only require 2FA if user has it enabled
+        if (
+          twoFactorResult.requiresTwoFactor &&
+          twoFactorResult.availableMethods?.length
+        ) {
+          return NextResponse.json({
+            ...twoFactorResult,
+            sessionId,
+          }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+        }
+      } catch (error) {
+        console.error("Error checking 2FA requirements:", error);
+        throw new Error("Failed to check 2FA status");
       }
     }
 

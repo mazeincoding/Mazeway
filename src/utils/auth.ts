@@ -186,3 +186,30 @@ export async function verifyTwoFactorCode(
     throw new Error(verifyError.message);
   }
 }
+
+/**
+ * Gets the most trusted 2FA method from available methods
+ * Methods are checked in order of security preference:
+ * 1. Authenticator (most secure)
+ * 2. SMS
+ * @param methods Array of available 2FA methods
+ * @returns The most trusted method or null if no methods available
+ */
+export function getMostTrustedTwoFactorMethod(
+  methods?: Array<{
+    type: TTwoFactorMethod;
+    factorId: string;
+  }>
+): { type: TTwoFactorMethod; factorId: string } | null {
+  if (!methods?.length) return null;
+
+  // Check methods in order of security preference
+  const authenticator = methods.find((m) => m.type === "authenticator");
+  if (authenticator) return authenticator;
+
+  const sms = methods.find((m) => m.type === "sms");
+  if (sms) return sms;
+
+  // If no recognized methods found
+  return null;
+}

@@ -27,6 +27,7 @@ import { TTwoFactorMethod } from "@/types/auth";
 import { useState, useEffect } from "react";
 import { useUserStore } from "@/store/user-store";
 import { toast } from "sonner";
+import { getMostTrustedTwoFactorMethod } from "@/utils/auth";
 
 interface TwoFactorMethod {
   type: TTwoFactorMethod;
@@ -65,28 +66,12 @@ export function TwoFactorVerifyForm({
 
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // Debug form state
-  useEffect(() => {
-    console.log("Form State:", {
-      isDirty: form.formState.isDirty,
-      isSubmitted: form.formState.isSubmitted,
-      submitCount: form.formState.submitCount,
-      errors: form.formState.errors,
-      touchedFields: form.formState.touchedFields,
-    });
-  }, [form.formState]);
-
-  // Debug API error changes
-  useEffect(() => {
-    console.log("API Error changed:", { error, apiError });
-  }, [error, apiError]);
-
   useEffect(() => {
     setApiError(error || null);
   }, [error]);
 
   const onSubmit = form.handleSubmit(async (data) => {
-    console.log("Form submitted with:", data);
+    console.log("Form submitted");
     await handleSubmit(data);
   });
 
@@ -94,9 +79,6 @@ export function TwoFactorVerifyForm({
     value: string,
     onChange: (value: string) => void
   ) => {
-    console.log("Code changing to:", value);
-    console.log("Current form errors:", form.formState.errors);
-
     setApiError(null);
 
     // Only allow numbers and limit to 6 digits
@@ -119,13 +101,11 @@ export function TwoFactorVerifyForm({
       }
     );
     onChange(sanitizedValue);
-
-    console.log("After clearing - form errors:", form.formState.errors);
   };
 
-  const currentMethod = availableMethods.find(
-    (m) => m.factorId === factorId
-  )?.type;
+  console.log(availableMethods);
+
+  const currentMethod = getMostTrustedTwoFactorMethod(availableMethods)?.type;
 
   const handleMethodChange = (value: string) => {
     const method = availableMethods.find((m) => m.type === value);

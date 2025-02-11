@@ -32,9 +32,10 @@ export const AUTH_CONFIG = {
       },
     ],
     enabled: true,
-    // Controls whether 2FA is required for sensitive operations
-    requireFor: {
-      // Whether 2FA is required to log out other devices
+    // Controls which operations require a fresh 2FA verification
+    // even if the user's session already has AAL2
+    requireFreshVerificationFor: {
+      // Whether a fresh 2FA verification is required to log out other devices
       deviceLogout: true,
     },
   },

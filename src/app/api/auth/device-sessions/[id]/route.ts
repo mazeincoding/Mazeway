@@ -116,7 +116,7 @@ export async function DELETE(
     // If we reach here, this is an initial request - check if 2FA is required based on config
     if (
       AUTH_CONFIG.twoFactorAuth.enabled &&
-      AUTH_CONFIG.twoFactorAuth.requireFor.deviceLogout
+      AUTH_CONFIG.twoFactorAuth.requireFreshVerificationFor.deviceLogout
     ) {
       try {
         // Use the existing utility to check 2FA requirements

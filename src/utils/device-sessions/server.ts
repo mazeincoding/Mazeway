@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { TDeviceInfo, TDeviceSessionOptions } from "@/types/auth";
 import { UAParser } from "ua-parser-js";
-import { Provider } from "@supabase/auth-js";
+import { AUTH_CONFIG } from "@/config/auth";
 
 // Only the providers we actually support
 export type TDeviceSessionProvider = "browser" | "google" | "email";
@@ -111,6 +111,10 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
   const device_id = await createDevice(params.device);
   const session_id = crypto.randomUUID();
 
+  // Calculate expiration date
+  const expires_at = new Date();
+  expires_at.setDate(expires_at.getDate() + AUTH_CONFIG.deviceSessions.maxAge);
+
   const { error: sessionError } = await supabase
     .from("device_sessions")
     .insert({
@@ -120,6 +124,7 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
       confidence_score: params.confidence_score,
       needs_verification: params.needs_verification,
       is_trusted: params.is_trusted,
+      expires_at: expires_at.toISOString(),
     });
 
   if (sessionError) {

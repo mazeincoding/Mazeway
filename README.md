@@ -505,6 +505,20 @@ So let's go ahead and make Supabase (and your users) happy:
 4. Set it to "1800" (1 hour)
 5. Click "Save"
 
+### Clean up device sessions automatically
+Device sessions last 365 days (same as Supabase's refresh token). They'll pile up in your database over time, but honestly? It's not that crucial to clean them up right away.
+
+Setting this up right now is a bit of a pain:
+- Need Docker installed
+- Need Supabase CLI
+- Gotta do some setup dance
+
+Good news: Supabase is working on making this WAY simpler - you'll be able to do it right from their dashboard soon.
+
+For now, don't stress about it during development. Even in early production, your database won't explode from some old sessions lying around.
+
+If you DO want to set it up (like if your app's been running for ages), check out [this guide](docs/cleanup-setup.md).
+
 ### API Rate limiting (with Upstash Redis)
 At first, the idea for implementing rate-limiting was to just create a Supabase table and store how many requests an IP made but:
 - it's not fast enough for this
@@ -685,6 +699,10 @@ What you need to know:
 8. Publish your Google OAuth app:
     - Go to [Google Cloud Console OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent?inv=1&invt=AbohWw)
     - Click the "Publish app" button to make it available to all users
+9. Optional but good to have: Set up session cleanup
+   - Not super urgent - your database won't explode
+   - But good to do if you expect lots of users or long-term use
+   - Will be much simpler to set up soon via Supabase dashboard
 
 ## Get to know the project better
 

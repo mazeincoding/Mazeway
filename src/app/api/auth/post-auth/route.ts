@@ -14,6 +14,7 @@ import {
 import { TDeviceInfo } from "@/types/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
 import type { TDeviceSessionProvider } from "@/utils/device-sessions/server";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function GET(request: Request) {
   console.log("[DEBUG] Post-auth started");
@@ -196,6 +197,7 @@ export async function GET(request: Request) {
       httpOnly: true,
       secure: !isLocalEnv,
       sameSite: "lax",
+      maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
     });
 
     // Add refresh flag if needed

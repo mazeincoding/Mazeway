@@ -41,6 +41,7 @@ export interface TDeviceSession {
   last_verified: Date | null;
   created_at: Date;
   updated_at: Date;
+  expires_at: Date;
 }
 
 export interface TUser {

@@ -10,6 +10,10 @@ export const AUTH_CONFIG = {
     codeExpirationTime: 10,
     codeLength: 6,
   },
+  deviceSessions: {
+    // Device sessions last for 1 year to match Supabase's refresh token expiration.
+    maxAge: 365,
+  },
   twoFactorAuth: {
     // Important: enabling/disabling two factor authentication or any methods does NOT control the user preferences
     // This is a feature flag that controls which methods are available in the app
@@ -31,7 +35,7 @@ export const AUTH_CONFIG = {
     // Controls whether 2FA is required for sensitive operations
     requireFor: {
       // Whether 2FA is required to log out other devices
-      deviceLogout: false,
+      deviceLogout: true,
     },
   },
   passwordReset: {
@@ -47,6 +51,7 @@ export const AUTH_CONFIG = {
   passwordRequirements: {
     // If you change the min length, make sure to change it in the Supabase dashboard as well.
     // https://supabase.com/dashboard/project/_/settings/auth
+
     // The other settings can be safely changed here. Please do not change "Password Requirements" in the Supabase dashboard.
     // Our code (API and client) will handle all of it securely.
     minLength: 8,

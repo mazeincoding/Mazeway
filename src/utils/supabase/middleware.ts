@@ -186,15 +186,16 @@ export async function updateSession(request: NextRequest) {
         // Query device session by ID
         const { data: deviceSession } = await supabase
           .from("device_sessions")
-          .select("needs_verification")
+          .select("needs_verification, expires_at")
           .eq("session_id", deviceSessionId.value)
           .eq("user_id", user.id)
+          .gt("expires_at", new Date().toISOString()) // Only get non-expired sessions
           .single();
 
         if (!deviceSession) {
           if (isApiPath) {
             return NextResponse.json(
-              { message: "Unauthorized - Invalid device session" },
+              { message: "Unauthorized - Invalid or expired device session" },
               { status: 401 }
             );
           }

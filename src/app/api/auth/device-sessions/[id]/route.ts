@@ -113,24 +113,35 @@ export async function DELETE(
       }
     }
 
-    // If we reach here, this is an initial request - check if 2FA is required based on config
-    if (
-      AUTH_CONFIG.twoFactorAuth.enabled &&
-      AUTH_CONFIG.twoFactorAuth.requireFreshVerificationFor.deviceLogout
-    ) {
+    // If we reach here, this is an initial request - check if 2FA is required
+    if (AUTH_CONFIG.twoFactorAuth.enabled) {
       try {
         // Use the existing utility to check 2FA requirements
         const twoFactorResult = await checkTwoFactorRequirements(supabase);
 
-        // Only require 2FA if user has it enabled
-        if (
-          twoFactorResult.requiresTwoFactor &&
-          twoFactorResult.availableMethods?.length
-        ) {
-          return NextResponse.json({
-            ...twoFactorResult,
-            sessionId,
-          }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+        // If user has 2FA enabled, we need to check their AAL level
+        if (twoFactorResult.requiresTwoFactor) {
+          // Check current AAL level
+          const { data: aalData, error: aalError } =
+            await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+          // If they don't have AAL2, require 2FA verification
+          if (aalError || aalData.currentLevel !== "aal2") {
+            return NextResponse.json({
+              ...twoFactorResult,
+              sessionId,
+            }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+          }
+
+          // If they have AAL2 but config requires fresh verification
+          if (
+            AUTH_CONFIG.twoFactorAuth.requireFreshVerificationFor.deviceLogout
+          ) {
+            return NextResponse.json({
+              ...twoFactorResult,
+              sessionId,
+            }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+          }
         }
       } catch (error) {
         console.error("Error checking 2FA requirements:", error);
@@ -138,7 +149,10 @@ export async function DELETE(
       }
     }
 
-    // If no 2FA required, disabled in config, or user doesn't have 2FA enabled, delete the session
+    // If we reach here, either:
+    // 1. User doesn't have 2FA enabled
+    // 2. User has AAL2 and fresh verification is not required
+    // 3. 2FA is disabled in config
     const adminClient = await createClient({ useServiceRole: true });
     const { error: deleteError } = await adminClient
       .from("device_sessions")

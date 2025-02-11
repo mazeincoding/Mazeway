@@ -142,10 +142,11 @@ export async function checkTwoFactorRequirements(
 
   // If user has any verified factors, require 2FA
   if (availableMethods.length > 0) {
-    // Default to authenticator if available, otherwise first available method
-    const defaultMethod =
-      availableMethods.find((m) => m.type === "authenticator") ||
-      availableMethods[0];
+    const defaultMethod = getMostTrustedTwoFactorMethod(availableMethods);
+
+    if (!defaultMethod) {
+      throw new Error("No default 2FA method found");
+    }
 
     return {
       requiresTwoFactor: true,

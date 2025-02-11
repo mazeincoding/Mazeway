@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -29,6 +29,7 @@ import { useUserStore } from "@/store/user-store";
 
 export function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refreshUser } = useUserStore();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
@@ -50,6 +51,29 @@ export function AuthForm() {
     "login" | "signup" | null
   >(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Handle URL parameters for 2FA requirements
+  useEffect(() => {
+    const requires2fa = searchParams.get("requires_2fa") === "true";
+    const nextUrl = searchParams.get("next");
+    const factorIdParam = searchParams.get("factor_id");
+    const methodsParam = searchParams.get("available_methods");
+
+    if (requires2fa && factorIdParam) {
+      setRequiresTwoFactor(true);
+      setFactorId(factorIdParam);
+      setRedirectUrl(nextUrl || "/dashboard");
+
+      if (methodsParam) {
+        try {
+          const methods = JSON.parse(methodsParam);
+          setAvailableMethods(methods);
+        } catch (error) {
+          console.error("Failed to parse available methods:", error);
+        }
+      }
+    }
+  }, [searchParams]);
 
   async function handleEmailCheck(email: string) {
     try {

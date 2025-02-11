@@ -136,10 +136,25 @@ export async function GET(request: Request) {
     // Check if 2FA is required for this user
     const twoFactorResult = await checkTwoFactorRequirements(supabase);
 
+    // If 2FA is required and this is an OAuth login, show 2FA form before proceeding
+    if (twoFactorResult.requiresTwoFactor && provider === "google") {
+      const verifyUrl = new URL(`${origin}/auth/login`);
+      verifyUrl.searchParams.set("requires_2fa", "true");
+      if (twoFactorResult.factorId) {
+        verifyUrl.searchParams.set("factor_id", twoFactorResult.factorId);
+        verifyUrl.searchParams.set(
+          "available_methods",
+          JSON.stringify(twoFactorResult.availableMethods)
+        );
+      }
+      verifyUrl.searchParams.set("next", next);
+      return NextResponse.redirect(verifyUrl);
+    }
+
     // Create device session with appropriate trust level
     const session_id = await setupDeviceSession(request, user.id, {
       trustLevel: provider === "google" ? "oauth" : "normal",
-      skipVerification: twoFactorResult.requiresTwoFactor, // Skip device verification if 2FA is enabled
+      skipVerification: twoFactorResult.requiresTwoFactor, // Skip device verification if 2FA is required
       provider,
     });
 

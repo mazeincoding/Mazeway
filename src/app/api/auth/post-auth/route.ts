@@ -136,6 +136,32 @@ export async function GET(request: Request) {
     // Check if 2FA is required for this user
     const twoFactorResult = await checkTwoFactorRequirements(supabase);
 
+    // Create device session with appropriate trust level
+    const session_id = await setupDeviceSession(request, user.id, {
+      trustLevel: provider === "google" ? "oauth" : "normal",
+      skipVerification: twoFactorResult.requiresTwoFactor, // Skip device verification if 2FA is required
+      provider,
+    });
+
+    // Create base response that will be used for all redirects
+    const response = NextResponse.redirect(`${origin}${next}`, {
+      status: 302,
+    });
+
+    // Set the device session ID cookie
+    response.cookies.set("device_session_id", session_id, {
+      httpOnly: true,
+      secure: !isLocalEnv,
+      sameSite: "lax",
+      maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
+    });
+
+    // Add refresh flag if needed
+    const shouldRefresh = searchParams.get("should_refresh") === "true";
+    if (shouldRefresh) {
+      response.headers.set("X-Should-Refresh-User", "true");
+    }
+
     // If 2FA is required and this is an OAuth login, show 2FA form before proceeding
     if (twoFactorResult.requiresTwoFactor && provider === "google") {
       const verifyUrl = new URL(`${origin}/auth/login`);
@@ -148,15 +174,9 @@ export async function GET(request: Request) {
         );
       }
       verifyUrl.searchParams.set("next", next);
-      return NextResponse.redirect(verifyUrl);
+      response.headers.set("Location", verifyUrl.toString());
+      return response;
     }
-
-    // Create device session with appropriate trust level
-    const session_id = await setupDeviceSession(request, user.id, {
-      trustLevel: provider === "google" ? "oauth" : "normal",
-      skipVerification: twoFactorResult.requiresTwoFactor, // Skip device verification if 2FA is required
-      provider,
-    });
 
     // If verification is needed, redirect to verification page
     const { data: session } = await supabase
@@ -192,33 +212,16 @@ export async function GET(request: Request) {
 
         console.log("[DEBUG] Verification code sent successfully");
 
-        // Redirect to verification page
-        return NextResponse.redirect(
+        // Redirect to verification page using the base response
+        response.headers.set(
+          "Location",
           `${origin}/auth/verify-device?session=${session_id}&next=${encodeURIComponent(next)}`
         );
+        return response;
       } catch (error) {
         console.error("[DEBUG] Verification code error:", error);
         throw new Error("network_error");
       }
-    }
-
-    // If no verification needed, redirect to next page
-    const response = NextResponse.redirect(`${origin}${next}`, {
-      status: 302,
-    });
-
-    // Set the device session ID cookie
-    response.cookies.set("device_session_id", session_id, {
-      httpOnly: true,
-      secure: !isLocalEnv,
-      sameSite: "lax",
-      maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
-    });
-
-    // Add refresh flag if needed
-    const shouldRefresh = searchParams.get("should_refresh") === "true";
-    if (shouldRefresh) {
-      response.headers.set("X-Should-Refresh-User", "true");
     }
 
     return response;

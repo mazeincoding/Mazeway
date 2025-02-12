@@ -29,7 +29,7 @@ import { TDeviceSession, TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TwoFactorMethods } from "@/components/two-factor-methods";
+import { TwoFactorMethods } from "@/components/2fa-methods";
 import { createClient } from "@/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { TGeolocationResponse } from "@/types/api";
@@ -552,7 +552,7 @@ function DeviceItem({
       )}
     >
       <div className="flex items-center gap-4">
-        <div className="flex-shrink-0 w-8 h-8">{deviceIcon}</div>
+        <div className="flex-shrink-0">{deviceIcon}</div>
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold">{deviceName}</h3>
@@ -822,9 +822,9 @@ function DeviceList() {
             deviceIcon={
               session.device.device_name.toLowerCase().includes("iphone") ||
               session.device.device_name.toLowerCase().includes("android") ? (
-                <SmartphoneIcon className="flex-shrink-0 w-8 h-8" />
+                <SmartphoneIcon className="flex-shrink-0 w-7 h-7" />
               ) : (
-                <LaptopMinimalIcon className="flex-shrink-0 w-8 h-8" />
+                <LaptopMinimalIcon className="flex-shrink-0 w-7 h-7" />
               )
             }
             onRevoke={handleRevoke}

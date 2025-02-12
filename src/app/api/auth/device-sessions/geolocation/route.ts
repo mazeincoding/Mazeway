@@ -6,9 +6,9 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 const LOCAL_IPS = new Set(["127.0.0.1", "::1", "localhost"]);
 
 export async function GET(request: NextRequest) {
+  const ipAddress = getClientIp(request);
   if (apiRateLimit) {
-    const ip = getClientIp(request);
-    const { success } = await apiRateLimit.limit(ip);
+    const { success } = await apiRateLimit.limit(ipAddress);
 
     if (!success) {
       return NextResponse.json(
@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const ipAddress = getClientIp(request);
   if (!ipAddress) {
     return NextResponse.json(
       { error: "IP address is required" },

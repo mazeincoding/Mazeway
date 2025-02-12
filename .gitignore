@@ -44,3 +44,4 @@ next-env.d.ts
 .cursorrules
 
 CONTRIBUTING.dev.md
+scripts/decode-jwt.py

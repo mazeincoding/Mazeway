@@ -121,41 +121,17 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 8. Handle disabling based on type
-    if (validation.data.type === "all") {
-      // Get all enrolled factors
-      const { data: factors } = await supabase.auth.mfa.listFactors();
+    // 8. Disable the specific method
+    const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+      factorId,
+    });
 
-      // Unenroll all verified factors
-      const unenrollPromises = factors?.all
-        ?.filter((factor) => factor.status === "verified")
-        .map((factor) => supabase.auth.mfa.unenroll({ factorId: factor.id }));
-
-      if (unenrollPromises?.length) {
-        const results = await Promise.all(unenrollPromises);
-        const errors = results.filter((r) => r.error).map((r) => r.error);
-
-        if (errors.length) {
-          console.error("Failed to disable all 2FA factors:", errors);
-          return NextResponse.json(
-            { error: "Failed to disable all 2FA factors" },
-            { status: 500 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-      }
-    } else {
-      // Disable specific method
-      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
-        factorId,
-      });
-
-      if (unenrollError) {
-        console.error("Failed to disable 2FA method:", unenrollError);
-        return NextResponse.json(
-          { error: unenrollError.message },
-          { status: 500 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
+    if (unenrollError) {
+      console.error("Failed to disable 2FA method:", unenrollError);
+      return NextResponse.json(
+        { error: unenrollError.message },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;

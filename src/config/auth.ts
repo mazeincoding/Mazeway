@@ -39,7 +39,7 @@ export const AUTH_CONFIG = {
       // If enabled, a grace period (in minutes) can be set
       // which means subsequent device logouts won't require re-verification
       deviceLogout: {
-        enabled: false,
+        enabled: true,
         gracePeriodMinutes: 5,
       },
     },

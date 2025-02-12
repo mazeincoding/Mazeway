@@ -29,7 +29,7 @@ import { TDeviceSession, TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ManageTwoFactorDialog } from "@/components/manage-2fa";
+import { TwoFactorMethods } from "@/components/two-factor-methods";
 import { createClient } from "@/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { TGeolocationResponse } from "@/types/api";
@@ -48,14 +48,11 @@ export default function Security() {
     newPassword: false,
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [showManage2FADialog, setShowManage2FADialog] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
     factorId: string;
     availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
-    newPassword: string;
     password: string;
   } | null>(null);
   const [qrCode, setQrCode] = useState<string>("");
@@ -139,10 +136,9 @@ export default function Security() {
         setTwoFactorData({
           factorId: data.factorId,
           availableMethods: data.availableMethods,
-          newPassword: data.newPassword,
           password: "",
         });
-        setShowTwoFactorDialog(true);
+
         return;
       }
 
@@ -184,58 +180,14 @@ export default function Security() {
       setIsVerifying(true);
       setError(null);
 
-      // If we're disabling 2FA (no newPassword means we're disabling)
-      if (!twoFactorData.newPassword) {
-        const response = await fetch("/api/auth/2fa/disable", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: twoFactorData.availableMethods.length > 1 ? "all" : "method",
-            factorId: twoFactorData.factorId,
-            method: twoFactorData.availableMethods[0].type,
-            code,
-            password: twoFactorData.password,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          if (response.status === 429) {
-            toast.error("Too many attempts", {
-              description: "Please wait a moment before trying again.",
-              duration: 4000,
-            });
-            return;
-          }
-
-          setError(data.error || "Failed to verify code");
-          return;
-        }
-
-        // Success
-        toast.success("2FA disabled", {
-          description:
-            twoFactorData.availableMethods.length > 1
-              ? "Two-factor authentication has been disabled for your account."
-              : `${twoFactorData.availableMethods[0].type === "authenticator" ? "Authenticator app" : "SMS"} has been disabled.`,
-          duration: 3000,
-        });
-
-        setTwoFactorData(null);
-        setShowTwoFactorDialog(false);
-        await refreshUser();
-        return;
-      }
-
-      // Handle password change verification (existing code)
-      const response = await fetch("/api/auth/change-password", {
+      const response = await fetch("/api/auth/2fa/disable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           factorId: twoFactorData.factorId,
+          method: twoFactorData.availableMethods[0].type,
           code,
-          newPassword: twoFactorData.newPassword,
+          password: twoFactorData.password,
         }),
       });
 
@@ -255,20 +207,14 @@ export default function Security() {
       }
 
       // Success
-      toast.success(hasPasswordAuth ? "Password updated" : "Password added", {
-        description: hasPasswordAuth
-          ? "Your password has been changed successfully."
-          : "Password has been added to your account. You can now use it to log in.",
+      toast.success("2FA disabled", {
+        description: `${twoFactorData.availableMethods[0].type === "authenticator" ? "Authenticator app" : "SMS"} has been disabled.`,
         duration: 3000,
       });
 
-      // Clear form and state
-      setFormData({
-        currentPassword: "",
-        newPassword: "",
-      });
       setTwoFactorData(null);
-      setShowTwoFactorDialog(false);
+      await refreshUser();
+      return;
     } catch (err) {
       console.error("Error verifying 2FA:", err);
       setError("Failed to verify code. Please try again.");
@@ -325,7 +271,6 @@ export default function Security() {
       setSecret("");
       setFactorId("");
       setError(null);
-      setShowManage2FADialog(false);
       await refreshUser();
     } catch (err) {
       console.error("Error verifying 2FA:", err);
@@ -415,50 +360,13 @@ export default function Security() {
       setTwoFactorData({
         factorId: factor.id,
         availableMethods: [{ type: method, factorId: factor.id }],
-        newPassword: "", // Not used for disabling
         password, // Store password for verification
       });
-      setShowTwoFactorDialog(true);
     } catch (err) {
       console.error("Error disabling 2FA method:", err);
       toast.error("Error", {
         description:
           err instanceof Error ? err.message : "Failed to disable 2FA method",
-      });
-    }
-  };
-
-  const handleDisableAll = async (password: string) => {
-    try {
-      // Get any verified factor to use for verification
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const factor = factors?.all?.find((f) => f.status === "verified");
-
-      if (!factor || !factors?.all) {
-        toast.error("Error", {
-          description: "No active 2FA methods found",
-        });
-        return;
-      }
-
-      // Show 2FA verification dialog
-      setTwoFactorData({
-        factorId: factor.id,
-        availableMethods: factors.all
-          .filter((f) => f.status === "verified")
-          .map((f) => ({
-            type: f.factor_type === "totp" ? "authenticator" : "sms",
-            factorId: f.id,
-          })),
-        newPassword: "", // Not used for disabling
-        password, // Store password for verification
-      });
-      setShowTwoFactorDialog(true);
-    } catch (err) {
-      console.error("Error disabling 2FA:", err);
-      toast.error("Error", {
-        description:
-          err instanceof Error ? err.message : "Failed to disable 2FA",
       });
     }
   };
@@ -540,36 +448,19 @@ export default function Security() {
             </SettingCard.Description>
           </SettingCard.Header>
           <SettingCard.Content>
-            <Button onClick={() => setShowManage2FADialog(true)}>
-              {user?.auth.twoFactorEnabled ? "Manage 2FA" : "Enable 2FA"}
-            </Button>
+            <TwoFactorMethods
+              enabledMethods={user?.auth.twoFactorMethods || []}
+              onMethodSetup={handleEnable2FA}
+              onMethodDisable={handleDisableMethod}
+              onVerify={handleVerifyEnrollment}
+              qrCode={qrCode}
+              secret={secret}
+              isVerifying={isVerifying}
+              verificationError={error}
+            />
           </SettingCard.Content>
         </SettingCard>
       )}
-
-      <ManageTwoFactorDialog
-        open={showManage2FADialog}
-        onOpenChange={(open) => {
-          setShowManage2FADialog(open);
-          if (!open) {
-            // Clear state when dialog closes
-            setQrCode("");
-            setSecret("");
-            setFactorId("");
-          }
-        }}
-        enabledMethods={user?.auth.twoFactorMethods || []}
-        onMethodSetup={handleEnable2FA}
-        onMethodDisable={(method: TTwoFactorMethod) =>
-          handleDisableMethod(method, formData.currentPassword)
-        }
-        onDisableAll={(password: string) => handleDisableAll(password)}
-        onVerify={handleVerifyEnrollment}
-        qrCode={qrCode}
-        secret={secret}
-        isVerifying={isVerifying}
-        verificationError={error}
-      />
 
       <SettingCard icon={ShieldIcon}>
         <SettingCard.Header>

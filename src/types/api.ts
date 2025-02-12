@@ -27,7 +27,9 @@ export interface TCreateUserRequest {
 // /api/auth/2fa/disable
 export interface TDisable2FARequest {
   factorId: string;
+  method: TTwoFactorMethod;
   code: string;
+  password?: string;
 }
 
 // /api/auth/2fa/enroll

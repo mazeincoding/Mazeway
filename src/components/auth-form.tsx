@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -30,50 +30,58 @@ import { useUserStore } from "@/store/user-store";
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Get initial state from URL params
+  const initialTwoFactorState = useMemo(() => {
+    const requires2fa = searchParams.get("requires_2fa") === "true";
+    const nextUrl = searchParams.get("next");
+    const factorIdParam = searchParams.get("factor_id");
+    const methodsParam = searchParams.get("available_methods");
+
+    let methods: Array<{ type: TTwoFactorMethod; factorId: string }> = [];
+    if (methodsParam) {
+      try {
+        methods = JSON.parse(methodsParam);
+      } catch (error) {
+        console.error("Failed to parse available methods:", error);
+      }
+    }
+
+    return {
+      requiresTwoFactor: requires2fa && !!factorIdParam,
+      factorId: factorIdParam || null,
+      redirectUrl: nextUrl || "/dashboard",
+      availableMethods: methods,
+    };
+  }, [searchParams]);
+
   const { refreshUser } = useUserStore();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, setIsPending] = useState(false);
-  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
-  const [factorId, setFactorId] = useState<string | null>(null);
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(
+    initialTwoFactorState.requiresTwoFactor
+  );
+  const [factorId, setFactorId] = useState<string | null>(
+    initialTwoFactorState.factorId
+  );
   const [availableMethods, setAvailableMethods] = useState<
     Array<{
       type: TTwoFactorMethod;
       factorId: string;
     }>
-  >([]);
+  >(initialTwoFactorState.availableMethods);
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(
+    initialTwoFactorState.redirectUrl
+  );
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [determinedType, setDeterminedType] = useState<
     "login" | "signup" | null
   >(null);
   const [showPassword, setShowPassword] = useState(false);
-
-  // Handle URL parameters for 2FA requirements
-  useEffect(() => {
-    const requires2fa = searchParams.get("requires_2fa") === "true";
-    const nextUrl = searchParams.get("next");
-    const factorIdParam = searchParams.get("factor_id");
-    const methodsParam = searchParams.get("available_methods");
-
-    if (requires2fa && factorIdParam) {
-      setRequiresTwoFactor(true);
-      setFactorId(factorIdParam);
-      setRedirectUrl(nextUrl || "/dashboard");
-
-      if (methodsParam) {
-        try {
-          const methods = JSON.parse(methodsParam);
-          setAvailableMethods(methods);
-        } catch (error) {
-          console.error("Failed to parse available methods:", error);
-        }
-      }
-    }
-  }, [searchParams]);
 
   async function handleEmailCheck(email: string) {
     try {

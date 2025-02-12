@@ -547,7 +547,7 @@ function DeviceItem({
   const content = (
     <div
       className={cn(
-        "flex items-center justify-between border p-4 rounded-lg",
+        "flex items-center justify-between border p-4 px-6 rounded-lg",
         !isCurrentDevice && "cursor-pointer hover:bg-accent"
       )}
     >
@@ -822,9 +822,9 @@ function DeviceList() {
             deviceIcon={
               session.device.device_name.toLowerCase().includes("iphone") ||
               session.device.device_name.toLowerCase().includes("android") ? (
-                <SmartphoneIcon className="flex-shrink-0 w-7 h-7" />
+                <SmartphoneIcon className="flex-shrink-0 w-6 h-6" />
               ) : (
-                <LaptopMinimalIcon className="flex-shrink-0 w-7 h-7" />
+                <LaptopMinimalIcon className="flex-shrink-0 w-6 h-6" />
               )
             }
             onRevoke={handleRevoke}

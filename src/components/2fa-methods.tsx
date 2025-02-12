@@ -128,8 +128,8 @@ export function TwoFactorMethods({
   };
 
   const methodIcons: Record<TTwoFactorMethod, React.ReactNode> = {
-    authenticator: <QrCodeIcon className="h-5 w-5" />,
-    sms: <MessageCircleIcon className="h-5 w-5" />,
+    authenticator: <QrCodeIcon className="h-6 w-6" />,
+    sms: <MessageCircleIcon className="h-6 w-6" />,
   };
 
   const encodeDataUrl = (url: string) => {
@@ -151,10 +151,10 @@ export function TwoFactorMethods({
             return (
               <div
                 key={method.type}
-                className="flex items-center justify-between border p-4 rounded-lg"
+                className="flex items-center justify-between border p-4 px-6 rounded-lg"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-muted-foreground">
+                  <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
                     {methodIcons[method.type]}
                   </div>
                   <div className="flex flex-col">

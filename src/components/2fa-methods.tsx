@@ -61,12 +61,12 @@ export function TwoFactorMethods({
 
   const handleMethodToggle = async (
     method: TTwoFactorMethod,
-    enabled: boolean
+    shouldEnable: boolean
   ) => {
     try {
       setIsMethodLoading((prev) => ({ ...prev, [method]: true }));
 
-      if (enabled) {
+      if (shouldEnable) {
         if (method === "sms") {
           setSelectedMethod(method);
         } else {

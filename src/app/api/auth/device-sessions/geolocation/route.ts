@@ -1,12 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TGeolocationResponse } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
-
-// List of development/local IPs that don't need geolocation
-const LOCAL_IPS = new Set(["127.0.0.1", "::1", "localhost"]);
+import { isLocalIP } from "@/utils/auth";
 
 export async function GET(request: NextRequest) {
   const ipAddress = getClientIp(request);
+
+  if (!ipAddress) {
+    return NextResponse.json(
+      { error: "IP address is required" },
+      { status: 400 }
+    ) satisfies NextResponse<TApiErrorResponse>;
+  }
+
+  // Return a standard response for local IPs before rate limiting
+  if (isLocalIP(ipAddress)) {
+    return NextResponse.json({
+      data: {
+        city: "Local Development",
+        region: undefined,
+        country: undefined,
+      },
+    }) satisfies NextResponse<TGeolocationResponse>;
+  }
+
+  // Only rate limit non-local IPs that will actually use the geolocation service
   if (apiRateLimit) {
     const { success } = await apiRateLimit.limit(ipAddress);
 
@@ -18,24 +36,6 @@ export async function GET(request: NextRequest) {
         { status: 429 }
       );
     }
-  }
-
-  if (!ipAddress) {
-    return NextResponse.json(
-      { error: "IP address is required" },
-      { status: 400 }
-    ) satisfies NextResponse<TApiErrorResponse>;
-  }
-
-  // Return a standard response for local IPs
-  if (LOCAL_IPS.has(ipAddress)) {
-    return NextResponse.json({
-      data: {
-        city: "Local Development",
-        region: undefined,
-        country: undefined,
-      },
-    }) satisfies NextResponse<TGeolocationResponse>;
   }
 
   try {

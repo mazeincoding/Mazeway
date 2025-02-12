@@ -214,3 +214,13 @@ export function getMostTrustedTwoFactorMethod(
   // If no recognized methods found
   return null;
 }
+
+/**
+ * Checks if an IP address is a local/development IP
+ * @param ip IP address to check
+ * @returns boolean indicating if the IP is local
+ */
+export function isLocalIP(ip: string): boolean {
+  const LOCAL_IPS = new Set(["127.0.0.1", "::1", "localhost"]);
+  return LOCAL_IPS.has(ip);
+}

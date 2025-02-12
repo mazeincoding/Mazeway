@@ -33,6 +33,7 @@ import { TwoFactorMethods } from "@/components/2fa-methods";
 import { createClient } from "@/utils/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { TGeolocationResponse } from "@/types/api";
+import { isLocalIP } from "@/utils/auth";
 
 type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
 
@@ -512,6 +513,16 @@ function DeviceItem({
     async function fetchLocation() {
       if (!ipAddress || !dialogOpen || location || isLoadingLocation) return;
 
+      // Skip API call for local IPs
+      if (isLocalIP(ipAddress)) {
+        setLocation({
+          city: "Local Development",
+          region: undefined,
+          country: undefined,
+        });
+        return;
+      }
+
       try {
         setIsLoadingLocation(true);
         setLocationError(null);
@@ -521,14 +532,11 @@ function DeviceItem({
         const data = await response.json();
 
         if (!response.ok) {
-          // Don't show error for local IPs
-          if (!["127.0.0.1", "::1", "localhost"].includes(ipAddress)) {
-            setLocationError(
-              response.status === 429
-                ? "Location service is busy. Try again later."
-                : "Couldn't get location information."
-            );
-          }
+          setLocationError(
+            response.status === 429
+              ? "Location service is busy. Try again later."
+              : "Couldn't get location information."
+          );
           return;
         }
 

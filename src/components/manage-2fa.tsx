@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -56,19 +56,6 @@ interface TwoFactorDialogProps {
   verificationError?: string | null;
 }
 
-type TSetupStep =
-  | "select"
-  | "setup"
-  | "verify"
-  | "password"
-  | "password-verify";
-
-const encodeDataUrl = (url: string) => {
-  if (!url.startsWith("data:")) return url;
-  const [prefix, content] = url.split(",");
-  return `${prefix},${encodeURIComponent(content)}`;
-};
-
 export function ManageTwoFactorDialog({
   open,
   onOpenChange,
@@ -84,84 +71,61 @@ export function ManageTwoFactorDialog({
 }: TwoFactorDialogProps) {
   const { user } = useUserStore();
   const hasPasswordAuth = user?.has_password ?? false;
+
+  const encodeDataUrl = (url: string) => {
+    if (!url.startsWith("data:")) return url;
+    const [prefix, content] = url.split(",");
+    return `${prefix},${encodeURIComponent(content)}`;
+  };
+
+  // Core states
+  const [password, setPassword] = useState("");
+  const [isPasswordVerified, setIsPasswordVerified] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<TTwoFactorMethod | null>(
     null
   );
-  const [currentStep, setCurrentStep] = useState<TSetupStep>(
-    hasPasswordAuth ? "password-verify" : "select"
-  );
-  const [isDisabling, setIsDisabling] = useState(false);
-  const [password, setPassword] = useState("");
-  const [isDisablingAll, setIsDisablingAll] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+
+  // Method-specific states
   const [phone, setPhone] = useState<E164Number | undefined>(undefined);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [copied, setCopied] = useState(false);
-  const [verifiedPassword, setVerifiedPassword] = useState<string>("");
-  const [isEnrolling, setIsEnrolling] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 
-  useEffect(() => {
-    // Reset to appropriate initial state when auth status changes
-    setCurrentStep(hasPasswordAuth ? "password-verify" : "select");
-    setVerifiedPassword("");
-    setSelectedMethod(null);
+  // Loading states
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
+  const [isMethodLoading, setIsMethodLoading] = useState(false);
+  const [isDisablingAll, setIsDisablingAll] = useState(false);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+
+  const clearStates = () => {
     setPassword("");
-  }, [hasPasswordAuth]);
-
-  const methodIcons: Record<TTwoFactorMethod, React.ReactNode> = {
-    authenticator: <QrCodeIcon className="h-5 w-5" />,
-    sms: <MessageCircleIcon className="h-5 w-5" />,
+    setIsPasswordVerified(false);
+    setSelectedMethod(null);
+    setPhone(undefined);
+    setPhoneError(null);
+    setVerificationCode("");
+    setCopied(false);
+    setIsVerifyingPassword(false);
+    setIsMethodLoading(false);
+    setIsDisablingAll(false);
+    setIsSendingCode(false);
+    setShowCurrentPassword(false);
   };
 
-  const handleMethodAction = async (method: TTwoFactorMethod) => {
-    const isEnabled = enabledMethods.includes(method);
-    try {
-      setSelectedMethod(method);
-      if (isEnabled) {
-        setIsDisablingAll(false);
-        if (hasPasswordAuth) {
-          setCurrentStep("password");
-        } else {
-          // For non-password accounts, directly call onMethodDisable
-          // Ideally, we'd show the UX to add a password instead but later on that
-          await onMethodDisable(method, "");
-        }
-      } else {
-        if (method === "sms") {
-          setCurrentStep("setup");
-        } else {
-          setIsEnrolling(true);
-          await onMethodSetup(method, hasPasswordAuth ? verifiedPassword : "");
-          setCurrentStep("setup");
-        }
-      }
-    } catch (error) {
-      // Clean up states on error
-      setCurrentStep(hasPasswordAuth ? "password-verify" : "select");
-      setSelectedMethod(null);
-      setPhone(undefined);
-      setPhoneError(null);
-      setVerificationCode("");
-      toast.error("Error", {
-        description: "Failed to update 2FA method. Please try again.",
-      });
-    } finally {
-      setIsEnrolling(false);
-    }
+  const handleClose = () => {
+    onOpenChange(false);
+    clearStates();
   };
 
   const handlePasswordVerify = async () => {
     if (!password) return;
 
     try {
-      setIsDisabling(true);
-      // Try to verify the password by making a test call
+      setIsVerifyingPassword(true);
       const response = await fetch("/api/auth/verify-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password } satisfies TVerifyPasswordRequest),
       });
 
@@ -175,42 +139,41 @@ export function ManageTwoFactorDialog({
         throw new Error("Failed to verify password");
       }
 
-      // Store the verified password and move to method selection
-      setVerifiedPassword(password);
-      setPassword("");
-      setCurrentStep("select");
+      setIsPasswordVerified(true);
     } catch (error) {
       toast.error("Error", {
         description: "Failed to verify password. Please try again.",
       });
     } finally {
-      setIsDisabling(false);
+      setIsVerifyingPassword(false);
     }
   };
 
-  const handlePasswordSubmit = async () => {
+  const handleMethodAction = async (method: TTwoFactorMethod) => {
+    const isEnabled = enabledMethods.includes(method);
+
     try {
-      setIsDisabling(true);
-      if (isDisablingAll) {
-        await onDisableAll(hasPasswordAuth ? password : "");
-        handleClose();
-      } else if (selectedMethod) {
-        await onMethodDisable(selectedMethod, hasPasswordAuth ? password : "");
-        setCurrentStep("select");
+      setSelectedMethod(method);
+      setIsMethodLoading(true);
+
+      if (isEnabled) {
+        await onMethodDisable(method, password);
+        setSelectedMethod(null);
+      } else if (method === "sms") {
+        // SMS setup requires phone number first
+        setSelectedMethod(method);
+      } else {
+        // For authenticator, directly start setup
+        await onMethodSetup(method, password);
       }
-      setPassword("");
     } catch (error) {
       toast.error("Error", {
-        description: "Failed to disable 2FA. Please try again.",
+        description: "Failed to update 2FA method. Please try again.",
       });
+      setSelectedMethod(null);
     } finally {
-      setIsDisabling(false);
+      setIsMethodLoading(false);
     }
-  };
-
-  const handleDisableAll = () => {
-    setIsDisablingAll(true);
-    setCurrentStep("password");
   };
 
   const handlePhoneSubmit = async () => {
@@ -224,36 +187,36 @@ export function ManageTwoFactorDialog({
       setPhoneError(validation.error || "Invalid phone number");
       return;
     }
-    setPhoneError(null);
 
     try {
-      setIsEnrolling(true);
-      // First enroll with the phone number
-      await onMethodSetup(
-        selectedMethod,
-        hasPasswordAuth ? verifiedPassword : "",
-        phone
-      );
-      // Move to verification step
-      setCurrentStep("verify");
+      setIsSendingCode(true);
+      await onMethodSetup(selectedMethod, password, phone);
     } catch (err) {
       setPhoneError(
         err instanceof Error ? err.message : "Failed to send verification code"
       );
     } finally {
-      setIsEnrolling(false);
+      setIsSendingCode(false);
     }
   };
 
-  const handleVerificationCodeChange = (value: string) => {
-    // Only allow numbers and limit to 6 digits
-    const sanitizedValue = value.replace(/[^0-9]/g, "").slice(0, 6);
-    setVerificationCode(sanitizedValue);
+  const handleVerify = async () => {
+    if (!selectedMethod || !verificationCode) return;
+    await onVerify(selectedMethod, verificationCode, phone);
   };
 
-  const handleVerify = async () => {
-    if (!selectedMethod) return;
-    await onVerify(selectedMethod, verificationCode);
+  const handleDisableAll = async () => {
+    try {
+      setIsDisablingAll(true);
+      await onDisableAll(password);
+      handleClose();
+    } catch (error) {
+      toast.error("Error", {
+        description: "Failed to disable 2FA. Please try again.",
+      });
+    } finally {
+      setIsDisablingAll(false);
+    }
   };
 
   const handleCopy = async () => {
@@ -264,86 +227,41 @@ export function ManageTwoFactorDialog({
     }
   };
 
-  const handleBack = () => {
-    switch (currentStep) {
-      case "setup":
-      case "password":
-        setCurrentStep("select");
-        setSelectedMethod(null);
-        setPassword("");
-        setPhone(undefined);
-        setPhoneError(null);
-        break;
-      case "verify":
-        if (selectedMethod === "sms") {
-          setCurrentStep("setup");
-        } else {
-          setCurrentStep("select");
-        }
-        setVerificationCode("");
-        break;
-      case "select":
-        setCurrentStep("password-verify");
-        setVerifiedPassword("");
-        setSelectedMethod(null);
-        break;
-    }
+  const handleVerificationCodeChange = (value: string) => {
+    const sanitizedValue = value.replace(/[^0-9]/g, "").slice(0, 6);
+    setVerificationCode(sanitizedValue);
   };
 
-  const handleClose = () => {
-    onOpenChange(false);
-    setCurrentStep(hasPasswordAuth ? "password-verify" : "select");
-    setSelectedMethod(null);
-    setPassword("");
-    setVerifiedPassword("");
-    setPhone(undefined);
-    setPhoneError(null);
-    setVerificationCode("");
-    setCopied(false);
-    setIsEnrolling(false);
+  const methodIcons: Record<TTwoFactorMethod, React.ReactNode> = {
+    authenticator: <QrCodeIcon className="h-5 w-5" />,
+    sms: <MessageCircleIcon className="h-5 w-5" />,
   };
 
-  // Add a click handler to the disable button
-  const renderMethodButton = (method: TTwoFactorMethod, isEnabled: boolean) => {
-    if (isEnabled) {
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleMethodAction(method);
-          }}
-          disabled={isDisabling}
-        >
-          {isDisabling ? "Disabling..." : "Disable"}
-        </Button>
-      );
-    }
-    return (
-      <Button
-        size="sm"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleMethodAction(method);
-        }}
-        disabled={isEnrolling}
-      >
-        Enable
-      </Button>
-    );
-  };
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-center sm:justify-start gap-2">
+            <ShieldIcon className="h-5 w-5" />
+            Two-Factor Authentication
+          </DialogTitle>
+          <DialogDescription>
+            {!isPasswordVerified
+              ? "Please verify your identity to continue."
+              : enabledMethods.length > 0
+                ? "Manage your two-factor authentication methods."
+                : "Add an extra layer of security to your account."}
+          </DialogDescription>
+        </DialogHeader>
 
-  const renderContent = () => {
-    switch (currentStep) {
-      case "password-verify":
-        return (
+        {/* Password verification */}
+        {!isPasswordVerified && (
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Current Password</Label>
               <Input
                 id="password"
-                type="password"
+                type={showCurrentPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your current password"
@@ -360,9 +278,9 @@ export function ManageTwoFactorDialog({
               <Button
                 className="w-full"
                 onClick={handlePasswordVerify}
-                disabled={!password || isDisabling}
+                disabled={!password || isVerifyingPassword}
               >
-                {isDisabling ? "Verifying..." : "Continue"}
+                {isVerifyingPassword ? "Verifying..." : "Continue"}
               </Button>
               <Button
                 variant="outline"
@@ -373,10 +291,10 @@ export function ManageTwoFactorDialog({
               </Button>
             </div>
           </div>
-        );
+        )}
 
-      case "select":
-        return (
+        {/* Method selection and management */}
+        {isPasswordVerified && !selectedMethod && (
           <div className="space-y-4">
             <div className="space-y-2">
               {AUTH_CONFIG.twoFactorAuth.methods
@@ -402,20 +320,22 @@ export function ManageTwoFactorDialog({
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {renderMethodButton(method.type, isEnabled)}
-                      </div>
+                      <Button
+                        variant={isEnabled ? "outline" : "default"}
+                        size="sm"
+                        onClick={() => handleMethodAction(method.type)}
+                        disabled={isMethodLoading}
+                      >
+                        {isMethodLoading
+                          ? "Loading..."
+                          : isEnabled
+                            ? "Disable"
+                            : "Enable"}
+                      </Button>
                     </div>
                   );
                 })}
             </div>
-
-            {/* Only show Back button if we came from password verification */}
-            {currentStep === "select" && verifiedPassword && (
-              <Button variant="outline" className="w-full" onClick={handleBack}>
-                Back
-              </Button>
-            )}
 
             {enabledMethods.length > 0 && (
               <>
@@ -428,20 +348,61 @@ export function ManageTwoFactorDialog({
                   variant="destructive"
                   className="w-full"
                   onClick={handleDisableAll}
-                  disabled={isDisabling}
+                  disabled={isDisablingAll}
                 >
-                  {isDisabling
+                  {isDisablingAll
                     ? "Disabling..."
                     : "Disable Two-Factor Authentication"}
                 </Button>
               </>
             )}
           </div>
-        );
+        )}
 
-      case "setup":
-        if (selectedMethod === "authenticator" && qrCode && secret) {
-          return (
+        {/* SMS setup */}
+        {isPasswordVerified &&
+          selectedMethod === "sms" &&
+          !verificationCode && (
+            <div className="flex flex-col gap-4">
+              <div className="space-y-2">
+                <Label>Phone Number</Label>
+                <PhoneInput
+                  value={phone}
+                  onChange={(value) => {
+                    setPhone(value);
+                    setPhoneError(null);
+                  }}
+                  defaultCountry="US"
+                  disabled={isSendingCode}
+                />
+                {phoneError && (
+                  <p className="text-sm text-destructive">{phoneError}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-3">
+                <Button
+                  className="w-full"
+                  onClick={handlePhoneSubmit}
+                  disabled={isSendingCode || !phone}
+                >
+                  {isSendingCode ? "Sending code..." : "Send verification code"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setSelectedMethod(null)}
+                >
+                  Back
+                </Button>
+              </div>
+            </div>
+          )}
+
+        {/* Authenticator setup */}
+        {isPasswordVerified &&
+          selectedMethod === "authenticator" &&
+          qrCode &&
+          secret && (
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="flex flex-col items-center justify-center w-48 h-48">
                 <Image
@@ -466,146 +427,66 @@ export function ManageTwoFactorDialog({
               <div className="flex flex-col gap-3 w-full">
                 <Button
                   className="w-full"
-                  onClick={() => setCurrentStep("verify")}
+                  onClick={() => setVerificationCode("")}
                 >
                   Continue
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={handleBack}
+                  onClick={() => setSelectedMethod(null)}
                 >
                   Back
                 </Button>
               </div>
             </div>
-          );
-        } else if (selectedMethod === "sms") {
-          return (
-            <div className="flex flex-col gap-4">
-              <div className="space-y-2">
-                <Label>Phone Number</Label>
-                <PhoneInput
-                  value={phone}
-                  onChange={(value) => {
-                    setPhone(value);
-                    setPhoneError(null);
-                  }}
-                  defaultCountry="US"
+          )}
+
+        {/* Verification code input */}
+        {isPasswordVerified &&
+          selectedMethod &&
+          verificationCode !== undefined && (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-4 w-full">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={verificationCode}
+                  onChange={(e) => handleVerificationCodeChange(e.target.value)}
                   disabled={isVerifying}
                 />
-                {phoneError && (
-                  <p className="text-sm text-destructive">{phoneError}</p>
+                {verificationError && (
+                  <p className="text-sm text-destructive w-full">
+                    {verificationError}
+                  </p>
                 )}
               </div>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 w-full">
                 <Button
                   className="w-full"
-                  onClick={handlePhoneSubmit}
-                  disabled={isEnrolling || !phone}
+                  onClick={handleVerify}
+                  disabled={isVerifying || !verificationCode}
                 >
-                  {isEnrolling ? "Sending code..." : "Send verification code"}
+                  {isVerifying ? "Verifying..." : "Verify"}
                 </Button>
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={handleBack}
+                  onClick={() => {
+                    setVerificationCode("");
+                    if (selectedMethod === "authenticator") {
+                      setSelectedMethod(null);
+                    }
+                  }}
                 >
                   Back
                 </Button>
               </div>
             </div>
-          );
-        }
-        return null;
-
-      case "verify":
-        return (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-col items-center gap-4 w-full">
-              <Input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                placeholder="000000"
-                value={verificationCode}
-                onChange={(e) => handleVerificationCodeChange(e.target.value)}
-                disabled={isVerifying}
-              />
-              {verificationError && (
-                <p className="text-sm text-destructive w-full">
-                  {verificationError}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-col gap-3 w-full">
-              <Button
-                className="w-full"
-                onClick={handleVerify}
-                disabled={isVerifying || !verificationCode}
-              >
-                {isVerifying ? "Verifying..." : "Verify"}
-              </Button>
-              <Button variant="outline" className="w-full" onClick={handleBack}>
-                Back
-              </Button>
-            </div>
-          </div>
-        );
-
-      case "password":
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-              />
-            </div>
-            <div className="flex flex-col gap-3">
-              <Button
-                className="w-full"
-                onClick={handlePasswordSubmit}
-                disabled={!password || isDisabling}
-              >
-                {isDisabling ? "Verifying..." : "Continue"}
-              </Button>
-              <Button variant="outline" className="w-full" onClick={handleBack}>
-                Back
-              </Button>
-            </div>
-          </div>
-        );
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-center sm:justify-start gap-2">
-            <ShieldIcon className="h-5 w-5" />
-            Two-Factor Authentication
-          </DialogTitle>
-          <DialogDescription>
-            {currentStep === "password-verify"
-              ? "Please verify your identity to continue."
-              : currentStep === "select"
-                ? enabledMethods.length > 0
-                  ? "Manage your two-factor authentication methods."
-                  : "Add an extra layer of security to your account."
-                : currentStep === "password"
-                  ? "Please enter your password to disable 2FA."
-                  : "Follow the steps to set up two-factor authentication."}
-          </DialogDescription>
-        </DialogHeader>
-
-        {renderContent()}
+          )}
       </DialogContent>
     </Dialog>
   );

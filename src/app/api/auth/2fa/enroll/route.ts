@@ -34,48 +34,9 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get user data including has_password
-    const { data: dbUser, error: dbError } = await supabase
-      .from("users")
-      .select("has_password")
-      .eq("id", user.id)
-      .single();
-
-    if (dbError || !dbUser) {
-      return NextResponse.json(
-        { error: "Failed to get user data" },
-        { status: 500 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
     // 2. Get and validate request body
     const body = (await request.json()) as TEnroll2FARequest;
     const method = body.method || "authenticator";
-    const password = body.password;
-
-    // Only verify password for users with password auth
-    if (dbUser.has_password) {
-      // Verify password is provided
-      if (!password) {
-        return NextResponse.json(
-          { error: "Password is required" },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-
-      // Verify password is correct
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
-        password,
-      });
-
-      if (signInError) {
-        return NextResponse.json(
-          { error: "Invalid password" },
-          { status: 401 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
 
     // 3. Validate method configuration
     const methodConfig = AUTH_CONFIG.twoFactorAuth.methods.find(

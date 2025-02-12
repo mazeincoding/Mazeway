@@ -216,6 +216,26 @@ export function getMostTrustedTwoFactorMethod(
 }
 
 /**
+ * Gets the factor ID for a specific 2FA method
+ * @param supabase Supabase client instance
+ * @param method The 2FA method to get the factor ID for
+ * @returns The factor ID if found, null otherwise
+ */
+export async function getFactorIdForMethod(
+  supabase: SupabaseClient,
+  method: TTwoFactorMethod
+): Promise<string | null> {
+  const { data: factors } = await supabase.auth.mfa.listFactors();
+  const factor = factors?.all?.find(
+    (f) =>
+      f.status === "verified" &&
+      (f.factor_type === "totp" ? method === "authenticator" : method === "sms")
+  );
+
+  return factor?.id ?? null;
+}
+
+/**
  * Checks if an IP address is a local/development IP
  * @param ip IP address to check
  * @returns boolean indicating if the IP is local

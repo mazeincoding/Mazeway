@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // 1. Verify user authentication first
+    // 1. Verify user authentication
     const {
       data: { user },
       error: userError,
@@ -27,20 +27,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    // Get user data including has_password
-    const { data: dbUser, error: dbError } = await supabase
-      .from("users")
-      .select("has_password")
-      .eq("id", user.id)
-      .single();
-
-    if (dbError || !dbUser) {
-      return NextResponse.json(
-        { error: "Failed to get user data" },
-        { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
@@ -55,12 +41,10 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { password, code, factorId } = validation.data;
+    const { code, factorId } = validation.data;
 
-    // 3. Get client IP securely
+    // 3. Apply rate limits
     const clientIp = getClientIp(request);
-
-    // 4. Apply rate limits
     if (authRateLimit) {
       const { success } = await authRateLimit.limit(clientIp);
       if (!success) {
@@ -71,33 +55,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. Verify password for users with password authentication
-    if (dbUser.has_password) {
-      // Verify password is provided
-      if (!password) {
-        return NextResponse.json(
-          { error: "Password is required" },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-
-      // Verify password is correct
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
-        password,
-      });
-
-      if (signInError) {
-        return NextResponse.json(
-          { error: "Invalid password" },
-          { status: 401 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
-
-    // 6. Create challenge
+    // 4. Create challenge and verify code
     const { data: challengeData, error: challengeError } =
       await supabase.auth.mfa.challenge({ factorId });
+
     if (challengeError) {
       console.error("Failed to create 2FA challenge:", challengeError);
       return NextResponse.json(
@@ -106,7 +67,6 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 7. Verify the code
     const { error: verifyError } = await supabase.auth.mfa.verify({
       factorId,
       challengeId: challengeData.id,
@@ -121,7 +81,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 8. Disable the specific method
+    // 5. Disable the method
     const { error: unenrollError } = await supabase.auth.mfa.unenroll({
       factorId,
     });

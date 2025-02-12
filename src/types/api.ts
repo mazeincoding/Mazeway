@@ -29,14 +29,20 @@ export interface TDisable2FARequest {
   factorId: string;
   method: TTwoFactorMethod;
   code: string;
-  password?: string;
 }
 
 // /api/auth/2fa/enroll
 export interface TEnroll2FARequest {
   method: TTwoFactorMethod;
-  password: string;
   phone?: string; // Only required for SMS method
+}
+
+// /api/auth/2fa/verify
+export interface TVerify2FARequest {
+  factorId: string;
+  method: TTwoFactorMethod;
+  code: string;
+  phone?: string; // Only included for SMS verification
 }
 
 // /api/auth/change-email

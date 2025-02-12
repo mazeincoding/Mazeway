@@ -14,10 +14,6 @@ export interface TDeviceSessionOptions {
   provider?: TDeviceSessionProvider;
 }
 
-export type TAccessLevel = "full" | "verified" | "restricted";
-
-export type TVerificationLevel = "none" | "light" | "full";
-
 export type TTwoFactorMethod = "authenticator" | "sms";
 
 export interface TwoFactorRequirement {

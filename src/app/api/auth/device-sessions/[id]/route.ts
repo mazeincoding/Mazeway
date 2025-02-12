@@ -88,6 +88,18 @@ export async function DELETE(
           // Create service role client for deletion
           const adminClient = await createClient({ useServiceRole: true });
 
+          // Get current device session ID from cookie
+          const currentSessionId =
+            request.cookies.get("device_session_id")?.value;
+
+          // Update last_verified timestamp only for the current device session
+          if (currentSessionId) {
+            await adminClient
+              .from("device_sessions")
+              .update({ last_verified: new Date().toISOString() })
+              .eq("session_id", currentSessionId);
+          }
+
           // Delete the session after successful 2FA verification
           const { error: deleteError } = await adminClient
             .from("device_sessions")
@@ -136,11 +148,41 @@ export async function DELETE(
           // If they have AAL2 but config requires fresh verification
           if (
             AUTH_CONFIG.twoFactorAuth.requireFreshVerificationFor.deviceLogout
+              .enabled
           ) {
-            return NextResponse.json({
-              ...twoFactorResult,
-              sessionId,
-            }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+            // Get the current device session ID from cookie
+            const currentSessionId =
+              request.cookies.get("device_session_id")?.value;
+
+            // Check if there's a recent 2FA verification within grace period for this device only
+            const { data: recentVerification } = await supabase
+              .from("device_sessions")
+              .select("last_verified")
+              .eq("user_id", user.id)
+              .eq("session_id", currentSessionId)
+              .single();
+
+            const gracePeriodMinutes =
+              AUTH_CONFIG.twoFactorAuth.requireFreshVerificationFor.deviceLogout
+                .gracePeriodMinutes;
+            const now = new Date();
+            const gracePeriodStart = new Date(
+              now.getTime() - gracePeriodMinutes * 60 * 1000
+            );
+
+            // If there's a recent verification within grace period on this device, allow the operation
+            if (
+              recentVerification?.last_verified &&
+              new Date(recentVerification.last_verified) > gracePeriodStart
+            ) {
+              // Skip 2FA verification - within grace period on current device
+            } else {
+              // Require fresh 2FA verification
+              return NextResponse.json({
+                ...twoFactorResult,
+                sessionId,
+              }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+            }
           }
         }
       } catch (error) {

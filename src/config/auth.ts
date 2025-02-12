@@ -36,7 +36,12 @@ export const AUTH_CONFIG = {
     // even if the user's session already has AAL2
     requireFreshVerificationFor: {
       // Whether a fresh 2FA verification is required to log out other devices
-      deviceLogout: true,
+      // If enabled, a grace period (in minutes) can be set
+      // which means subsequent device logouts won't require re-verification
+      deviceLogout: {
+        enabled: false,
+        gracePeriodMinutes: 5,
+      },
     },
   },
   passwordReset: {

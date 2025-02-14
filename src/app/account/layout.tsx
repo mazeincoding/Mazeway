@@ -23,6 +23,24 @@ export default function AccountLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+
+  const normalizePath = (path: string) => {
+    return path.replace(/\/$/, ""); // Remove trailing slash if present
+  };
+
+  const getTitle = () => {
+    const normalizedPath = normalizePath(pathname);
+    switch (normalizedPath) {
+      case "/account/security":
+        return "Security";
+      case "/account":
+        return "Account";
+      default:
+        return "Account";
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full">
@@ -33,7 +51,10 @@ export default function AccountLayout({
         <div className="flex flex-1 w-full">
           <SettingsSidebar />
           <div className="flex-1 px-4 md:px-8 py-10">
-            <div className="max-w-4xl mx-auto">{children}</div>
+            <div className="max-w-4xl mx-auto flex flex-col gap-6">
+              <h1 className="text-2xl font-bold">{getTitle()}</h1>
+              {children}
+            </div>
           </div>
         </div>
       </div>
@@ -44,6 +65,10 @@ export default function AccountLayout({
 function SettingsSidebar() {
   const pathname = usePathname();
   const { setOpenMobile, isMobile } = useSidebar();
+
+  const normalizePath = (path: string) => {
+    return path.replace(/\/$/, "");
+  };
 
   const items = [
     {
@@ -73,7 +98,7 @@ function SettingsSidebar() {
             <SidebarMenu>
               {items.map((item) => {
                 const isActive =
-                  pathname === item.href || pathname === `${item.href}/`;
+                  normalizePath(pathname) === normalizePath(item.href);
 
                 return (
                   <SidebarMenuItem key={item.title}>

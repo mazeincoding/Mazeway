@@ -10,35 +10,47 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { validateEmail } from "@/utils/validation/auth-validation";
+import { authSchema } from "@/utils/validation/auth-validation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+
+// We only need the email field for forgot password
+const forgotPasswordSchema = z.object({
+  email: authSchema.shape.email,
+});
+
+type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>;
 
 export default function ForgotPassword() {
-  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const form = useForm<ForgotPasswordSchema>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
 
-    const validation = validateEmail(email);
-    if (!validation.isValid) {
-      toast.error("Invalid email", {
-        description: validation.error || "The email you entered is invalid",
-        duration: 3000,
-      });
-      return;
-    }
-
+  async function onSubmit(values: ForgotPasswordSchema) {
     setIsLoading(true);
 
     try {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: values.email }),
       });
 
       const data = await response.json();
@@ -100,22 +112,33 @@ export default function ForgotPassword() {
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    id="email"
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
+                  noValidate
+                >
+                  <FormField
+                    control={form.control}
                     name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter your email"
+                            type="email"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-                <Button className="w-full" type="submit" disabled={isLoading}>
-                  {isLoading ? "Sending..." : "Send reset instructions"}
-                </Button>
-              </form>
+                  <Button className="w-full" type="submit" disabled={isLoading}>
+                    {isLoading ? "Sending..." : "Send reset instructions"}
+                  </Button>
+                </form>
+              </Form>
             )}
           </CardContent>
         </Card>

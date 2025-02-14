@@ -5,12 +5,10 @@ import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/user-store";
 import { UserIcon } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
-import { FormField } from "@/components/form-field";
 import {
   profileSchema,
   type ProfileSchema,
 } from "@/utils/validation/auth-validation";
-import { z } from "zod";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -21,17 +19,20 @@ import {
 } from "@/components/ui/dialog";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 import { TTwoFactorMethod } from "@/types/auth";
-
-type FormErrors = Partial<Record<keyof ProfileSchema, string>>;
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 export default function Account() {
   const { user, updateUser } = useUserStore();
-
-  const [formData, setFormData] = useState<ProfileSchema>({
-    name: "",
-    email: "",
-  });
-  const [errors, setErrors] = useState<FormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
@@ -42,29 +43,29 @@ export default function Account() {
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
+  const form = useForm<ProfileSchema>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+    },
+  });
+
+  // Update form when user data is available
   useEffect(() => {
     if (user) {
-      setFormData({
-        name: user.name || "",
-        email: user.email || "",
-      });
+      const currentValues = form.getValues();
+      if (
+        currentValues.name !== user.name ||
+        currentValues.email !== user.email
+      ) {
+        form.reset({
+          name: user.name || "",
+          email: user.email || "",
+        });
+      }
     }
   }, [user]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error when user starts typing
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
-  };
 
   const handleVerify2FA = async (code: string) => {
     if (!twoFactorData) return;
@@ -110,10 +111,7 @@ export default function Account() {
       setShowTwoFactorDialog(false);
 
       // Reset form to current email since change isn't complete yet
-      setFormData((prev) => ({
-        ...prev,
-        email: user?.email || "",
-      }));
+      form.setValue("email", user?.email || "");
     } catch (err) {
       console.error("Error verifying 2FA:", err);
       setError("Failed to verify code. Please try again.");
@@ -122,30 +120,23 @@ export default function Account() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: ProfileSchema) => {
     setIsUpdating(true);
 
     try {
-      // First validate the complete form data
-      profileSchema.parse(formData);
-      setErrors({});
-
       // Get changed fields only
       const changedData: Partial<ProfileSchema> = {};
       if (user) {
-        if (formData.name !== user.name) changedData.name = formData.name;
+        if (values.name !== user.name) changedData.name = values.name;
       }
 
-      // Handle email change separately
-      if (user && formData.email !== user.email) {
+      // Handle email change
+      if (user && values.email !== user.email) {
         try {
           const response = await fetch("/api/auth/change-email", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ newEmail: formData.email }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ newEmail: values.email }),
           });
 
           const data = await response.json();
@@ -162,48 +153,39 @@ export default function Account() {
             throw new Error(data.error);
           }
 
-          // Check if 2FA is required
           if (data.requiresTwoFactor) {
             setTwoFactorData({
               factorId: data.factorId,
               availableMethods: data.availableMethods,
-              newEmail: formData.email,
+              newEmail: values.email,
             });
             setShowTwoFactorDialog(true);
             return;
           }
 
-          // If no 2FA required, show verification message
           toast.success("Verification email sent", {
             description:
               "Please check your new email address for verification.",
             duration: 5000,
           });
 
-          // Reset form to current email since change isn't complete yet
-          setFormData((prev) => ({
-            ...prev,
-            email: user.email,
-          }));
+          // Reset form email field
+          form.setValue("email", user.email);
         } catch (error) {
           toast.error("Error", {
             description:
-              error instanceof Error
-                ? error.message
-                : "Failed to update email. Please try again.",
+              error instanceof Error ? error.message : "Failed to update email",
             duration: 3000,
           });
           return;
         }
       }
 
-      // Handle other profile updates if any
+      // Handle other profile updates
       if (Object.keys(changedData).length > 0) {
         const response = await fetch("/api/auth/user/update", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: changedData }),
         });
 
@@ -213,7 +195,6 @@ export default function Account() {
           throw new Error(data.error);
         }
 
-        // Update store after successful API call
         await updateUser({ ...user!, ...changedData });
 
         toast.success("Profile updated", {
@@ -222,23 +203,11 @@ export default function Account() {
         });
       }
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: FormErrors = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as keyof FormErrors] = err.message;
-          }
-        });
-        setErrors(newErrors);
-      } else {
-        toast.error("Error", {
-          description:
-            error instanceof Error
-              ? error.message
-              : "Failed to update profile. Please try again.",
-          duration: 3000,
-        });
-      }
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Failed to update profile",
+        duration: 3000,
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -254,31 +223,49 @@ export default function Account() {
           </SettingCard.Description>
         </SettingCard.Header>
         <SettingCard.Content>
-          <form
-            id="account-form"
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-6"
-          >
-            <FormField
-              id="name"
-              label="Name"
-              placeholder="John Doe"
-              value={formData.name}
-              onChange={handleChange}
-              disabled={isUpdating}
-              error={errors.name}
-            />
-            <FormField
-              id="email"
-              label="Email"
-              type="email"
-              placeholder="john.doe@example.com"
-              value={formData.email}
-              onChange={handleChange}
-              disabled={isUpdating}
-              error={errors.email}
-            />
-          </form>
+          <Form {...form}>
+            <form
+              id="account-form"
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="flex flex-col gap-6"
+            >
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="John Doe"
+                        disabled={isUpdating}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="john.doe@example.com"
+                        disabled={isUpdating}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </form>
+          </Form>
         </SettingCard.Content>
         <SettingCard.Footer>
           <Button type="submit" form="account-form" disabled={isUpdating}>

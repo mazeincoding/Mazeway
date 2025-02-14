@@ -4,32 +4,34 @@ import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/store/user-store";
 import { KeyRound, ShieldIcon } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
-import { FormField } from "@/components/form-field";
 import {
   passwordChangeSchema,
   type PasswordChangeSchema,
 } from "@/utils/validation/auth-validation";
-import { z } from "zod";
 import { toast } from "sonner";
 import { AUTH_CONFIG } from "@/config/auth";
 import { TTwoFactorMethod } from "@/types/auth";
 import { TwoFactorMethods } from "@/components/2fa-methods";
 import { DeviceSessionsList } from "@/components/device-sessions-list";
-
-type FormErrors = Partial<Record<keyof PasswordChangeSchema, string>>;
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 export default function Security() {
-  const { isLoading, user } = useUserStore();
+  const { isLoading, user, refreshUser, disable2FA } = useUserStore();
   const hasPasswordAuth = user?.has_password ?? false;
-  const [formData, setFormData] = useState({
-    currentPassword: "",
-    newPassword: "",
-  });
   const [showPasswords, setShowPasswords] = useState({
     currentPassword: false,
     newPassword: false,
   });
-  const [errors, setErrors] = useState<FormErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
@@ -40,22 +42,14 @@ export default function Security() {
   const [qrCode, setQrCode] = useState<string>("");
   const [secret, setSecret] = useState<string>("");
   const [factorId, setFactorId] = useState<string>("");
-  const { refreshUser, disable2FA } = useUserStore();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error when user starts typing
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
-  };
+  const form = useForm<PasswordChangeSchema>({
+    resolver: zodResolver(passwordChangeSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+    },
+  });
 
   const handlePasswordVisibilityChange = (field: string, show: boolean) => {
     setShowPasswords({
@@ -64,21 +58,14 @@ export default function Security() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const onSubmit = async (values: PasswordChangeSchema) => {
     try {
-      // Validate form data
-      passwordChangeSchema.parse(formData);
-      setErrors({});
-
-      // Send request to API
       const response = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword,
+          currentPassword: values.currentPassword,
+          newPassword: values.newPassword,
         }),
       });
 
@@ -93,7 +80,6 @@ export default function Security() {
           return;
         }
 
-        // Handle OAuth-specific errors
         if (data.error?.includes("identity_not_found")) {
           toast.error("Cannot add password", {
             description:
@@ -103,27 +89,18 @@ export default function Security() {
           return;
         }
 
-        // Handle other errors
-        toast.error("Error", {
-          description:
-            data.error || "Failed to update password. Please try again.",
-          duration: 3000,
-        });
-        return;
+        throw new Error(data.error || "Failed to update password");
       }
 
-      // Check if 2FA is required
       if (data.requiresTwoFactor) {
         setTwoFactorData({
           factorId: data.factorId,
           availableMethods: data.availableMethods,
           password: "",
         });
-
         return;
       }
 
-      // Success
       toast.success(hasPasswordAuth ? "Password updated" : "Password added", {
         description: hasPasswordAuth
           ? "Your password has been changed successfully."
@@ -131,26 +108,13 @@ export default function Security() {
         duration: 3000,
       });
 
-      // Clear form
-      setFormData({
-        currentPassword: "",
-        newPassword: "",
-      });
+      form.reset();
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: FormErrors = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as keyof FormErrors] = err.message;
-          }
-        });
-        setErrors(newErrors);
-      } else {
-        toast.error("Error", {
-          description: "Failed to update password. Please try again.",
-          duration: 3000,
-        });
-      }
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Failed to update password",
+        duration: 3000,
+      });
     }
   };
 
@@ -290,42 +254,64 @@ export default function Security() {
           </SettingCard.Description>
         </SettingCard.Header>
         <SettingCard.Content className="pb-4">
-          <form
-            id="password-form"
-            onSubmit={handleSubmit}
-            className="flex flex-col gap-2"
-          >
-            <div className="flex flex-col gap-6">
-              {hasPasswordAuth && (
+          <Form {...form}>
+            <form
+              id="password-form"
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="flex flex-col gap-2"
+              noValidate
+            >
+              <div className="flex flex-col gap-6">
+                {hasPasswordAuth && (
+                  <FormField
+                    control={form.control}
+                    name="currentPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Current password</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            disabled={isLoading}
+                            showPassword={showPasswords.currentPassword}
+                            onShowPasswordChange={(show) =>
+                              handlePasswordVisibilityChange(
+                                "currentPassword",
+                                show
+                              )
+                            }
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
-                  id="currentPassword"
-                  label="Current password"
-                  type="password"
-                  value={formData.currentPassword}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                  error={errors.currentPassword}
-                  showPassword={showPasswords.currentPassword}
-                  onShowPasswordChange={(show) =>
-                    handlePasswordVisibilityChange("currentPassword", show)
-                  }
+                  control={form.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          disabled={isLoading}
+                          showPassword={showPasswords.newPassword}
+                          onShowPasswordChange={(show) =>
+                            handlePasswordVisibilityChange("newPassword", show)
+                          }
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              )}
-              <FormField
-                id="newPassword"
-                label="New password"
-                type="password"
-                value={formData.newPassword}
-                onChange={handleChange}
-                disabled={isLoading}
-                error={errors.newPassword}
-                showPassword={showPasswords.newPassword}
-                onShowPasswordChange={(show) =>
-                  handlePasswordVisibilityChange("newPassword", show)
-                }
-              />
-            </div>
-          </form>
+              </div>
+            </form>
+          </Form>
         </SettingCard.Content>
         <SettingCard.Footer>
           <Button type="submit" form="password-form" disabled={isLoading}>

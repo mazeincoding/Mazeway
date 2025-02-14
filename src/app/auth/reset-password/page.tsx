@@ -16,24 +16,45 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { validatePassword } from "@/utils/validation/auth-validation";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
 import { TTwoFactorMethod } from "@/types/auth";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { authSchema } from "@/utils/validation/auth-validation";
+import { toast } from "sonner";
+
+// Schema for reset password form
+const resetPasswordSchema = z
+  .object({
+    password: authSchema.shape.password,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;
 
 export default function ChangePasswordPage() {
   const searchParams = useSearchParams();
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [requires2FA, setRequires2FA] = useState(
     searchParams.get("requires_2fa") === "true"
   );
+  const [showPassword, setShowPassword] = useState(false);
   const [factorId, setFactorId] = useState<string | null>(
     searchParams.get("factor_id")
   );
@@ -49,6 +70,14 @@ export default function ChangePasswordPage() {
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [loginRequired, setLoginRequired] = useState(false);
   const [redirectTo, setRedirectTo] = useState("/dashboard");
+
+  const form = useForm<ResetPasswordSchema>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
   const handleVerify = async (code: string) => {
     if (!factorId) return;
@@ -94,33 +123,19 @@ export default function ChangePasswordPage() {
     setTwoFactorError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const onSubmit = async (values: ResetPasswordSchema) => {
     setLoading(true);
 
     try {
-      if (password !== confirmPassword) {
-        setError("Passwords don't match");
-        return;
-      }
-
-      const validation = validatePassword(password);
-      if (!validation.isValid) {
-        setError(validation.error || "Invalid password");
-        return;
-      }
-
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: values.password }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        // Check if we need 2FA
         if (data.requiresTwoFactor) {
           setRequires2FA(true);
           setFactorId(data.factorId);
@@ -128,15 +143,17 @@ export default function ChangePasswordPage() {
           return;
         }
 
-        setError(data.error || "Failed to reset password");
-        return;
+        throw new Error(data.error || "Failed to reset password");
       }
 
       setIsSuccess(true);
       setLoginRequired(data.loginRequired);
       setRedirectTo(data.redirectTo);
-    } catch (err) {
-      setError("An error occurred while resetting your password");
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Something went wrong",
+      });
     } finally {
       setLoading(false);
     }
@@ -210,32 +227,53 @@ export default function ChangePasswordPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-4">
-                    <Input
-                      type="password"
-                      placeholder="New password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                      showPassword={showPassword}
-                      onShowPasswordChange={setShowPassword}
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-4"
+                    noValidate
+                  >
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="New password"
+                              {...field}
+                              disabled={loading}
+                              showPassword={showPassword}
+                              onShowPasswordChange={setShowPassword}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                    <Input
-                      type="password"
-                      placeholder="Confirm password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      disabled={loading}
-                      showPassword={showPassword}
-                      onShowPasswordChange={setShowPassword}
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Confirm password"
+                              {...field}
+                              disabled={loading}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Resetting password..." : "Reset password"}
-                  </Button>
-                </form>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? "Resetting password..." : "Reset password"}
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </>
           )}

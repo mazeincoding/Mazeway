@@ -182,7 +182,7 @@ export async function GET(request: Request) {
     const { data: session } = await supabase
       .from("device_sessions")
       .select("needs_verification")
-      .eq("session_id", session_id)
+      .eq("id", session_id)
       .single();
 
     if (session?.needs_verification) {

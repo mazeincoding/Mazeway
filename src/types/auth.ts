@@ -28,7 +28,6 @@ export interface TwoFactorRequirement {
 export interface TDeviceSession {
   id: string;
   user_id: string;
-  session_id: string;
   device_id: string;
   device: TDeviceInfo;
   is_trusted: boolean;

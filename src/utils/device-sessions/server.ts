@@ -109,27 +109,27 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
 
   const supabase = await createClient();
   const device_id = await createDevice(params.device);
-  const session_id = crypto.randomUUID();
 
   // Calculate expiration date
   const expires_at = new Date();
   expires_at.setDate(expires_at.getDate() + AUTH_CONFIG.deviceSessions.maxAge);
 
-  const { error: sessionError } = await supabase
+  const { data: session, error: sessionError } = await supabase
     .from("device_sessions")
     .insert({
       user_id: params.user_id,
-      session_id,
       device_id,
       confidence_score: params.confidence_score,
       needs_verification: params.needs_verification,
       is_trusted: params.is_trusted,
       expires_at: expires_at.toISOString(),
-    });
+    })
+    .select("id")
+    .single();
 
   if (sessionError) {
     throw sessionError;
   }
 
-  return session_id;
+  return session.id;
 }

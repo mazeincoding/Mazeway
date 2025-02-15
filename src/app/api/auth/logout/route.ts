@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("device_sessions")
         .delete()
-        .eq("session_id", deviceSessionId);
+        .eq("id", deviceSessionId);
     }
 
     return response;

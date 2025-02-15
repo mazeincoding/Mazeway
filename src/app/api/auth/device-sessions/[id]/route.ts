@@ -56,8 +56,8 @@ export async function DELETE(
     // Second security layer: Verify session ownership
     const { data: session, error: sessionError } = await supabase
       .from("device_sessions")
-      .select("session_id")
-      .eq("session_id", sessionId)
+      .select("id")
+      .eq("id", sessionId)
       .eq("user_id", user.id)
       .single();
 
@@ -97,14 +97,14 @@ export async function DELETE(
             await adminClient
               .from("device_sessions")
               .update({ last_verified: new Date().toISOString() })
-              .eq("session_id", currentSessionId);
+              .eq("id", currentSessionId);
           }
 
           // Delete the session after successful 2FA verification
           const { error: deleteError } = await adminClient
             .from("device_sessions")
             .delete()
-            .eq("session_id", sessionId);
+            .eq("id", sessionId);
 
           if (deleteError) throw deleteError;
 
@@ -159,7 +159,7 @@ export async function DELETE(
               .from("device_sessions")
               .select("last_verified")
               .eq("user_id", user.id)
-              .eq("session_id", currentSessionId)
+              .eq("id", currentSessionId)
               .single();
 
             const gracePeriodMinutes =
@@ -199,7 +199,7 @@ export async function DELETE(
     const { error: deleteError } = await adminClient
       .from("device_sessions")
       .delete()
-      .eq("session_id", sessionId);
+      .eq("id", sessionId);
 
     if (deleteError) throw deleteError;
 

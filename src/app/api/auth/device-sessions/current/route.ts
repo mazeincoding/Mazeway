@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         device:devices(*)
       `
       )
-      .eq("session_id", sessionId)
+      .eq("id", sessionId)
       .eq("user_id", user.id)
       .single();
 

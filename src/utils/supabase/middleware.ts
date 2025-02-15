@@ -187,7 +187,7 @@ export async function updateSession(request: NextRequest) {
         const { data: deviceSession } = await supabase
           .from("device_sessions")
           .select("needs_verification, expires_at")
-          .eq("session_id", deviceSessionId.value)
+          .eq("id", deviceSessionId.value)
           .eq("user_id", user.id)
           .gt("expires_at", new Date().toISOString()) // Only get non-expired sessions
           .single();

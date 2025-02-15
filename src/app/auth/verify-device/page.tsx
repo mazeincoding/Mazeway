@@ -72,13 +72,13 @@ export default function VerifyPage() {
         .from("device_sessions")
         .select(
           `
-          session_id,
+          id,
           device:devices (
             device_name
           )
         `
         )
-        .eq("session_id", session)
+        .eq("id", session)
         .single<TDeviceSession>();
 
       if (deviceError || !deviceSession?.device?.device_name) {

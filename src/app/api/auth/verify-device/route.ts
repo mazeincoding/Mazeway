@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const adminClient = await createClient({ useServiceRole: true });
 
     // Get the verification code
     const { data: verificationCode, error: codeError } = await supabase
@@ -47,13 +48,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update device session
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminClient
       .from("device_sessions")
       .update({
         needs_verification: false,
         last_verified: new Date().toISOString(),
       })
-      .eq("session_id", device_session_id);
+      .eq("id", device_session_id);
 
     if (updateError) {
       console.error("Failed to update device session:", updateError);

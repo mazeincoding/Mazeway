@@ -231,12 +231,12 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     ```sql
     CREATE TABLE device_sessions (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id uuid REFERENCES users(id) ON DELETE CASCADE,
-      session_id uuid NOT NULL,
+      user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       device_id uuid REFERENCES devices(id) ON DELETE CASCADE,
       is_trusted boolean DEFAULT false,
       needs_verification boolean DEFAULT false,
       confidence_score integer DEFAULT 0,
+      expires_at timestamp with time zone NOT NULL,
       last_verified timestamp with time zone,
       created_at timestamp with time zone DEFAULT now(),
       updated_at timestamp with time zone DEFAULT now()
@@ -258,17 +258,6 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     ON device_sessions
     FOR SELECT
     USING (auth.uid() = user_id);
-    
-    -- Allow users to update their own device sessions
-    CREATE POLICY "Allow users to update their own device sessions"
-    ON device_sessions
-    FOR UPDATE
-    USING (auth.uid() = user_id)
-    WITH CHECK (
-      -- Can never modify security columns through client-side queries
-      (is_trusted IS NOT DISTINCT FROM OLD.is_trusted) AND
-      (needs_verification IS NOT DISTINCT FROM OLD.needs_verification)
-    );
     
     -- Step 4: Create trigger to update the "updated_at" column
     CREATE TRIGGER update_device_sessions_updated_at
@@ -505,19 +494,12 @@ So let's go ahead and make Supabase (and your users) happy:
 4. Set it to "1800" (1 hour)
 5. Click "Save"
 
-### Clean up device sessions automatically
-Device sessions last 365 days (same as Supabase's refresh token). They'll pile up in your database over time, but honestly? It's not that crucial to clean them up right away.
+### Clean up database automatically
+Some things will pile up in your database over time (verification codes, expired device sessions, eg), but it's not that crucial to clean them up right away.
 
-Setting this up right now is a bit of a pain:
-- Need Docker installed
-- Need Supabase CLI
-- Gotta do some setup dance
+Even in early production, your database won't explode from some old data lying around.
 
-Good news: Supabase is working on making this WAY simpler - you'll be able to do it right from their dashboard soon.
-
-For now, don't stress about it during development. Even in early production, your database won't explode from some old sessions lying around.
-
-If you DO want to set it up (like if your app's been running for ages), check out [this guide](docs/cleanup-setup.md).
+If you DO want to set it up, check out [this guide](docs/cleanup-setup.md).
 
 ### API Rate limiting (with Upstash Redis)
 At first, the idea for implementing rate-limiting was to just create a Supabase table and store how many requests an IP made but:

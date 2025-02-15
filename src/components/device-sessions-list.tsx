@@ -61,8 +61,8 @@ export function DeviceSessionsList() {
 
   // Sort sessions to put current device first
   const sortedSessions = [...sessions].sort((a, b) => {
-    if (a.session_id === currentSession?.session_id) return -1;
-    if (b.session_id === currentSession?.session_id) return 1;
+    if (a.id === currentSession?.id) return -1;
+    if (b.id === currentSession?.id) return 1;
     return 0;
   });
 
@@ -201,7 +201,7 @@ export function DeviceSessionsList() {
         {sortedSessions.map((session) => (
           <DeviceItem
             key={session.id}
-            sessionId={session.session_id}
+            sessionId={session.id}
             deviceName={session.device.device_name}
             browser={session.device.browser || "Unknown browser"}
             deviceIcon={
@@ -213,8 +213,8 @@ export function DeviceSessionsList() {
               )
             }
             onRevoke={handleRevoke}
-            isRevoking={revokingSessionId === session.session_id}
-            isCurrentDevice={session.session_id === currentSession?.session_id}
+            isRevoking={revokingSessionId === session.id}
+            isCurrentDevice={session.id === currentSession?.id}
             os={session.device.os}
             ipAddress={session.device.ip_address}
           />

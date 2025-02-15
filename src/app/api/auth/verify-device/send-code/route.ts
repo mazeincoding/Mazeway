@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         )
       `
       )
-      .eq("session_id", device_session_id)
+      .eq("id", device_session_id)
       .single<TDeviceSession & { user: Pick<TUser, "email"> }>();
 
     if (sessionError || !deviceSession?.user?.email) {

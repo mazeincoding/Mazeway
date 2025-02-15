@@ -214,7 +214,7 @@ export default function Account() {
   };
 
   return (
-    <div className="space-y-12">
+    <div className="flex flex-col gap-8">
       <SettingCard icon={UserIcon}>
         <SettingCard.Header>
           <SettingCard.Title>Basic information</SettingCard.Title>

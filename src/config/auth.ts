@@ -7,7 +7,7 @@ import { TTwoFactorMethod } from "@/types/auth";
 
 export const AUTH_CONFIG = {
   deviceVerification: {
-    codeExpirationTime: 10,
+    codeExpirationTime: 10, // In minutes
     codeLength: 6,
   },
   deviceSessions: {

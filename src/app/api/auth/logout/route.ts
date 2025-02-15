@@ -35,10 +35,7 @@ export async function POST(request: NextRequest) {
 
     // If we had a device session, delete it from DB
     if (deviceSessionId) {
-      await supabase
-        .from("device_sessions")
-        .delete()
-        .eq("id", deviceSessionId);
+      await supabase.from("device_sessions").delete().eq("id", deviceSessionId);
     }
 
     return response;

@@ -53,6 +53,23 @@ export async function DELETE(
     } = await supabase.auth.getUser();
     if (userError || !user) throw new Error("Unauthorized");
 
+    // Get current device session ID from cookie
+    const currentSessionId = request.cookies.get("device_session_id")?.value;
+    if (!currentSessionId) throw new Error("No device session found");
+
+    // Verify current device session is valid and not expired
+    const { data: currentSession, error: currentSessionError } = await supabase
+      .from("device_sessions")
+      .select("id")
+      .eq("id", currentSessionId)
+      .eq("user_id", user.id)
+      .gt("expires_at", new Date().toISOString())
+      .single();
+
+    if (currentSessionError || !currentSession) {
+      throw new Error("Current device session is invalid or expired");
+    }
+
     // Second security layer: Verify session ownership
     const { data: session, error: sessionError } = await supabase
       .from("device_sessions")

@@ -179,12 +179,6 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     FOR UPDATE
     USING (auth.uid() = id);
     
-    -- Allow users to delete their own data
-    CREATE POLICY "Allow user to delete their own data"
-    ON users
-    FOR DELETE
-    USING (auth.uid() = id);
-    
     -- Step 4: Create trigger to update the "updated_at" column using the function we just created
     CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users

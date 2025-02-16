@@ -128,6 +128,9 @@ export interface TGeolocationResponse {
   };
 }
 
+// /api/auth/user/delete
+export interface TDeleteAccountResponse extends TwoFactorRequirement {}
+
 // Generic success response
 export interface TEmptySuccessResponse {}
 

@@ -30,6 +30,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import DeleteAccount from "@/components/delete-account";
 
 export default function Account() {
   const { user, updateUser } = useUserStore();
@@ -272,6 +273,20 @@ export default function Account() {
             Save
           </Button>
         </SettingCard.Footer>
+      </SettingCard>
+
+      <SettingCard icon={UserIcon}>
+        <SettingCard.Header>
+          <SettingCard.Title>Delete account</SettingCard.Title>
+          <SettingCard.Description>
+            Permanently delete your account.
+          </SettingCard.Description>
+        </SettingCard.Header>
+        <SettingCard.Content>
+          <DeleteAccount>
+            <Button variant="destructive">Delete account</Button>
+          </DeleteAccount>
+        </SettingCard.Content>
       </SettingCard>
 
       {showTwoFactorDialog && twoFactorData && (

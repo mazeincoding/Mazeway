@@ -83,6 +83,7 @@ export function TwoFactorMethods({
           setSelectedMethod(method);
         } else {
           await onMethodSetup(method);
+          setSelectedMethod(method);
         }
       } else {
         // Start disable flow - get factor ID and show dialog
@@ -101,6 +102,7 @@ export function TwoFactorMethods({
         setShowDisableDialog(true);
       }
     } catch (error) {
+      console.error("Error in handleMethodToggle:", error);
       toast.error("Error", {
         description: "Failed to update 2FA method. Please try again.",
       });

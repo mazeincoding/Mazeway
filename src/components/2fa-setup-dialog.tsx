@@ -228,9 +228,9 @@ export function TwoFactorSetupDialog({
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={handleCancel}
+                onClick={() => setSetupStep("initial")}
               >
-                Cancel
+                Go back
               </Button>
             </div>
           </div>

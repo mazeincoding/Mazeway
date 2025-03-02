@@ -13,6 +13,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { Suspense } from "react";
 
 type TErrorCategory =
   | "auth_confirm"
@@ -182,7 +183,7 @@ const DEFAULT_ERROR: TErrorConfig = {
   ],
 };
 
-export default function ErrorPage() {
+function ErrorContent() {
   const searchParams = useSearchParams();
   const errorType = searchParams.get("error");
   const errorMessage = searchParams.get("message");
@@ -246,5 +247,23 @@ export default function ErrorPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+export default function ErrorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Card className="w-full max-w-md p-6">
+            <CardHeader>
+              <CardTitle className="text-2xl">Loading...</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+      }
+    >
+      <ErrorContent />
+    </Suspense>
   );
 }

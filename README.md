@@ -93,7 +93,7 @@ This starter pack includes all of that, and more.
 - API rate limiting with Upstash Redis
 - Bonus: a nice auth config in the project for devs to easily customize things (opens up more things than on this list)
 
-This is only the beginning. It's a great start. But if you're curious, check out `docs/roadmap.md`.
+This is only the beginning.
   
 ## Required setup
 

@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from "react";
 import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -27,7 +28,7 @@ import { BackButton } from "./back-button";
 import { api } from "@/utils/api";
 import Link from "next/link";
 
-export function AuthForm() {
+function AuthFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -419,6 +420,14 @@ export function AuthForm() {
         onClose={() => setShowConfirm(false)}
       />
     </>
+  );
+}
+
+export function AuthForm() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthFormContent />
+    </Suspense>
   );
 }
 

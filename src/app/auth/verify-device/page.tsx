@@ -11,14 +11,14 @@ import {
 import { InputOTP, InputOTPSlot } from "@/components/ui/input-otp";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import type { TDeviceSession } from "@/types/auth";
 import { BackButton } from "@/components/back-button";
 import { api } from "@/utils/api";
 
-export default function VerifyPage() {
+function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const session = searchParams.get("session");
@@ -243,5 +243,23 @@ export default function VerifyPage() {
         </Card>
       </main>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Card className="w-full max-w-md p-6">
+            <CardHeader>
+              <CardTitle className="text-2xl">Loading...</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+      }
+    >
+      <VerifyContent />
+    </Suspense>
   );
 }

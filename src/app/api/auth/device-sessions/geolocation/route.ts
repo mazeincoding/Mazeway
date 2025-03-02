@@ -4,17 +4,20 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { isLocalIP } from "@/utils/auth";
 
 export async function GET(request: NextRequest) {
-  const ipAddress = getClientIp(request);
+  // Get request IP for rate limiting
+  const requestIp = getClientIp(request);
 
-  if (!ipAddress) {
+  // Get target IP from query params
+  const targetIp = request.nextUrl.searchParams.get("ip");
+  if (!targetIp) {
     return NextResponse.json(
-      { error: "IP address is required" },
+      { error: "Target IP address is required" },
       { status: 400 }
     ) satisfies NextResponse<TApiErrorResponse>;
   }
 
   // Return a standard response for local IPs before rate limiting
-  if (isLocalIP(ipAddress)) {
+  if (isLocalIP(targetIp)) {
     return NextResponse.json({
       data: {
         city: "Local Development",
@@ -26,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   // Only rate limit non-local IPs that will actually use the geolocation service
   if (apiRateLimit) {
-    const { success } = await apiRateLimit.limit(ipAddress);
+    const { success } = await apiRateLimit.limit(requestIp);
 
     if (!success) {
       return NextResponse.json(
@@ -34,13 +37,13 @@ export async function GET(request: NextRequest) {
           error: "Too many requests. Please try again later.",
         },
         { status: 429 }
-      );
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
   }
 
   try {
     // Use ipapi.co's free service (no API key required)
-    const response = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+    const response = await fetch(`https://ipapi.co/${targetIp}/json/`);
     const data = await response.json();
 
     // Handle rate limiting specifically

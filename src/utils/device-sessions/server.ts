@@ -107,14 +107,14 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
     throw new Error("Cannot create device session on the client");
   }
 
-  const supabase = await createClient();
+  const adminClient = await createClient({ useServiceRole: true });
   const device_id = await createDevice(params.device);
 
   // Calculate expiration date
   const expires_at = new Date();
   expires_at.setDate(expires_at.getDate() + AUTH_CONFIG.deviceSessions.maxAge);
 
-  const { data: session, error: sessionError } = await supabase
+  const { data: session, error: sessionError } = await adminClient
     .from("device_sessions")
     .insert({
       user_id: params.user_id,

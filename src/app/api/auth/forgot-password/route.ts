@@ -6,8 +6,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { validateEmail } from "@/utils/validation/auth-validation";
-import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import { authSchema } from "@/utils/validation/auth-validation";
+import {
+  TApiErrorResponse,
+  TEmptySuccessResponse,
+  TForgotPasswordRequest,
+} from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -20,26 +24,29 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
-        );
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
     }
 
-    const { email } = await request.json();
     const { origin } = new URL(request.url);
 
-    // Validate email
-    const validation = validateEmail(email);
-    if (!validation.isValid) {
+    // Get and validate request body
+    const rawBody = await request.json();
+    const validation = authSchema.shape.email.safeParse(rawBody.email);
+
+    if (!validation.success) {
       return NextResponse.json(
-        { error: validation.error || "Invalid email" },
+        { error: validation.error.issues[0]?.message || "Invalid email" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    const body: TForgotPasswordRequest = { email: validation.data };
+
     const supabase = await createClient();
 
     // Send reset password email
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
       redirectTo: `${origin}/auth/reset-password`,
     });
 

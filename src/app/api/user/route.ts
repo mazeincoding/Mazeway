@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { TApiErrorResponse, TGetUserResponse } from "@/types/api";
 import type { TTwoFactorMethod, TUserWithAuth } from "@/types/auth";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import { getUserVerificationMethods } from "@/utils/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,13 +52,17 @@ export async function GET(request: NextRequest) {
     // Get MFA factors
     const { data: mfaData } = await supabase.auth.mfa.listFactors();
 
-    // Get enabled methods
-    const enabledMethods: TTwoFactorMethod[] =
+    // Get enabled 2FA methods
+    const enabled2faMethods: TTwoFactorMethod[] =
       mfaData?.all
         ?.filter((factor) => factor.status === "verified")
         .map((factor) =>
           factor.factor_type === "totp" ? "authenticator" : "sms"
         ) || [];
+
+    // Get available verification methods
+    const { methods: availableVerificationMethods } =
+      await getUserVerificationMethods(supabase);
 
     // Combine user data
     const userWithAuth: TUserWithAuth = {
@@ -65,8 +70,9 @@ export async function GET(request: NextRequest) {
       auth: {
         emailVerified: !!authUser.email_confirmed_at,
         lastSignInAt: authUser.last_sign_in_at,
-        twoFactorEnabled: enabledMethods.length > 0,
-        twoFactorMethods: enabledMethods,
+        twoFactorEnabled: enabled2faMethods.length > 0,
+        enabled2faMethods,
+        availableVerificationMethods,
       },
     };
 

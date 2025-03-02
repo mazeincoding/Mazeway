@@ -14,18 +14,18 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FaGoogle } from "react-icons/fa";
 import { Pencil } from "lucide-react";
-import Link from "next/link";
 import { toast } from "sonner";
 import {
   validatePassword,
   validateEmail,
 } from "@/utils/validation/auth-validation";
 import { Confirm } from "./auth-confirm";
-import { TwoFactorVerifyForm } from "./2fa-verify-form";
-import { TTwoFactorMethod } from "@/types/auth";
+import { VerifyForm } from "./verify-form";
+import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { BackButton } from "./back-button";
-import { useUserStore } from "@/store/user-store";
+import { api } from "@/utils/api";
+import Link from "next/link";
 
 export function AuthForm() {
   const router = useRouter();
@@ -55,7 +55,6 @@ export function AuthForm() {
     };
   }, [searchParams]);
 
-  const { refreshUser } = useUserStore();
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -68,11 +67,13 @@ export function AuthForm() {
     initialTwoFactorState.factorId
   );
   const [availableMethods, setAvailableMethods] = useState<
-    Array<{
-      type: TTwoFactorMethod;
-      factorId: string;
-    }>
-  >(initialTwoFactorState.availableMethods);
+    TVerificationFactor[]
+  >(
+    initialTwoFactorState.availableMethods.map((m) => ({
+      ...m,
+      type: m.type as TTwoFactorMethod,
+    }))
+  );
   const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(
     initialTwoFactorState.redirectUrl
@@ -86,25 +87,13 @@ export function AuthForm() {
   async function handleEmailCheck(email: string) {
     try {
       setIsPending(true);
-      const response = await fetch("/api/auth/email/check", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setFormError(data.error || "Failed to check email");
-        return;
-      }
-
+      const data = await api.auth.checkEmail(email);
       setDeterminedType(data.exists ? "login" : "signup");
       setShowPasswordField(true);
     } catch (error) {
-      setFormError("An unexpected error occurred");
+      setFormError(
+        error instanceof Error ? error.message : "An unexpected error occurred"
+      );
     } finally {
       setIsPending(false);
     }
@@ -126,6 +115,11 @@ export function AuthForm() {
     }
 
     // Full form submission
+    if (!determinedType) {
+      setFormError("Please check your email first");
+      return;
+    }
+
     if (determinedType === "login") {
       // For login, only check if fields are empty
       if (!email || !password) {
@@ -147,60 +141,28 @@ export function AuthForm() {
 
     try {
       setIsPending(true);
-      const response = await fetch(`/api/auth/email/${determinedType}`, {
-        method: "POST",
-        body: JSON.stringify({
-          email: email,
-          password: password,
-        }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
 
-      // If it's a redirect, follow it
-      if (response.redirected || response.status === 307) {
-        window.location.href = response.url;
-        return;
-      }
+      if (determinedType === "login") {
+        const result = await api.auth.login({ email, password });
+        // If null, the API client handled the redirect
+        if (!result) return;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setFormError(
-          data?.error ||
-            "An unexpected error occurred. Refresh the page and try again."
-        );
-        return;
-      }
-
-      // Store redirect URL for later use
-      setRedirectUrl(data?.redirectTo);
-
-      // Check if 2FA is required
-      if (data?.requiresTwoFactor) {
-        setRequiresTwoFactor(true);
-        setFactorId(data.factorId);
-        setAvailableMethods(data.availableMethods || []);
-        return;
-      }
-
-      // For signup, show confirmation dialog
-      // For login, redirect to the URL from server
-      if (determinedType === "signup") {
-        setShowConfirm(true);
-      } else {
-        // Check if response has refresh header
-        const shouldRefresh =
-          response.headers.get("X-Should-Refresh-User") === "true";
-        if (shouldRefresh) {
-          await refreshUser();
+        // Handle 2FA
+        if (result.requiresTwoFactor) {
+          setRequiresTwoFactor(true);
+          setFactorId(result.factorId ?? null);
+          setAvailableMethods(result.availableMethods ?? []);
+          setRedirectUrl(result.redirectTo);
+          return;
         }
-        router.push(data?.redirectTo);
+      } else {
+        // Handle signup
+        await api.auth.signup({ email, password });
+        setShowConfirm(true);
       }
     } catch (error) {
       setFormError(
-        "An unexpected error occurred. Refresh the page and try again."
+        error instanceof Error ? error.message : "An unexpected error occurred"
       );
     } finally {
       setIsPending(false);
@@ -214,43 +176,29 @@ export function AuthForm() {
       setIsPending(true);
       setTwoFactorError(null);
 
-      const response = await fetch("/api/auth/2fa/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          factorId,
-          code,
-          method:
-            availableMethods.find((m) => m.factorId === factorId)?.type ||
-            "authenticator",
-        }),
+      await api.auth.verify({
+        factorId,
+        code,
+        method:
+          availableMethods.find((m) => m.factorId === factorId)?.type ||
+          "authenticator",
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setTwoFactorError(data.error);
-        return;
-      }
 
       // Redirect to stored URL after successful 2FA
       router.push(redirectUrl);
     } catch (error) {
-      setTwoFactorError("An unexpected error occurred");
+      setTwoFactorError(
+        error instanceof Error ? error.message : "An unexpected error occurred"
+      );
     } finally {
       setIsPending(false);
     }
   }
 
-  function handleMethodChange(method: {
-    type: TTwoFactorMethod;
-    factorId: string;
-  }) {
+  const handleMethodChange = (method: TVerificationFactor) => {
     setFactorId(method.factorId);
     setTwoFactorError(null);
-  }
+  };
 
   function handleBack() {
     if (!showPasswordField) {
@@ -300,7 +248,7 @@ export function AuthForm() {
         <CardContent>
           {requiresTwoFactor ? (
             factorId && (
-              <TwoFactorVerifyForm
+              <VerifyForm
                 factorId={factorId}
                 availableMethods={availableMethods}
                 onVerify={handleVerify}
@@ -476,7 +424,6 @@ export function AuthForm() {
 
 export function SocialButtons() {
   const [isPending, setIsPending] = useState(false);
-  const { refreshUser } = useUserStore();
 
   /**
    * Handles Google sign-in flow:
@@ -488,19 +435,7 @@ export function SocialButtons() {
   async function handleGoogleSignIn() {
     try {
       setIsPending(true);
-      const response = await fetch("/api/auth/google/signin", {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error("Error", {
-          description: data.error,
-          duration: 3000,
-        });
-        return;
-      }
+      const data = await api.auth.googleSignIn();
 
       // Redirect to Google's consent page
       if (data.url) {
@@ -509,7 +444,10 @@ export function SocialButtons() {
     } catch (error) {
       console.error("Google sign in error:", error);
       toast.error("Error", {
-        description: "Failed to sign in with Google",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to sign in with Google",
         duration: 3000,
       });
     } finally {

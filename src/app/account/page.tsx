@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useUserStore } from "@/store/user-store";
+import { useUser } from "@/hooks/use-auth";
 import { UserIcon } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
 import {
@@ -17,8 +17,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
-import { TTwoFactorMethod } from "@/types/auth";
+import { VerifyForm } from "@/components/verify-form";
+import { TVerificationFactor } from "@/types/auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -31,14 +31,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import DeleteAccount from "@/components/delete-account";
+import { api } from "@/utils/api";
 
 export default function Account() {
-  const { user, updateUser } = useUserStore();
+  const { user, isLoading: isUserLoading } = useUser();
   const [isUpdating, setIsUpdating] = useState(false);
   const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
     factorId: string;
-    availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
+    availableMethods: TVerificationFactor[];
     newEmail: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,6 @@ export default function Account() {
     },
   });
 
-  // Update form when user data is available
   useEffect(() => {
     if (user) {
       const currentValues = form.getValues();
@@ -75,31 +75,17 @@ export default function Account() {
       setIsVerifying(true);
       setError(null);
 
-      // Send 2FA verification to complete email change
-      const response = await fetch("/api/auth/change-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          factorId: twoFactorData.factorId,
-          code,
-          newEmail: twoFactorData.newEmail,
-        }),
+      // First verify using the centralized verify endpoint
+      await api.auth.verify({
+        factorId: twoFactorData.factorId,
+        code,
+        method: twoFactorData.availableMethods[0].type,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Too many attempts", {
-            description: "Please wait a moment before trying again.",
-            duration: 4000,
-          });
-          return;
-        }
-
-        setError(data.error || "Failed to verify code");
-        return;
-      }
+      // After successful verification, change email
+      await api.auth.changeEmail({
+        newEmail: twoFactorData.newEmail,
+      });
 
       // Success - email verification will be sent
       toast.success("Verification email sent", {
@@ -107,13 +93,17 @@ export default function Account() {
         duration: 5000,
       });
 
-      // Clear state
       setTwoFactorData(null);
       setShowTwoFactorDialog(false);
-
-      // Reset form to current email since change isn't complete yet
       form.setValue("email", user?.email || "");
     } catch (err) {
+      if (err instanceof Error && err.message.includes("Too many requests")) {
+        toast.error("Too many attempts", {
+          description: "Please wait a moment before trying again.",
+          duration: 3000,
+        });
+        return;
+      }
       console.error("Error verifying 2FA:", err);
       setError("Failed to verify code. Please try again.");
     } finally {
@@ -122,39 +112,22 @@ export default function Account() {
   };
 
   const onSubmit = async (values: ProfileSchema) => {
+    if (!user) return;
     setIsUpdating(true);
 
     try {
-      // Get changed fields only
       const changedData: Partial<ProfileSchema> = {};
-      if (user) {
-        if (values.name !== user.name) changedData.name = values.name;
-      }
+      if (values.name !== user.name) changedData.name = values.name;
 
-      // Handle email change
-      if (user && values.email !== user.email) {
+      if (values.email !== user.email) {
         try {
-          const response = await fetch("/api/auth/change-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ newEmail: values.email }),
-          });
+          const data = await api.auth.changeEmail({ newEmail: values.email });
 
-          const data = await response.json();
-
-          if (!response.ok) {
-            if (response.status === 429) {
-              toast.error("Too many attempts", {
-                description: "Please wait a moment before trying again.",
-                duration: 4000,
-              });
-              return;
-            }
-
-            throw new Error(data.error);
-          }
-
-          if (data.requiresTwoFactor) {
+          if (
+            data.requiresTwoFactor &&
+            data.factorId &&
+            data.availableMethods
+          ) {
             setTwoFactorData({
               factorId: data.factorId,
               availableMethods: data.availableMethods,
@@ -173,6 +146,16 @@ export default function Account() {
           // Reset form email field
           form.setValue("email", user.email);
         } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message.includes("Too many requests")
+          ) {
+            toast.error("Too many attempts", {
+              description: "Please wait a moment before trying again.",
+              duration: 3000,
+            });
+            return;
+          }
           toast.error("Error", {
             description:
               error instanceof Error ? error.message : "Failed to update email",
@@ -184,29 +167,25 @@ export default function Account() {
 
       // Handle other profile updates
       if (Object.keys(changedData).length > 0) {
-        const response = await fetch("/api/auth/user/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: changedData }),
-        });
+        try {
+          await api.user.update(changedData);
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error);
+          toast.success("Profile updated", {
+            description: "Your profile has been updated successfully.",
+            duration: 3000,
+          });
+        } catch (error) {
+          toast.error("Error", {
+            description:
+              error instanceof Error ? error.message : "An error occurred",
+            duration: 3000,
+          });
         }
-
-        await updateUser({ ...user!, ...changedData });
-
-        toast.success("Profile updated", {
-          description: "Your profile has been updated successfully.",
-          duration: 3000,
-        });
       }
     } catch (error) {
       toast.error("Error", {
         description:
-          error instanceof Error ? error.message : "Failed to update profile",
+          error instanceof Error ? error.message : "An error occurred",
         duration: 3000,
       });
     } finally {
@@ -239,7 +218,7 @@ export default function Account() {
                     <FormControl>
                       <Input
                         placeholder="John Doe"
-                        disabled={isUpdating}
+                        disabled={isUpdating || isUserLoading}
                         {...field}
                       />
                     </FormControl>
@@ -257,7 +236,7 @@ export default function Account() {
                       <Input
                         type="email"
                         placeholder="john.doe@example.com"
-                        disabled={isUpdating}
+                        disabled={isUpdating || isUserLoading}
                         {...field}
                       />
                     </FormControl>
@@ -269,7 +248,11 @@ export default function Account() {
           </Form>
         </SettingCard.Content>
         <SettingCard.Footer>
-          <Button type="submit" form="account-form" disabled={isUpdating}>
+          <Button
+            type="submit"
+            form="account-form"
+            disabled={isUpdating || isUserLoading}
+          >
             Save
           </Button>
         </SettingCard.Footer>
@@ -279,13 +262,30 @@ export default function Account() {
         <SettingCard.Header>
           <SettingCard.Title>Delete account</SettingCard.Title>
           <SettingCard.Description>
-            Permanently delete your account.
+            Permanently delete your account and all associated data.
           </SettingCard.Description>
         </SettingCard.Header>
         <SettingCard.Content>
-          <DeleteAccount>
-            <Button variant="destructive">Delete account</Button>
-          </DeleteAccount>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+              <h4 className="mb-2 font-medium text-destructive">
+                Important Information
+              </h4>
+              <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
+                <li>
+                  All your personal information and settings will be permanently
+                  erased
+                </li>
+                <li>Your account cannot be recovered once deleted</li>
+                <li>All your data will be removed from our servers</li>
+              </ul>
+            </div>
+            <DeleteAccount>
+              <Button variant="destructive" className="w-full sm:w-auto">
+                I understand, delete my account
+              </Button>
+            </DeleteAccount>
+          </div>
         </SettingCard.Content>
       </SettingCard>
 
@@ -302,7 +302,7 @@ export default function Account() {
                 email address.
               </DialogDescription>
             </DialogHeader>
-            <TwoFactorVerifyForm
+            <VerifyForm
               factorId={twoFactorData.factorId}
               availableMethods={twoFactorData.availableMethods}
               onVerify={handleVerify2FA}

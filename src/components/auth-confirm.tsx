@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
+import { api } from "@/utils/api";
 
 interface ConfirmProps {
   email: string;
@@ -34,31 +35,19 @@ export function Confirm({ email, show, onClose }: ConfirmProps) {
 
     setIsResending(true);
     try {
-      const response = await fetch("/api/auth/email/resend-confirmation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
+      await api.auth.resendConfirmation(email);
+
+      toast.success("Email sent", {
+        description: "Check your inbox for the confirmation link",
+        duration: 3000,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error("Error resending email", {
-          description: data.error,
-          duration: 3000,
-        });
-      } else {
-        toast.success("Email sent", {
-          description: "Check your inbox for the confirmation link",
-          duration: 3000,
-        });
-        setTimeLeft(10);
-      }
+      setTimeLeft(10);
     } catch (error) {
       toast.error("Error resending email", {
-        description: "An unexpected error occurred",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
         duration: 3000,
       });
     } finally {

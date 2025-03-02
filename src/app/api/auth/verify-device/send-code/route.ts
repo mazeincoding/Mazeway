@@ -3,19 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { Resend } from "resend";
 import DeviceVerificationEmail from "@emails/templates/device-verification";
-import { randomBytes } from "crypto";
 import type { TDeviceSession, TUser } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-
-function generateVerificationCode(): string {
-  const codeLength = AUTH_CONFIG.deviceVerification.codeLength;
-  return randomBytes(Math.ceil(codeLength / 2))
-    .readUIntBE(0, Math.ceil(codeLength / 2))
-    .toString()
-    .padStart(codeLength, "0")
-    .slice(-codeLength);
-}
+import { generateVerificationCode } from "@/utils/verification-codes";
 
 export async function POST(request: NextRequest) {
   if (authRateLimit) {
@@ -28,13 +19,13 @@ export async function POST(request: NextRequest) {
           error: "Too many requests. Please try again later.",
         },
         { status: 429 }
-      );
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
   }
 
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json(
-      { error: "Email service not configured" },
+      { error: "Resend is not configured" },
       { status: 500 }
     ) satisfies NextResponse<TApiErrorResponse>;
   }
@@ -50,6 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const adminClient = await createClient({ useServiceRole: true });
 
     // Get device session to verify ownership and get user email
     const { data: deviceSession, error: sessionError } = await supabase
@@ -72,18 +64,23 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const code = generateVerificationCode();
+    const { code, hash, salt } = await generateVerificationCode({
+      format: "numeric",
+      alphanumericLength: AUTH_CONFIG.deviceVerification.codeLength,
+    });
+
     const expiresAt = new Date();
     expiresAt.setMinutes(
       expiresAt.getMinutes() + AUTH_CONFIG.deviceVerification.codeExpirationTime
     );
 
     // Store verification code
-    const { error: insertError } = await supabase
+    const { error: insertError } = await adminClient
       .from("verification_codes")
       .insert({
         device_session_id,
-        code,
+        code_hash: hash,
+        salt,
         expires_at: expiresAt.toISOString(),
       });
 

@@ -1,11 +1,24 @@
 import { createClient } from "@/utils/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TGetDeviceSessionsResponse } from "@/types/api";
+import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 
-export async function GET() {
-  const supabase = await createClient();
-
+export async function GET(request: NextRequest) {
   try {
+    if (apiRateLimit) {
+      const ip = getClientIp(request);
+      const { success } = await apiRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
+    const supabase = await createClient();
+
     const {
       data: { user },
       error: userError,

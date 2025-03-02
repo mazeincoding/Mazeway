@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useUserStore } from "@/store/user-store";
 import { KeyRound, ShieldIcon } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
 import {
@@ -9,8 +8,7 @@ import {
   type PasswordChangeSchema,
 } from "@/utils/validation/auth-validation";
 import { toast } from "sonner";
-import { AUTH_CONFIG } from "@/config/auth";
-import { TTwoFactorMethod } from "@/types/auth";
+import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
 import { TwoFactorMethods } from "@/components/2fa-methods";
 import { DeviceSessionsList } from "@/components/device-sessions-list";
 import { useForm } from "react-hook-form";
@@ -24,24 +22,39 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useUser } from "@/hooks/use-auth";
+import { api } from "@/utils/api";
+import { TChangePasswordRequest } from "@/types/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { VerifyForm } from "@/components/verify-form";
 
 export default function Security() {
-  const { isLoading, user, refreshUser, disable2FA } = useUserStore();
+  const { user, isLoading, refresh: refreshUser } = useUser();
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
+
   const hasPasswordAuth = user?.has_password ?? false;
   const [showPasswords, setShowPasswords] = useState({
     currentPassword: false,
     newPassword: false,
   });
   const [error, setError] = useState<string | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [twoFactorData, setTwoFactorData] = useState<{
-    factorId: string;
-    availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
-    password: string;
-  } | null>(null);
+  const [verificationFactorId, setVerificationFactorId] = useState<
+    string | null
+  >(null);
+  const [verificationMethods, setVerificationMethods] = useState<
+    TVerificationFactor[] | null
+  >(null);
   const [qrCode, setQrCode] = useState<string>("");
   const [secret, setSecret] = useState<string>("");
   const [factorId, setFactorId] = useState<string>("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
   const form = useForm<PasswordChangeSchema>({
     resolver: zodResolver(passwordChangeSchema),
@@ -58,49 +71,40 @@ export default function Security() {
     });
   };
 
-  const onSubmit = async (values: PasswordChangeSchema) => {
+  const updatePassword = async (
+    values: PasswordChangeSchema,
+    verificationCode?: string
+  ) => {
+    setError(null);
+
     try {
-      const response = await fetch("/api/auth/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentPassword: values.currentPassword,
-          newPassword: values.newPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Too many attempts", {
-            description: "Please wait a moment before trying again.",
-            duration: 4000,
-          });
-          return;
-        }
-
-        if (data.error?.includes("identity_not_found")) {
-          toast.error("Cannot add password", {
-            description:
-              "There was an issue adding a password to your OAuth account. Please try again or contact support.",
-            duration: 4000,
-          });
-          return;
-        }
-
-        throw new Error(data.error || "Failed to update password");
+      // If we're in verification mode, verify first
+      if (verificationCode && verificationFactorId && verificationMethods) {
+        setIsVerifying(true);
+        await api.auth.verify({
+          factorId: verificationFactorId,
+          code: verificationCode,
+          method: verificationMethods[0].type,
+        });
       }
 
-      if (data.requiresTwoFactor) {
-        setTwoFactorData({
-          factorId: data.factorId,
-          availableMethods: data.availableMethods,
-          password: "",
-        });
+      // After verification (or if no verification needed), change password
+      const params: TChangePasswordRequest = {
+        currentPassword: form.getValues("currentPassword"),
+        newPassword: form.getValues("newPassword"),
+      };
+
+      const data = await api.auth.changePassword(params);
+
+      // Check if 2FA is required
+      if (data.requiresTwoFactor && data.factorId && data.availableMethods) {
+        setVerificationFactorId(data.factorId);
+        setVerificationMethods(data.availableMethods);
+        setShowTwoFactorDialog(true);
         return;
       }
 
+      // Success - password was changed
       toast.success(hasPasswordAuth ? "Password updated" : "Password added", {
         description: hasPasswordAuth
           ? "Your password has been changed successfully."
@@ -108,77 +112,104 @@ export default function Security() {
         duration: 3000,
       });
 
+      // Reset form and dialog state
+      setShowTwoFactorDialog(false);
       form.reset();
+
+      // Refresh user data if needed
+      if (verificationCode) {
+        await refreshUser();
+      }
     } catch (error) {
-      toast.error("Error", {
-        description:
-          error instanceof Error ? error.message : "Failed to update password",
-        duration: 3000,
-      });
+      if (error instanceof Error) {
+        // Handle rate limiting error
+        if (error.message.includes("Too many requests")) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 3000,
+          });
+          return;
+        }
+
+        // Handle OAuth identity error
+        if (error.message.includes("identity_not_found")) {
+          toast.error("Cannot add password", {
+            description:
+              "There was an issue adding a password to your OAuth account. Please try again or contact support.",
+            duration: 3000,
+          });
+          return;
+        }
+
+        setError(error.message);
+        toast.error("Error", {
+          description: error.message || "Failed to update password",
+          duration: 3000,
+        });
+      } else {
+        setError("An unexpected error occurred");
+        toast.error("Error", {
+          description: "Failed to update password",
+          duration: 3000,
+        });
+      }
+    } finally {
+      setIsVerifying(false);
     }
   };
 
+  // Form submission handler
+  const onSubmit = (values: PasswordChangeSchema) => updatePassword(values);
+
+  // 2FA verification handler
+  const handleVerifyPasswordChange = (code: string) =>
+    updatePassword({} as PasswordChangeSchema, code);
+
   const handleEnable2FA = async (method: TTwoFactorMethod, phone?: string) => {
     try {
-      const response = await fetch("/api/auth/2fa/enroll", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ method, phone }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to start 2FA enrollment");
-      }
-
-      const data = await response.json();
+      const result = await api.auth.setup2FA({ method, phone });
 
       // Store data based on method
       if (method === "authenticator") {
-        setQrCode(data.qr_code);
-        setSecret(data.secret);
+        setQrCode(result.qr_code || "");
+        setSecret(result.secret || "");
       } else {
         // Clear authenticator-specific states if enrolling SMS
         setQrCode("");
         setSecret("");
       }
       // Store factor ID for both methods
-      setFactorId(data.factor_id);
-      setError(null);
+      setFactorId(result.factor_id || "");
 
-      return data;
+      setError(null);
     } catch (err) {
       // Clean up all states on error
       setQrCode("");
       setSecret("");
       setFactorId("");
-      setError(err instanceof Error ? err.message : "Failed to enable 2FA");
-      console.error("Error enabling 2FA:", err);
+      setBackupCodes([]);
+      setError("An unexpected error occurred");
+      console.error("Unexpected error in 2FA setup:", err);
       toast.error("Error", {
-        description:
-          err instanceof Error ? err.message : "Failed to enable 2FA",
+        description: "An unexpected error occurred",
+        duration: 3000,
       });
-      throw err;
     }
   };
 
   const handleDisable2FA = async (method: TTwoFactorMethod, code: string) => {
     try {
-      await disable2FA(method, code);
+      await api.auth.disable2FA({ method, code });
 
       // Success
       toast.success("2FA disabled", {
         description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been disabled.`,
         duration: 3000,
       });
+
+      await refreshUser();
     } catch (err) {
-      console.error("Error disabling 2FA:", err);
-      toast.error("Error", {
-        description:
-          err instanceof Error ? err.message : "Failed to disable 2FA",
-      });
+      // Throw the error to be handled by the component
       throw err;
     }
   };
@@ -191,50 +222,58 @@ export default function Security() {
     try {
       setIsVerifying(true);
       setError(null);
+      console.log("Starting verification with:", { method, factorId });
 
-      const response = await fetch("/api/auth/2fa/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          factorId,
-          code,
-          method,
-          phone,
-        }),
-      });
+      // First try-catch block just for the verification API call
+      const response = await api.auth.verify({ factorId, method, code, phone });
+      console.log("Verification response:", response);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Too many attempts", {
-            description: "Please wait a moment before trying again.",
-            duration: 4000,
-          });
-          return;
-        }
-
-        setError(data.error || "Failed to verify code");
-        return;
+      // If we got backup codes from verification, set them
+      if (response.backup_codes) {
+        console.log("Setting backup codes:", response.backup_codes);
+        setBackupCodes(response.backup_codes);
       }
 
-      // Success
-      toast.success("2FA enabled", {
-        description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been enabled successfully.`,
-        duration: 3000,
-      });
+      // Separate try-catch for post-verification operations
+      try {
+        if (response.backup_codes) {
+          // Only show success message after user has seen backup codes
+          // The TwoFactorMethods component should handle showing these and clearing state
+          setError(null);
+          await refreshUser();
+        } else {
+          console.log("No backup codes in response");
+          // If no backup codes (not first 2FA method), clear state immediately
+          toast.success("2FA enabled", {
+            description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been enabled successfully.`,
+            duration: 3000,
+          });
 
-      // Clear state
-      setQrCode("");
-      setSecret("");
-      setFactorId("");
-      setError(null);
-      await refreshUser();
+          // Clear state
+          setQrCode("");
+          setSecret("");
+          setFactorId("");
+          setError(null);
+          await refreshUser();
+        }
+      } catch (postVerifyError) {
+        // If there's an error after verification (like during refreshUser),
+        // we don't want to clear backup codes if we received them
+        setError(
+          "2FA was enabled but there was an error refreshing the page. Please reload."
+        );
+      }
     } catch (err) {
-      console.error("Error verifying 2FA:", err);
-      setError("Failed to verify code. Please try again.");
+      console.error("Unexpected error in 2FA verification:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to verify code. Please try again."
+      );
+      // Only clear backup codes if we haven't received them yet
+      if (!backupCodes.length) {
+        setBackupCodes([]);
+      }
     } finally {
       setIsVerifying(false);
     }
@@ -320,28 +359,27 @@ export default function Security() {
         </SettingCard.Footer>
       </SettingCard>
 
-      {AUTH_CONFIG.twoFactorAuth.enabled && (
-        <SettingCard icon={ShieldIcon}>
-          <SettingCard.Header>
-            <SettingCard.Title>Two-factor authentication</SettingCard.Title>
-            <SettingCard.Description>
-              Add an extra layer of security to your account.
-            </SettingCard.Description>
-          </SettingCard.Header>
-          <SettingCard.Content>
-            <TwoFactorMethods
-              enabledMethods={user?.auth.twoFactorMethods || []}
-              onMethodSetup={handleEnable2FA}
-              onMethodDisable={handleDisable2FA}
-              onVerify={handleVerifyEnrollment}
-              qrCode={qrCode}
-              secret={secret}
-              isVerifying={isVerifying}
-              verificationError={error}
-            />
-          </SettingCard.Content>
-        </SettingCard>
-      )}
+      <SettingCard icon={ShieldIcon}>
+        <SettingCard.Header>
+          <SettingCard.Title>Two-factor authentication</SettingCard.Title>
+          <SettingCard.Description>
+            Add an extra layer of security to your account.
+          </SettingCard.Description>
+        </SettingCard.Header>
+        <SettingCard.Content>
+          <TwoFactorMethods
+            enabledMethods={user?.auth?.enabled2faMethods ?? []}
+            onMethodSetup={handleEnable2FA}
+            onMethodDisable={handleDisable2FA}
+            onVerify={handleVerifyEnrollment}
+            qrCode={qrCode}
+            secret={secret}
+            backupCodes={backupCodes}
+            isVerifying={isVerifying}
+            verificationError={error}
+          />
+        </SettingCard.Content>
+      </SettingCard>
 
       <SettingCard icon={ShieldIcon}>
         <SettingCard.Header>
@@ -354,6 +392,31 @@ export default function Security() {
           <DeviceSessionsList />
         </SettingCard.Content>
       </SettingCard>
+
+      {/* 2FA Dialog for Password Change */}
+      {verificationFactorId && verificationMethods && (
+        <Dialog
+          open={showTwoFactorDialog}
+          onOpenChange={setShowTwoFactorDialog}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify your identity</DialogTitle>
+              <DialogDescription>
+                Please enter your two-factor authentication code to change your
+                password.
+              </DialogDescription>
+            </DialogHeader>
+            <VerifyForm
+              factorId={verificationFactorId}
+              availableMethods={verificationMethods}
+              onVerify={handleVerifyPasswordChange}
+              isVerifying={isVerifying}
+              error={error}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

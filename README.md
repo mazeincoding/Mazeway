@@ -67,11 +67,11 @@ This starter pack includes all of that, and more.
 - Complete authentication flow:
   - Login/signup pages
   - Password reset
-  - Email verification
-  - Device sessions and verification
+  - Device sessions tracking
   - Two-factor authentication (2FA):
       - Authenticator App
       - SMS
+      - Backup codes
 - Settings
   - Basic profile management
   - Change password
@@ -83,8 +83,15 @@ This starter pack includes all of that, and more.
     - View activity history (logins, disable 2FA, etc)
     - Get alerts for sensitive activity (unknown device login, etc)
   - Enable and disable 2FA (including individual methods)
+- Verification:
+    - 2FA methods (Authenticator, SMS)
+    - Backup codes (for 2FA-accounts)
+        - Cryptographically secure
+        - Supports multiple formats (words, alphanumeric, numeric)
+    - Password verification (no-2FA accounts with password)
+    - Email verification (no-2FA accounts)
 - API rate limiting with Upstash Redis
-- Bonus: a nice auth config in the project for devs to easily customize
+- Bonus: a nice auth config in the project for devs to easily customize things (opens up more things than on this list)
 
 This is only the beginning. It's a great start. But if you're curious, check out `docs/roadmap.md`.
 
@@ -126,6 +133,7 @@ If you get errors with that flag too, check out [this list](https://docs.google.
         - `SUPABASE_SERVICE_ROLE_KEY`: your service role/secret key from step 2
 
     > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys)
+
 4. Create Supabase tables
     - Head over to the Supabase [SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
     - Run all these code snippets:
@@ -232,8 +240,12 @@ If you get errors with that flag too, check out [this list](https://docs.google.
       is_trusted boolean DEFAULT false,
       needs_verification boolean DEFAULT false,
       confidence_score integer DEFAULT 0,
+      aal text DEFAULT 'aal1' CHECK (aal IN ('aal1', 'aal2')),
       expires_at timestamp with time zone NOT NULL,
-      last_verified timestamp with time zone,
+      -- When this device was verified via email code (for unknown device login)
+      device_verified_at timestamp with time zone,
+      -- When user last performed 2FA/basic verification for sensitive actions
+      last_sensitive_verification_at timestamp with time zone,
       created_at timestamp with time zone DEFAULT now(),
       updated_at timestamp with time zone DEFAULT now()
     );
@@ -242,12 +254,6 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     ALTER TABLE device_sessions ENABLE ROW LEVEL SECURITY;
     
     -- Step 3: Create RLS policies
-    
-    -- Allow users to insert their own device sessions
-    CREATE POLICY "Allow users to insert their own device sessions"
-    ON device_sessions
-    FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
     
     -- Allow users to view their own device sessions
     CREATE POLICY "Allow users to view their own device sessions"
@@ -265,70 +271,62 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     CREATE INDEX idx_device_sessions_user_id ON device_sessions(user_id);
     CREATE INDEX idx_device_sessions_device_id ON device_sessions(device_id);
     ```
+    
     **Create verification codes table**
     ```sql
     -- Create verification_codes table
     CREATE TABLE verification_codes (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       device_session_id uuid REFERENCES device_sessions(id) ON DELETE CASCADE,
-      code text NOT NULL,
+      code_hash text NOT NULL,
+      salt text NOT NULL,
       expires_at timestamp with time zone NOT NULL,
       created_at timestamp with time zone DEFAULT now(),
       updated_at timestamp with time zone DEFAULT now()
     );
-    
+
     -- Enable RLS
     ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
-    
-    -- Create RLS policies
-    CREATE POLICY "Allow users to insert verification codes for their devices"
-    ON verification_codes
-    FOR INSERT
-    WITH CHECK (
-      EXISTS (
-        SELECT 1 FROM device_sessions
-        WHERE device_sessions.id = verification_codes.device_session_id
-        AND device_sessions.user_id = auth.uid()
-      )
-    );
-    
-    -- Allow users to view their own verification codes
-    CREATE POLICY "Allow users to view their own verification codes"
-    ON verification_codes
-    FOR SELECT
-    USING (
-      EXISTS (
-        SELECT 1 FROM device_sessions
-        WHERE device_sessions.id = verification_codes.device_session_id
-        AND device_sessions.user_id = auth.uid()
-      )
-    );
-    
-    -- Allow users to delete their own verification codes
-    CREATE POLICY "Allow users to delete their own verification codes"
-    ON verification_codes
-    FOR DELETE
-    USING (
-      EXISTS (
-        SELECT 1 FROM device_sessions
-        WHERE device_sessions.id = verification_codes.device_session_id
-        AND device_sessions.user_id = auth.uid()
-      )
-    );
-    
+
     -- Create trigger for updated_at
     CREATE TRIGGER update_verification_codes_updated_at
     BEFORE UPDATE ON verification_codes
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
-    
+
     -- Create index for faster lookups
     CREATE INDEX idx_verification_codes_device_session_id 
     ON verification_codes(device_session_id);
-    
+
     -- Create index for faster expiry cleanup
     CREATE INDEX idx_verification_codes_expires_at 
     ON verification_codes(expires_at);
+    ```
+
+    **Create backup codes table**
+    ```sql
+    -- Create backup_codes table
+    CREATE TABLE backup_codes (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid REFERENCES auth.users NOT NULL,
+        code_hash text NOT NULL,
+        salt text NOT NULL,
+        used_at timestamp with time zone,
+        created_at timestamp with time zone DEFAULT now(),
+        updated_at timestamp with time zone DEFAULT now()
+    );
+    
+    -- Enable RLS 
+    ALTER TABLE backup_codes ENABLE ROW LEVEL SECURITY;
+    
+    -- Create trigger for updated_at
+    CREATE TRIGGER update_backup_codes_updated_at
+    BEFORE UPDATE ON backup_codes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+    
+    -- Create index for faster lookups
+    CREATE INDEX idx_backup_codes_user_id ON backup_codes(user_id);
     ```
 
 5. Change email templates
@@ -337,30 +335,152 @@ If you get errors with that flag too, check out [this list](https://docs.google.
 
     **Confirm signup**
     ```html
-    <h2>Confirm your signup</h2>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <title>Confirm your signup</title>
+      <style>
+        @media only screen and (max-width: 600px) {
+          .container {
+            width: 100% !important;
+          }
+        }
+      </style>
+    </head>
+    <body style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
+      <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
+        <!-- Header with Logo -->
+        <div>
+          <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
+        </div>
     
-    <p>Follow this link to confirm your user:</p>
-    <p><a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup">Confirm your mail</a></p>
+        <!-- Main Heading -->
+        <h1 style="font-size: 24px; font-weight: 600; color: #202124; text-align: left; margin: 30px 0 20px;">Confirm Your Signup</h1>
+    
+        <!-- Main Content -->
+        <div style="margin-bottom: 16px;">
+          <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
+            Thank you for signing up. Please confirm your email address to complete your registration.
+          </p>
+        </div>
+    
+        <!-- Action Button Section -->
+        <div style="background-color: #ffffff; padding: 20px 0; text-align: left; margin-bottom: 20px;">
+          <a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup" style="background-color: #000000; color: white; padding: 12px     24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Confirm Email</a>
+        </div>
+    
+        <!-- Footer Text -->
+        <p style="font-size: 14px; color: #5f6368; margin-top: 20px; text-align: left;">
+          If you did not create an account, please ignore this email.
+        </p>
+      </div>
+    </body>
+    </html>
     ```
     
     **Change Email Address**
     ```html
-    <h2>Confirm Change of Email</h2>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <title>Confirm Change of Email</title>
+      <style>
+        @media only screen and (max-width: 600px) {
+          .container {
+            width: 100% !important;
+          }
+        }
+      </style>
+    </head>
+    <body style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
+      <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
+        <!-- Header with Logo -->
+        <div>
+          <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
+        </div>
     
-    <p>Follow this link to confirm the update of your email from {{ .Email }} to {{ .NewEmail }}:</p>
-    <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account">Change Email</a></p>
+        <!-- Main Heading -->
+        <h1 style="font-size: 24px; font-weight: 600; color: #202124; text-align: left; margin: 30px 0 20px;">Confirm Change of Email</h1>
+    
+        <!-- Main Content -->
+        <div style="margin-bottom: 16px;">
+          <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
+            We received a request to change your email address from {{ .Email }} to {{ .NewEmail }}. Please confirm this change by clicking the button below.
+          </p>
+        </div>
+    
+        <!-- Action Button Section -->
+        <div style="background-color: #ffffff; padding: 20px 0; text-align: left; margin-bottom: 20px;">
+          <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account" style="background-color: #000000; color: white;     padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Confirm Email Change</a>
+        </div>
+    
+        <!-- Footer Text -->
+        <p style="font-size: 14px; color: #5f6368; margin-top: 20px; text-align: left;">
+          If you did not request this change, please secure your account immediately by changing your password.
+        </p>
+      </div>
+    </body>
+    </html>
     ```
     
     **Reset Password**
     ```html
-    <h2>Reset Password</h2>
-
-    <p>Follow this link to reset the password for your user:</p>
-    <p><a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}">Reset Password</a></p>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <title>Reset Your Password</title>
+      <style>
+        @media only screen and (max-width: 600px) {
+          .container {
+            width: 100% !important;
+          }
+        }
+      </style>
+    </head>
+    <body style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
+      <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
+        <!-- Header with Logo -->
+        <div>
+          <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
+        </div>
+    
+        <!-- Main Heading -->
+        <h1 style="font-size: 24px; font-weight: 600; color: #202124; text-align: left; margin: 30px 0 20px;">Reset Your Password</h1>
+    
+        <!-- Main Content -->
+        <div style="margin-bottom: 16px;">
+          <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
+            We received a request to reset your password. Click the button below to create a new password.
+          </p>
+        </div>
+    
+        <!-- Action Button Section -->
+        <div style="background-color: #ffffff; padding: 20px 0; text-align: left; margin-bottom: 20px;">
+          <a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}" style="background-color: #000000; color: white; padding: 12px     24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Reset Password</a>
+        </div>
+    
+        <!-- Footer Text -->
+        <p style="font-size: 14px; color: #5f6368; margin-top: 20px; text-align: left;">
+          If you did not request a password reset, please ignore this email or contact support if you have concerns.
+        </p>
+      </div>
+    </body>
+    </html>
     ```
+    > [!NOTE]
+    > You can customize these email templates depending on your needs, like the primary color or other stuff.
+    >
+    > Don't stress too much about this in development. This README has a production checklist that covers this already so you won't forget.
+    >
+    > Same deal with the logo. Production checklist got you covered for when you actually need it.
 
-
-6. Set up Google OAuth and connect to Supabase
+1. Set up Google OAuth and connect to Supabase
 
 This will allow users to sign in with Google.
 
@@ -456,11 +576,15 @@ You won't even need to touch the Supabase dashboard to do it.
     - RESEND_API_KEY=your-resend-api-key
     - RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
     + RESEND_API_KEY=your-resend-api-key
-    + RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
+    + RESEND_FROM_EMAIL="Your_name <example@yourdomain.com>"
     ```
 
 Congrats! 🎉 You just set up everything you need for the auth to work. You can:
 - Go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
+
+> [!NOTE]
+> When running the dev server, you may see a warning in your console about `supabase.auth.getSession()` being potentially insecure. This is a [known issue](https://github.com/supabase/auth-js/issues/873) with the Supabase auth library and can be safely ignored. The warning is a false positive - this project follows all security best practices and uses the recommended `@supabase/ssr` package correctly.
+
 - Or if setup was too fast for you, keep reading. You'll learn about the project you're working with, optional steps (recommended for production) and more fun stuff.
 
 No joke: 99% of auth is done for production but **when you go in production**, I really recommend you:
@@ -657,12 +781,30 @@ What you need to know:
 
 ## Production checklist
 1. Change logo throughout app
-2. Set up Supabase for production. This will be more clear once I know more about it, but:
+    - Firstly, you're gonna upload your logo to a CDN (super easy, I'll show you)
+    - Reason: if you put it directly in the /public folder, email templates can't use your logo. So don't do that
+    - Supabase ia actually great here. Here's what you're gonna do:
+    - Go to [Supabase Storage](https://supabase.com/dashboard/project/_/storage/buckets)
+    - Click "New bucket" and name it "logo"
+    - Turn on "Public bucket"
+    - Click "Save"
+    - Now click the budget to open it and upload your logo here
+    - Pro tip: go to [Iloveimg.com](https://www.iloveimg.com/compress-image) and compress your image before uploading (not an ad)
+    - See how easy that was? Now click your uploaded logo in the bucket and click "Get URL" on the right
+    - Paste this URL throughout the entire app
+        - `emails/components/header.tsx`
+        - `src/components/header.tsx`
+        - PLUS all the email templates in your Supabase dashboard (we set these up earlier)
+2. Change branding color in emails
+    - Even though you change the primary color in `src/app/globals.css`...
+    - They're not applied to your email templates automatically
+    - Double check the email templates in this project and the Supabase dashboard
+3. Set up Supabase for production. This will be more clear once I know more about it, but:
     - Check out this: [X post](https://x.com/dshukertjr/status/1880601786647728638). It seems like that's how you handle dev/production nowadays
     - Or create 2 Supabase projects: one for dev and one for production. But try the one above this first.
-3. Set up Resend
-4. Set up Upstash Redis for API rate limiting
-5. If you set up SMS for two-factor authentication:
+4. Set up Resend
+5. Set up Upstash Redis for API rate limiting
+6. If you set up SMS for two-factor authentication:
     - Upgrade from Twilio trial account (add payment info)
     - Register for A2P 10DLC (that fancy thing for business texting)
     - Wait for carrier approval
@@ -671,18 +813,62 @@ What you need to know:
         - Monthly fees
         - Registration fees
         - Different rates per country
-6. Enable "Enforce SSL on incoming connections" in Supabase:
+7. Enable "Enforce SSL on incoming connections" in Supabase:
     - [Database Settings](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/settings/database)
-7. Change email OPT expiration (see how in "Recommended for production")
-8. Publish your Google OAuth app:
+8. Change email OPT expiration (see how in "Recommended for production")
+9.  Publish your Google OAuth app:
     - Go to [Google Cloud Console OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent?inv=1&invt=AbohWw)
     - Click the "Publish app" button to make it available to all users
-9. Optional but good to have: Set up session cleanup
+10. Optional but good to have: Set up session cleanup
    - Not super urgent - your database won't explode
    - But good to do if you expect lots of users or long-term use
    - Will be much simpler to set up soon via Supabase dashboard
 
 ## Get to know the project better
+
+### Data Fetching Strategy: SWR + API Utility
+You might notice we use two different approaches for handling data and API calls. This isn't an accident - each serves a specific purpose:
+
+1. **SWR Hooks** (`/hooks/use-auth.ts`):
+   - Think of these as "data subscribers"
+   - Perfect for data that changes and needs to stay fresh (like user data)
+   - Automatically revalidates when you:
+     - Switch back to the tab
+     - Reconnect to the internet
+     - Make changes that affect the data
+   - Example: `useUser()` hook keeps the user's data in sync across the app
+   - Only handles reading and subscribing to data, not mutations
+
+2. **API Utility** (`/utils/api.ts`):
+   - Think of this as your "action caller"
+   - Handles one-off actions like login, signup, or enabling 2FA
+   - Provides consistent error handling (no more try-catch everywhere)
+   - Gives you proper TypeScript types for requests/responses
+   - Example: `api.auth.login()` for handling authentication
+   - Only handles mutations and actions, not data subscriptions
+
+How they work together:
+1. API utility makes changes (like login)
+2. API tells us if we need to refresh data
+3. If needed, we use SWR's refresh function to update the data
+
+Example:
+```typescript
+// 1. Call API to log in
+const result = await api.auth.emailAuth({...});
+
+// 2. API tells us if user data changed
+if (result.shouldRefresh) {
+  // 3. Use SWR to refresh the data
+  await refreshUser();
+}
+```
+
+This separation keeps things clean:
+- SWR only cares about keeping data fresh
+- API utility only cares about actions
+- They work together but don't overlap
+- Each piece has one clear job
 
 ### Types: where they are and why the naming convention
 You might notice in the types (`/types`) we define interfaces and types with a prefix of "T". This is intentional to avoid name conflicts with components vs types.
@@ -728,11 +914,12 @@ Most templates will actually be in your Supabase dashboard. The ones you can fin
 
 All other email templates live in this project in `/emails/templates`. You'll find:
 - Verify device (`/emails/templates/device-verification.tsx`)
-- Log in alert (`/emails/templates/email-alert.tsx`)
+- Login alert (`/emails/templates/email-alert.tsx`)
+- Verify email (`/emails/templates/email-verification.tsx`)
 
-Separating the email templates wasn't a design choice. Supabase didn't have these security features built-in, so we had to do it ourselves.
+Separating the email templates wasn't a design choice. It sucks a little because you have email templates in 2 different places. But how often do you change these? Probably never. Not a huge concern. Just wanted to make you aware of that.
 
-Now: coolest thing ever? It uses react-email (which makes it cool). Watch this:
+Now: coolest thing ever? The email templates in the project uses react-email (which is cool). Watch this:
 
 try running this command in the terminal:
 ```bash
@@ -764,7 +951,9 @@ supabase.auth.signInWithEmailAndPassword();
 ```
 - ✅ We call an API route to logout the user:
 ```typescript
-fetch(`/api/auth/email/${type}`)
+import { api } from "@/utils/api";
+
+api.auth.logout(); // this will do a fetch call instead of supabase,auth.logout();
 ```
 
 Reasons:
@@ -816,6 +1005,14 @@ Now let's imagine the user signs up with Email/Password:
 3. Redirecting to a general auth error page would be a way worse UX
 
 Standardizing a single approach here adds zero benefits and introduces a lot of limits.
+
+### Authentication Assurance Level (AAL)
+> [!WARNING]
+> Never trust `supabase.auth.mfa.getAuthenticatorAssuranceLevel()`. This is only set by Supabase and it doesn't reflect our app's logic.
+>
+> Instead, you should use our `getAuthenticatorAssuranceLevel` utility (`src/utils/auth.ts`) which respects backup codes.
+>
+> The reason is Supabase does not natively support backup codes. So we implement a custom solution. When a user verifies using one of these, we can't set `supabase.auth.mfa.getAuthenticatorAssuranceLevel`. Instead, we update the `aal` column on a device session to aal2 after successful verification.
 
 ## Pro tips + note for Supabase
 

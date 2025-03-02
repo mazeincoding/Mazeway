@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import type { TDeviceSession } from "@/types/auth";
 import { BackButton } from "@/components/back-button";
+import { api } from "@/utils/api";
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -32,31 +33,21 @@ export default function VerifyPage() {
   const handleVerify = async () => {
     setIsVerifying(true);
     try {
-      const response = await fetch("/api/auth/verify-device", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          device_session_id: session,
-          code,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        // Stay on same page but with error
-        router.push(
-          `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=${error.error}&message=${encodeURIComponent(error.message)}`
-        );
-        return;
+      if (!session) {
+        throw new Error("No device session found");
       }
+
+      await api.auth.verifyDevice.verify({
+        device_session_id: session,
+        code,
+      });
 
       // Redirect to next URL on success
       router.push(next);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Network error";
       router.push(
-        `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=network_error`
+        `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=verification_failed&message=${encodeURIComponent(message)}`
       );
     } finally {
       setIsVerifying(false);
@@ -88,33 +79,24 @@ export default function VerifyPage() {
         return;
       }
 
-      // Send verification code
-      const response = await fetch("/api/auth/verify-device/send-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          device_session_id: session,
-          device_name: deviceSession.device.device_name,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        router.push(
-          `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=${error.error}&message=${encodeURIComponent(error.message)}`
-        );
-        return;
+      if (!session) {
+        throw new Error("No device session found");
       }
+
+      // Send verification code
+      await api.auth.verifyDevice.sendCode({
+        device_session_id: session,
+        device_name: deviceSession.device.device_name,
+      });
 
       // Reset error state and code input
       router.push(
         `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}`
       );
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Network error";
       router.push(
-        `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=network_error`
+        `/auth/verify-device?session=${session}&next=${encodeURIComponent(next)}&error=network_error&message=${encodeURIComponent(message)}`
       );
     } finally {
       setIsSendingCode(false);

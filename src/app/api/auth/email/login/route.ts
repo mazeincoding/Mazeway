@@ -1,8 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-import { TApiErrorResponse, TEmailLoginResponse } from "@/types/api";
-import { checkTwoFactorRequirements } from "@/utils/auth";
+import {
+  TApiErrorResponse,
+  TEmailLoginRequest,
+  TEmailLoginResponse,
+} from "@/types/api";
+import { getUserVerificationMethods } from "@/utils/auth";
+import { authSchema } from "@/utils/validation/auth-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,15 +26,18 @@ export async function POST(request: NextRequest) {
     const { origin } = new URL(request.url);
     const redirectUrl = `${origin}/api/auth/post-auth?provider=email&next=/`;
 
-    const body = await request.json();
+    // Parse and validate request body
+    const rawBody = await request.json();
+    const validation = authSchema.safeParse(rawBody);
 
-    // Basic check for required fields
-    if (!body.email || !body.password) {
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { error: validation.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    const body: TEmailLoginRequest = validation.data;
 
     const supabase = await createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({
@@ -46,17 +54,26 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Check if 2FA is required
-      const twoFactorResult = await checkTwoFactorRequirements(supabase);
+      // Check if user has 2FA enabled
+      const { has2FA, methods, factors } =
+        await getUserVerificationMethods(supabase);
 
-      if (twoFactorResult.requiresTwoFactor) {
+      if (has2FA) {
+        // Get first available 2FA method and its factor
+        const factor = factors.find((f) => methods.includes(f.type));
+        if (!factor) {
+          throw new Error("No valid 2FA methods found");
+        }
+
         return NextResponse.json({
-          ...twoFactorResult,
+          requiresTwoFactor: true,
+          factorId: factor.factorId,
+          availableMethods: factors,
           redirectTo: redirectUrl,
         }) satisfies NextResponse<TEmailLoginResponse>;
       }
     } catch (error) {
-      console.error("Error checking 2FA requirements:", error);
+      console.error("Error checking 2FA status:", error);
       return NextResponse.json(
         { error: "Failed to check 2FA status" },
         { status: 500 }

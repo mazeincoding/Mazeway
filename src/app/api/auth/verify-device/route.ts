@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
+import { verifyVerificationCode } from "@/utils/verification-codes";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
-        );
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
     }
 
@@ -30,11 +31,10 @@ export async function POST(request: NextRequest) {
     const adminClient = await createClient({ useServiceRole: true });
 
     // Get the verification code
-    const { data: verificationCode, error: codeError } = await supabase
+    const { data: verificationCode, error: codeError } = await adminClient
       .from("verification_codes")
       .select("*")
       .eq("device_session_id", device_session_id)
-      .eq("code", code)
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(1)
@@ -47,12 +47,26 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    // Verify the code hash
+    const isValid = await verifyVerificationCode(
+      code,
+      verificationCode.code_hash,
+      verificationCode.salt
+    );
+
+    if (!isValid) {
+      return NextResponse.json(
+        { error: "Invalid verification code" },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     // Update device session
     const { error: updateError } = await adminClient
       .from("device_sessions")
       .update({
         needs_verification: false,
-        last_verified: new Date().toISOString(),
+        device_verified_at: new Date().toISOString(),
       })
       .eq("id", device_session_id);
 
@@ -65,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete used verification code
-    await supabase
+    await adminClient
       .from("verification_codes")
       .delete()
       .eq("id", verificationCode.id)

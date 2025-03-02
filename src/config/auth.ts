@@ -3,47 +3,85 @@
  * You can change more things in your Supabase dashboard under authentication.
  */
 
-import { TTwoFactorMethod } from "@/types/auth";
+import { TTwoFactorMethod, TVerificationMethod } from "@/types/auth";
 
 export const AUTH_CONFIG = {
-  deviceVerification: {
-    codeExpirationTime: 10, // In minutes
-    codeLength: 6,
-  },
-  deviceSessions: {
-    // Device sessions last for 1 year to match Supabase's refresh token expiration.
-    maxAge: 365,
-  },
-  twoFactorAuth: {
-    // Important: enabling/disabling two factor authentication or any methods does NOT control the user preferences
-    // This is a feature flag that controls which methods are available in the app
-    methods: [
-      {
+  // Available verification methods
+  verificationMethods: {
+    // Basic verification methods (for non-2FA accounts)
+    email: {
+      title: "Email",
+      description: "Receive a verification code via email",
+      type: "email" as TVerificationMethod,
+      enabled: true,
+    },
+    password: {
+      title: "Password",
+      description: "Verify using your account password",
+      type: "password" as TVerificationMethod,
+      enabled: true,
+    },
+    // Two-factor methods (for 2FA-enabled accounts)
+    twoFactor: {
+      authenticator: {
         title: "Authenticator app",
         description: "Use your authenticator app to verify your identity",
-        enabled: true,
         type: "authenticator" as TTwoFactorMethod,
+        enabled: true,
       },
-      {
+      sms: {
         title: "SMS",
         description: "Receive a verification code via SMS",
-        enabled: false,
         type: "sms" as TTwoFactorMethod,
+        enabled: false, // Disabled by default - enable if you've set up Twilio
       },
-    ],
-    enabled: true,
-    // Controls which operations require a fresh 2FA verification
-    // even if the user's session already has AAL2
-    requireFreshVerificationFor: {
-      // Whether a fresh 2FA verification is required to log out other devices
-      // If enabled, a grace period (in minutes) can be set
-      // which means subsequent device logouts won't require re-verification
-      deviceLogout: {
+      backupCodes: {
+        title: "Backup codes",
+        description: "Use a backup code to verify your identity",
+        type: "backup_codes" as TTwoFactorMethod,
         enabled: true,
-        gracePeriodMinutes: 5,
       },
     },
   },
+
+  backupCodes: {
+    format: "words" as "words" | "alphanumeric" | "numeric",
+    count: 10, // Number of backup codes to generate
+    wordCount: 6, // Number of words per code (if using words format)
+    alphanumericLength: 8, // Length of alphanumeric codes
+  },
+
+  deviceSessions: {
+    // Device sessions last for 1 year to match Supabase's refresh token expiration
+    maxAge: 365,
+  },
+
+  // How long after a fresh verification can this device do sensitive actions?
+  // After this time, need to verify again (2FA or basic depending on account security)
+  // This is PER DEVICE SESSION to prevent attacks even if one device is compromised
+  sensitiveActionGracePeriod: 5, // In minutes
+
+  // Which operations need fresh verification
+  // The verification method depends on account's security level:
+  // - If account has 2FA: must use 2FA (or backup codes)
+  // - If no 2FA: can use basic verification (email/password)
+  requireFreshVerification: {
+    revokeDevices: false,
+    deleteAccount: true,
+  },
+
+  // Device verification (for unknown device login)
+  deviceVerification: {
+    codeExpirationTime: 10, // minutes
+    codeLength: 6,
+  },
+
+  // Email verification configuration
+  emailVerification: {
+    codeExpirationTime: 10, // minutes
+    codeLength: 6,
+  },
+
   passwordReset: {
     // Whether users need to log in again after resetting their password
     // Disabled by default since user already proved ownership via email
@@ -51,12 +89,14 @@ export const AUTH_CONFIG = {
     // And add to `.env.local` like `RECOVERY_TOKEN_SECRET=generated-token`
     requireReloginAfterReset: false,
   },
+
   api_rate_limit: {
     enabled: true,
   },
+
   passwordRequirements: {
     // If you change the min length, make sure to change it in the Supabase dashboard as well.
-    // https://supabase.com/dashboard/project/_/settings/auth
+    // https://supabase.com/dashboard/project/_/auth/providers (expand Email provider)
 
     // The other settings can be safely changed here. Please do not change "Password Requirements" in the Supabase dashboard.
     // Our code (API and client) will handle all of it securely.

@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
+import { TApiErrorResponse } from "@/types/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
-        );
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
     }
 

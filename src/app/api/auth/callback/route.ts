@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
-import { checkTwoFactorRequirements } from "@/utils/auth";
+import { getUserVerificationMethods } from "@/utils/auth";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -13,7 +13,6 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
 
-  // Handle OAuth callback (Google)
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
@@ -37,16 +36,7 @@ export async function GET(request: Request) {
 
   // Handle password reset callback
   if (type === "recovery") {
-    // Check initial state
     const { data: preCheck, error: preError } = await supabase.auth.getUser();
-    console.log("Pre-verification state:", {
-      hasUser: !!preCheck.user,
-      userData: preCheck.user,
-    });
-
-    if (preError) {
-      console.error("Pre-verification error:", preError);
-    }
 
     const { error } = await supabase.auth.verifyOtp({
       token_hash,
@@ -59,12 +49,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Verify we have a valid user after OTP verification
     const { data: postCheck, error: postError } = await supabase.auth.getUser();
-    console.log("Post-verification state:", {
-      hasUser: !!postCheck.user,
-      userData: postCheck.user,
-    });
 
     if (postError || !postCheck.user?.id) {
       const errorMessage = postError?.message || "Invalid user session";
@@ -73,20 +58,15 @@ export async function GET(request: Request) {
       );
     }
 
-    // Check if 2FA is required
-    const twoFactorResult = await checkTwoFactorRequirements(supabase);
+    // Check if user has 2FA enabled
+    const { has2FA, factors } = await getUserVerificationMethods(supabase);
     const resetUrl = new URL(`${origin}/auth/reset-password`);
 
-    if (twoFactorResult.requiresTwoFactor) {
+    if (has2FA) {
       // Add 2FA requirements to URL
       resetUrl.searchParams.set("requires_2fa", "true");
-      if (twoFactorResult.factorId) {
-        resetUrl.searchParams.set("factor_id", twoFactorResult.factorId);
-        resetUrl.searchParams.set(
-          "available_methods",
-          JSON.stringify(twoFactorResult.availableMethods)
-        );
-      }
+      resetUrl.searchParams.set("factor_id", factors[0].factorId);
+      resetUrl.searchParams.set("available_methods", JSON.stringify(factors));
     }
 
     // Create response for reset password redirect

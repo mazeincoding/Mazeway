@@ -19,8 +19,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { TwoFactorVerifyForm } from "@/components/2fa-verify-form";
-import { TTwoFactorMethod } from "@/types/auth";
+import { VerifyForm } from "@/components/verify-form";
+import { TVerificationFactor } from "@/types/auth";
 import {
   Form,
   FormControl,
@@ -47,7 +47,7 @@ const resetPasswordSchema = z
 
 type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;
 
-export default function ChangePasswordPage() {
+export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -59,10 +59,7 @@ export default function ChangePasswordPage() {
     searchParams.get("factor_id")
   );
   const [availableMethods, setAvailableMethods] = useState<
-    Array<{
-      type: TTwoFactorMethod;
-      factorId: string;
-    }>
+    TVerificationFactor[]
   >(() => {
     const methods = searchParams.get("available_methods");
     return methods ? JSON.parse(methods) : [];
@@ -86,7 +83,7 @@ export default function ChangePasswordPage() {
       setLoading(true);
       setTwoFactorError(null);
 
-      const response = await fetch("/api/auth/2fa/verify", {
+      const response = await fetch("/api/auth/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,10 +112,7 @@ export default function ChangePasswordPage() {
     }
   };
 
-  const handleMethodChange = (method: {
-    type: TTwoFactorMethod;
-    factorId: string;
-  }) => {
+  const handleMethodChange = (method: TVerificationFactor) => {
     setFactorId(method.factorId);
     setTwoFactorError(null);
   };
@@ -205,7 +199,7 @@ export default function ChangePasswordPage() {
               </CardHeader>
               <CardContent>
                 {factorId && (
-                  <TwoFactorVerifyForm
+                  <VerifyForm
                     factorId={factorId}
                     availableMethods={availableMethods}
                     onVerify={handleVerify}

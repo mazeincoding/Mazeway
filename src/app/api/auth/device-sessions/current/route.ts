@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
           error: "Too many requests. Please try again later.",
         },
         { status: 429 }
-      );
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
   }
 

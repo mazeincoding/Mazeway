@@ -21,11 +21,11 @@ import {
   TPasswordChangeResponse,
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
-import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
 import {
-  passwordChangeSchema,
-  twoFactorVerificationSchema,
-} from "@/utils/validation/auth-validation";
+  hasGracePeriodExpired,
+  getUserVerificationMethods,
+} from "@/utils/auth";
+import { passwordChangeSchema } from "@/utils/validation/auth-validation";
 
 export async function POST(request: NextRequest) {
   if (apiRateLimit) {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
           error: "Too many requests. Please try again later.",
         },
         { status: 429 }
-      );
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
   }
 
@@ -72,44 +72,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Check if this is a 2FA verification request
-    const twoFactorValidation = twoFactorVerificationSchema.safeParse(body);
-    if (twoFactorValidation.success) {
-      const { factorId, code } = twoFactorValidation.data;
-      const { newPassword } = body;
-
-      if (!newPassword) {
-        return NextResponse.json(
-          { error: "New password is required" },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-
-      try {
-        // Verify 2FA code
-        await verifyTwoFactorCode(supabase, factorId, code);
-
-        // Update password after successful 2FA verification
-        const { error: updateError } = await supabase.auth.updateUser({
-          password: newPassword,
-        });
-
-        if (updateError) throw updateError;
-
-        return NextResponse.json(
-          {}
-        ) satisfies NextResponse<TEmptySuccessResponse>;
-      } catch (error) {
-        return NextResponse.json(
-          {
-            error:
-              error instanceof Error ? error.message : "Failed to verify code",
-          },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
-
     // If not a 2FA request, validate password change data
     const validation = passwordChangeSchema.safeParse(body);
     if (!validation.success) {
@@ -137,25 +99,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if 2FA is required
-    try {
-      const twoFactorResult = await checkTwoFactorRequirements(supabase);
-
-      if (twoFactorResult.requiresTwoFactor) {
-        return NextResponse.json({
-          ...twoFactorResult,
-          newPassword,
-        }) satisfies NextResponse<TPasswordChangeResponse>;
-      }
-    } catch (error) {
-      console.error("Error checking 2FA requirements:", error);
+    // Get device session ID from cookie
+    const deviceSessionId = request.cookies.get("device_session_id")?.value;
+    if (!deviceSessionId) {
       return NextResponse.json(
-        { error: "Failed to check 2FA status" },
-        { status: 500 }
+        { error: "No device session found" },
+        { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // If no 2FA required, update password
+    // Check if verification is needed
+    const gracePeriodExpired = await hasGracePeriodExpired(
+      supabase,
+      deviceSessionId
+    );
+    if (gracePeriodExpired) {
+      // Check if user has 2FA enabled
+      const { has2FA, factors } = await getUserVerificationMethods(supabase);
+      if (has2FA) {
+        return NextResponse.json({
+          requiresTwoFactor: true,
+          factorId: factors[0].factorId,
+          availableMethods: factors,
+          newPassword,
+        }) satisfies NextResponse<TPasswordChangeResponse>;
+      }
+    }
+
+    // If no 2FA required or within grace period, update password
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });

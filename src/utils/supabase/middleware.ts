@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { checkTwoFactorRequirements } from "@/utils/auth";
+import {
+  getUserVerificationMethods,
+  getAuthenticatorAssuranceLevel,
+} from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 
 async function handleInvalidDeviceSession(request: NextRequest) {
@@ -67,7 +70,11 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const protectedPaths = ["/dashboard", "/account", "/api/send-email-alert"];
+  const protectedPaths = [
+    "/dashboard",
+    "/account",
+    "/api/auth/send-email-alert",
+  ];
   const authPaths = [
     "/",
     "/auth/login",
@@ -129,15 +136,19 @@ export async function updateSession(request: NextRequest) {
       }
 
       // Check if 2FA is required for this user
-      const twoFactorRequirements = await checkTwoFactorRequirements(supabase);
+      const { has2FA } = await getUserVerificationMethods(supabase);
 
       // If 2FA is required, check AAL2 status
-      if (twoFactorRequirements.requiresTwoFactor) {
-        const { data: aalData, error: aalError } =
-          await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (has2FA) {
+        const deviceSessionId = request.cookies.get("device_session_id");
+
+        const currentLevel = await getAuthenticatorAssuranceLevel(
+          supabase,
+          deviceSessionId?.value || ""
+        );
 
         // If user needs AAL2 but doesn't have it, treat them as unauthenticated
-        if (!aalError && aalData.currentLevel !== "aal2") {
+        if (currentLevel !== "aal2") {
           // Block protected routes and APIs
           if (isProtectedPath) {
             if (isApiPath) {
@@ -184,13 +195,15 @@ export async function updateSession(request: NextRequest) {
         }
 
         // Query device session by ID
-        const { data: deviceSession } = await supabase
+        const { data: deviceSession } = (await supabase
           .from("device_sessions")
           .select("needs_verification, expires_at")
           .eq("id", deviceSessionId.value)
           .eq("user_id", user.id)
-          .gt("expires_at", new Date().toISOString()) // Only get non-expired sessions
-          .single();
+          .gt("expires_at", new Date().toISOString())
+          .single()) as unknown as {
+          data: { needs_verification: boolean; expires_at: string } | null;
+        };
 
         if (!deviceSession) {
           if (isApiPath) {

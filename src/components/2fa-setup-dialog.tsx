@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TTwoFactorMethod } from "@/types/auth";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "./ui/phone-input";
@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface TwoFactorSetupDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ interface TwoFactorSetupDialogProps {
   ) => Promise<void>;
   qrCode?: string;
   secret?: string;
+  backupCodes?: string[];
   isVerifying?: boolean;
   verificationError?: string | null;
 }
@@ -40,21 +42,37 @@ export function TwoFactorSetupDialog({
   onVerify,
   qrCode,
   secret,
+  backupCodes,
   isVerifying = false,
   verificationError = null,
 }: TwoFactorSetupDialogProps) {
-  const [setupStep, setSetupStep] = useState<"initial" | "verify">("initial");
+  const [setupStep, setSetupStep] = useState<
+    "initial" | "verify" | "backup-codes"
+  >("initial");
   const [phone, setPhone] = useState<E164Number | undefined>(undefined);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedBackupCodes, setCopiedBackupCodes] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
+
+  // Watch for backup codes after verification
+  useEffect(() => {
+    if (verificationComplete && backupCodes && backupCodes.length > 0) {
+      console.log("Backup codes received after verification, showing them");
+      setSetupStep("backup-codes");
+      setVerificationComplete(false);
+    }
+  }, [verificationComplete, backupCodes]);
 
   const handleCancel = () => {
+    console.log("Dialog cancel/close called. Current step:", setupStep);
     onOpenChange(false);
     setSetupStep("initial");
     setVerificationCode("");
     setPhone(undefined);
     setPhoneError(null);
+    setVerificationComplete(false);
   };
 
   const handlePhoneSubmit = async () => {
@@ -77,10 +95,16 @@ export function TwoFactorSetupDialog({
     if (!verificationCode) return;
 
     try {
+      console.log("Starting verification in dialog...");
       await onVerify(method, verificationCode, phone);
-      handleCancel();
+      console.log("Verification complete, waiting for backup codes");
+      setVerificationComplete(true);
+
+      // Don't close or change state here - let the useEffect handle it
+      // when the backup codes arrive
     } catch (error) {
       console.error("Verification error:", error);
+      setVerificationComplete(false);
     }
   };
 
@@ -90,6 +114,29 @@ export function TwoFactorSetupDialog({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleCopyBackupCodes = async () => {
+    if (backupCodes && backupCodes.length > 0) {
+      await navigator.clipboard.writeText(backupCodes.join("\n"));
+      setCopiedBackupCodes(true);
+      setTimeout(() => setCopiedBackupCodes(false), 2000);
+    }
+  };
+
+  const handleDownloadBackupCodes = () => {
+    if (!backupCodes || backupCodes.length === 0) return;
+
+    const content = `BACKUP CODES FOR YOUR ACCOUNT\n\n${backupCodes.join("\n")}\n\nKeep these codes safe and secure. Each code can only be used once.`;
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "backup-codes.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleVerificationCodeChange = (value: string) => {
@@ -108,15 +155,18 @@ export function TwoFactorSetupDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Set up {method === "authenticator" ? "Authenticator App" : "SMS"}{" "}
-            Authentication
+            {setupStep === "backup-codes"
+              ? "Save your backup codes"
+              : `Set up ${method === "authenticator" ? "Authenticator App" : "SMS"} Authentication`}
           </DialogTitle>
           <DialogDescription>
             {setupStep === "initial"
               ? method === "authenticator"
                 ? "Scan the QR code with your authenticator app to get started."
                 : "Enter your phone number to receive verification codes via SMS."
-              : "Enter the verification code to complete setup."}
+              : setupStep === "verify"
+                ? "Enter the verification code to complete setup."
+                : "Store these backup codes in a safe place. You can use them to sign in if you lose access to your authentication device."}
           </DialogDescription>
         </DialogHeader>
 
@@ -235,6 +285,63 @@ export function TwoFactorSetupDialog({
             </div>
           </div>
         )}
+
+        {setupStep === "backup-codes" &&
+          backupCodes &&
+          backupCodes.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <Alert>
+                <AlertTitle>Important!</AlertTitle>
+                <AlertDescription>
+                  These backup codes will only be shown once. Save them
+                  somewhere safe.
+                </AlertDescription>
+              </Alert>
+
+              <div className="bg-muted p-4 rounded-md font-mono text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  {backupCodes.map((code, index) => (
+                    <div key={index} className="p-1">
+                      {code}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={handleCopyBackupCodes}
+                  >
+                    {copiedBackupCodes ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4 flex-shrink-0 text-green-500" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 flex-shrink-0 h-4 w-4" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={handleDownloadBackupCodes}
+                  >
+                    <Download className="mr-2 flex-shrink-0 h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+                <Button onClick={handleCancel}>
+                  I've saved my backup codes
+                </Button>
+              </div>
+            </div>
+          )}
       </DialogContent>
     </Dialog>
   );

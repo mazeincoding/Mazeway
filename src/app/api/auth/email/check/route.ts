@@ -1,7 +1,12 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-import { validateEmail } from "@/utils/validation/auth-validation";
+import { authSchema } from "@/utils/validation/auth-validation";
+import {
+  TApiErrorResponse,
+  TCheckEmailRequest,
+  TCheckEmailResponse,
+} from "@/types/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,41 +18,48 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
-        );
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
     }
 
-    const body = await request.json();
-    const { email } = body;
+    const rawBody = await request.json();
+    const validation = authSchema.shape.email.safeParse(rawBody.email);
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
-
-    const emailValidation = validateEmail(email);
-    if (!emailValidation.isValid) {
+    if (!validation.success) {
       return NextResponse.json(
-        { error: emailValidation.error },
+        { error: validation.error.issues[0]?.message || "Invalid email" },
         { status: 400 }
-      );
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const supabase = await createClient();
+    const body: TCheckEmailRequest = { email: validation.data };
 
-    // Try to sign up - if user exists, we'll get a specific error
-    const { error } = await supabase.auth.signUp({
-      email,
-      password: crypto.randomUUID(), // Random password as we only care about the error
-    });
+    // Use service role to check user existence
+    const adminClient = await createClient({ useServiceRole: true });
+
+    // Query the users table directly
+    const { data, error } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("email", body.email)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 is "no rows returned"
+      return NextResponse.json(
+        { error: "Failed to check email" },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
 
     return NextResponse.json({
-      exists: error?.code === "user_already_exists",
-    });
+      exists: !!data,
+    }) satisfies NextResponse<TCheckEmailResponse>;
   } catch (error) {
     console.error("Email check error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ) satisfies NextResponse<TApiErrorResponse>;
   }
 }

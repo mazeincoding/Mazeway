@@ -1,5 +1,8 @@
 import { TDeviceSessionProvider } from "@/utils/device-sessions/server";
 
+// Authentication Assurance Level type
+export type TAAL = "aal1" | "aal2";
+
 export interface TDeviceInfo {
   user_id: string;
   device_name: string;
@@ -14,16 +17,24 @@ export interface TDeviceSessionOptions {
   provider?: TDeviceSessionProvider;
 }
 
-export type TTwoFactorMethod = "authenticator" | "sms";
+// Base verification methods
+export type TVerificationMethod =
+  | "authenticator"
+  | "sms"
+  | "password"
+  | "email"
+  | "backup_codes";
 
-export interface TwoFactorRequirement {
-  requiresTwoFactor: boolean;
-  factorId?: string;
-  availableMethods?: Array<{
-    type: TTwoFactorMethod;
-    factorId: string;
-  }>;
-}
+// Two-factor methods are a subset of verification methods
+export type TTwoFactorMethod = Extract<
+  TVerificationMethod,
+  "authenticator" | "sms" | "backup_codes"
+>;
+
+export type TVerificationFactor = {
+  type: TVerificationMethod;
+  factorId: string;
+};
 
 export interface TDeviceSession {
   id: string;
@@ -33,7 +44,10 @@ export interface TDeviceSession {
   is_trusted: boolean;
   needs_verification: boolean;
   confidence_score: number;
-  last_verified: Date | null;
+  // When this device was verified via email code (for unknown device login)
+  device_verified_at: Date | null;
+  // When user last performed 2FA/basic verification for sensitive actions
+  last_sensitive_verification_at: Date | null;
   created_at: Date;
   updated_at: Date;
   expires_at: Date;
@@ -54,6 +68,7 @@ export interface TUserWithAuth extends TUser {
     emailVerified: boolean;
     lastSignInAt: string;
     twoFactorEnabled: boolean;
-    twoFactorMethods: TTwoFactorMethod[];
+    enabled2faMethods: TTwoFactorMethod[];
+    availableVerificationMethods: TVerificationMethod[];
   };
 }

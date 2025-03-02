@@ -15,18 +15,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { TDeviceSession, TTwoFactorMethod } from "@/types/auth";
+import { TDeviceSession, TVerificationFactor } from "@/types/auth";
 import { TGeolocationResponse } from "@/types/api";
 import { isLocalIP } from "@/utils/auth";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
-import { TwoFactorVerifyForm } from "./2fa-verify-form";
+import { VerifyForm } from "./verify-form";
+import { api } from "@/utils/api";
 
 export function DeviceSessionsList() {
   const { sessions, isLoading, error, refresh } = useDeviceSessions();
   const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
     factorId: string;
-    availableMethods: Array<{ type: TTwoFactorMethod; factorId: string }>;
+    availableMethods: TVerificationFactor[];
     sessionId: string;
   } | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -42,15 +43,8 @@ export function DeviceSessionsList() {
   useEffect(() => {
     async function fetchCurrentSession() {
       try {
-        const response = await fetch("/api/auth/device-sessions/current");
-        const data = await response.json();
-
-        if (!response.ok) {
-          console.error("[DEBUG] Failed to get current session:", data.error);
-          return;
-        }
-
-        setCurrentSession(data.data);
+        const { data } = await api.auth.device.getCurrent();
+        setCurrentSession(data);
       } catch (err) {
         console.error("[DEBUG] Error fetching current session:", err);
       }
@@ -69,32 +63,18 @@ export function DeviceSessionsList() {
   const handleRevoke = async (sessionId: string) => {
     try {
       setRevokingSessionId(sessionId);
-      const response = await fetch(`/api/auth/device-sessions/${sessionId}`, {
-        method: "DELETE",
-      });
+      const data = await api.auth.device.revokeSession({ sessionId });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Too many attempts", {
-            description: "Please wait a moment before trying again.",
-            duration: 4000,
-          });
-          return;
-        }
-
-        toast.error("Error", {
-          description: data.error || "Failed to revoke device session",
-          duration: 3000,
-        });
+      // If empty response, session was revoked successfully
+      if (!("requiresTwoFactor" in data)) {
+        refresh();
         return;
       }
 
-      // Check if 2FA is required
-      if (data.requiresTwoFactor) {
+      // Otherwise, verification is required
+      if (data.availableMethods) {
         setTwoFactorData({
-          factorId: data.factorId,
+          factorId: data.factorId || data.availableMethods[0].factorId,
           availableMethods: data.availableMethods,
           sessionId: sessionId,
         });
@@ -102,16 +82,12 @@ export function DeviceSessionsList() {
         return;
       }
 
-      // Success
-      toast.success("Device logged out", {
-        description: "The device has been logged out successfully.",
-        duration: 3000,
-      });
-      refresh();
-    } catch (err) {
-      console.error("Error revoking device session:", err);
+      // Unexpected state
+      throw new Error("Invalid response from server");
+    } catch (error) {
       toast.error("Error", {
-        description: "Failed to revoke device session",
+        description:
+          error instanceof Error ? error.message : "An error occurred",
         duration: 3000,
       });
     } finally {
@@ -126,39 +102,27 @@ export function DeviceSessionsList() {
       setIsVerifying(true);
       setVerifyError(null);
 
-      // Send 2FA verification to the same endpoint
-      const response = await fetch(
-        `/api/auth/device-sessions/${twoFactorData.sessionId}`,
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            factorId: twoFactorData.factorId,
-            code,
-            method:
-              twoFactorData.availableMethods.find(
-                (m) => m.factorId === twoFactorData.factorId
-              )?.type || "authenticator",
-          }),
-        }
-      );
+      const method = twoFactorData.availableMethods.find(
+        (m) => m.factorId === twoFactorData.factorId
+      )?.type;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Too many attempts", {
-            description: "Please wait a moment before trying again.",
-            duration: 4000,
-          });
-          return;
-        }
-
-        setVerifyError(data.error || "Failed to verify code");
-        return;
+      if (!method) {
+        throw new Error("Invalid verification method");
       }
 
-      // Success
+      // First verify using the centralized endpoint
+      await api.auth.verify({
+        factorId: twoFactorData.factorId,
+        code,
+        method,
+      });
+
+      // Then try to revoke the session again
+      await api.auth.device.revokeSession({
+        sessionId: twoFactorData.sessionId,
+      });
+
+      // If we get here, verification was successful
       toast.success("Device logged out", {
         description: "The device has been logged out successfully.",
         duration: 3000,
@@ -169,8 +133,19 @@ export function DeviceSessionsList() {
       setShowTwoFactorDialog(false);
       refresh();
     } catch (err) {
-      console.error("Error verifying 2FA:", err);
-      setVerifyError("Failed to verify code. Please try again.");
+      console.error("Error verifying:", err);
+      if (err instanceof Error) {
+        if (err.message.includes("429")) {
+          toast.error("Too many attempts", {
+            description: "Please wait a moment before trying again.",
+            duration: 3000,
+          });
+          return;
+        }
+        setVerifyError(err.message);
+      } else {
+        setVerifyError("Failed to verify code. Please try again.");
+      }
     } finally {
       setIsVerifying(false);
     }
@@ -233,7 +208,7 @@ export function DeviceSessionsList() {
                 Please enter your two-factor authentication code to continue.
               </DialogDescription>
             </DialogHeader>
-            <TwoFactorVerifyForm
+            <VerifyForm
               factorId={twoFactorData.factorId}
               availableMethods={twoFactorData.availableMethods}
               onVerify={handleVerify2FA}
@@ -295,24 +270,15 @@ function DeviceItem({
       try {
         setIsLoadingLocation(true);
         setLocationError(null);
-        const response = await fetch(
-          `/api/auth/device-sessions/geolocation?ip=${encodeURIComponent(ipAddress)}`
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-          setLocationError(
-            response.status === 429
-              ? "Location service is busy. Try again later."
-              : "Couldn't get location information."
-          );
-          return;
-        }
-
-        setLocation(data.data);
+        const { data } = await api.auth.device.getGeolocation(ipAddress);
+        setLocation(data);
       } catch (err) {
         console.error("Error fetching location:", err);
-        setLocationError("Couldn't get location information.");
+        if (err instanceof Error && err.message.includes("429")) {
+          setLocationError("Location service is busy. Try again later.");
+        } else {
+          setLocationError("Couldn't get location information.");
+        }
       } finally {
         setIsLoadingLocation(false);
       }

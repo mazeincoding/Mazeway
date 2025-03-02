@@ -6,8 +6,10 @@ import {
   TEmptySuccessResponse,
 } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
-import { twoFactorVerificationSchema } from "@/utils/validation/auth-validation";
+import {
+  getUserVerificationMethods,
+  hasGracePeriodExpired,
+} from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 
 /**
@@ -45,73 +47,67 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get user data including has_password
-    const { data: dbUser, error: dbError } = await supabase
-      .from("users")
-      .select("has_password")
-      .eq("id", user.id)
-      .single();
-
-    if (dbError || !dbUser) {
+    // Get device session ID
+    const deviceSessionId = request.cookies.get("device_session_id")?.value;
+    if (!deviceSessionId) {
       return NextResponse.json(
-        { error: "Failed to get user data" },
-        { status: 500 }
+        { error: "No device session found" },
+        { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if body exists for 2FA verification
-    const body = await request.json().catch(() => null);
+    // Check if verification is needed based on config and grace period
+    const needsVerification =
+      AUTH_CONFIG.requireFreshVerification.deleteAccount &&
+      (await hasGracePeriodExpired(supabase, deviceSessionId));
 
-    // Check if 2FA verification is needed
-    if (AUTH_CONFIG.twoFactorAuth.enabled) {
-      const twoFactorCheck = await checkTwoFactorRequirements(supabase);
+    if (needsVerification) {
+      // Get available verification methods
+      const { has2FA, factors, methods } =
+        await getUserVerificationMethods(supabase);
 
-      // If user has 2FA enabled but no verification provided
-      if (twoFactorCheck.requiresTwoFactor) {
-        if (!body) {
+      // Return available methods for verification
+      if (has2FA) {
+        return NextResponse.json({
+          requiresTwoFactor: true,
+          availableMethods: factors,
+          factorId: factors[0].factorId,
+        }) satisfies NextResponse<TDeleteAccountResponse>;
+      } else {
+        // Return available non-2FA methods
+        const availableMethods = methods.map((method) => ({
+          type: method,
+          factorId: method, // For non-2FA methods, use method name as factorId
+        }));
+
+        if (availableMethods.length === 0) {
           return NextResponse.json(
-            {
-              requiresTwoFactor: true,
-              availableMethods: twoFactorCheck.availableMethods,
-              factorId: twoFactorCheck.factorId,
-            },
-            { status: 428 }
-          ) satisfies NextResponse<TDeleteAccountResponse>;
-        }
-
-        // Validate and verify 2FA only if it's required
-        const validation = twoFactorVerificationSchema.safeParse(body);
-
-        if (!validation.success) {
-          return NextResponse.json(
-            { error: "Invalid 2FA verification data" },
+            { error: "No verification methods available" },
             { status: 400 }
           ) satisfies NextResponse<TApiErrorResponse>;
         }
 
-        const { factorId, code } = validation.data;
-
-        try {
-          // Verify 2FA code
-          await verifyTwoFactorCode(supabase, factorId, code);
-        } catch (error) {
-          return NextResponse.json(
-            {
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Failed to verify code",
-            },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
+        return NextResponse.json({
+          requiresTwoFactor: false,
+          availableMethods,
+        }) satisfies NextResponse<TDeleteAccountResponse>;
       }
     }
 
-    // Create service role client for deletion
+    // User is verified within grace period, proceed with deletion
     const adminClient = await createClient({ useServiceRole: true });
 
-    // 1. Delete verification codes first (they reference device_sessions)
+    // 1. Delete backup codes first (they reference auth.users without CASCADE)
+    const { error: deleteBackupCodesError } = await adminClient
+      .from("backup_codes")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (deleteBackupCodesError) {
+      throw new Error("Failed to delete backup codes");
+    }
+
+    // 2. Delete verification codes (they reference device_sessions with CASCADE)
     const { data: existingData } = await adminClient
       .from("users")
       .select(
@@ -140,7 +136,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Delete device sessions (they reference devices and users)
+    // 3. Delete device sessions (they reference devices and users with CASCADE)
     const { error: deleteSessionsError } = await adminClient
       .from("device_sessions")
       .delete()
@@ -150,7 +146,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to delete device sessions");
     }
 
-    // 3. Delete devices (they reference auth.users)
+    // 4. Delete devices (they reference auth.users without CASCADE)
     const { error: deleteDevicesError } = await adminClient
       .from("devices")
       .delete()
@@ -160,7 +156,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to delete devices");
     }
 
-    // 4. Delete user data (references auth.users through RLS)
+    // 5. Delete user data (no foreign keys)
     const { error: deleteDataError } = await adminClient
       .from("users")
       .delete()
@@ -170,7 +166,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Failed to delete user data");
     }
 
-    // 5. Finally delete the auth user
+    // 6. Finally delete the auth user
     const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(
       user.id
     );
@@ -179,13 +175,15 @@ export async function POST(request: NextRequest) {
       throw new Error(`Failed to delete auth user: ${deleteAuthError.message}`);
     }
 
-    // Clear all cookies
-    const response = NextResponse.json(
-      {}
-    ) satisfies NextResponse<TEmptySuccessResponse>;
-    response.cookies.delete("device_session_id");
+    // Sign out the user using our existing logout route
+    await fetch(`${request.nextUrl.origin}/api/auth/logout`, {
+      method: "POST",
+      headers: {
+        Cookie: request.headers.get("cookie") || "",
+      },
+    });
 
-    return response;
+    return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {
     console.error("Error deleting user account:", error);
     return NextResponse.json(

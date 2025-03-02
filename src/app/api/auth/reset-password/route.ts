@@ -6,16 +6,20 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { validatePassword } from "@/utils/validation/auth-validation";
+import { authSchema } from "@/utils/validation/auth-validation";
 import {
   TApiErrorResponse,
-  TEmptySuccessResponse,
+  TResetPasswordRequest,
   TResetPasswordResponse,
 } from "@/types/api";
+import { TAAL } from "@/types/auth";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { verifyRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
-import { checkTwoFactorRequirements } from "@/utils/auth";
+import {
+  getUserVerificationMethods,
+  getAuthenticatorAssuranceLevel,
+} from "@/utils/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
 
 export async function POST(request: NextRequest) {
@@ -70,38 +74,54 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { password } = await request.json();
+    // Get and validate request body
+    const rawBody = await request.json();
+    const validation = authSchema.shape.password.safeParse(rawBody.password);
 
-    // Validate new password
-    const validation = validatePassword(password);
-    if (!validation.isValid) {
+    if (!validation.success) {
       return NextResponse.json(
-        { error: validation.error || "Invalid password" },
+        { error: validation.error.issues[0]?.message || "Invalid password" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if 2FA is required
-    const twoFactorResult = await checkTwoFactorRequirements(supabase);
+    const body: TResetPasswordRequest = { password: validation.data };
 
-    if (twoFactorResult.requiresTwoFactor) {
-      // Check current AAL level
-      const { data: aalData, error: aalError } =
-        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    // Check if 2FA is required - only if we're not requiring relogin
+    if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
+      const currentSessionId = request.cookies.get("device_session_id")?.value;
+      if (!currentSessionId) {
+        throw new Error("No device session found");
+      }
 
-      if (aalError || aalData.currentLevel !== "aal2") {
-        return NextResponse.json({
-          ...twoFactorResult,
-          newPassword: password,
-        }) satisfies NextResponse<TResetPasswordResponse>;
+      // Check if user has 2FA enabled
+      const { has2FA, factors } = await getUserVerificationMethods(supabase);
+
+      if (has2FA) {
+        // For password reset, always require 2FA verification if enabled
+        const currentLevel = await getAuthenticatorAssuranceLevel(
+          supabase,
+          currentSessionId
+        );
+
+        if (currentLevel !== ("aal2" satisfies TAAL)) {
+          return NextResponse.json({
+            requiresTwoFactor: true,
+            availableMethods: factors,
+            factorId: factors[0].factorId,
+            newPassword: body.password,
+          }) satisfies NextResponse<TResetPasswordResponse>;
+        }
       }
     }
 
     // Update password using appropriate method and client
     const { error: updateError } = AUTH_CONFIG.passwordReset
       .requireReloginAfterReset
-      ? await adminClient.auth.admin.updateUserById(userId, { password })
-      : await supabase.auth.updateUser({ password });
+      ? await adminClient.auth.admin.updateUserById(userId, {
+          password: body.password,
+        })
+      : await supabase.auth.updateUser({ password: body.password });
 
     if (updateError) {
       console.error("Failed to reset password:", updateError);
@@ -118,13 +138,13 @@ export async function POST(request: NextRequest) {
       .eq("id", userId);
 
     if (flagError) {
-      console.error("Failed to update has_password flag:", flagError);
       // Continue anyway - password was reset successfully
     }
 
     // Create success response with login required flag
     const response = NextResponse.json(
       {
+        requiresTwoFactor: false,
         loginRequired: AUTH_CONFIG.passwordReset.requireReloginAfterReset,
         shouldRefreshUser: !AUTH_CONFIG.passwordReset.requireReloginAfterReset,
         redirectTo: AUTH_CONFIG.passwordReset.requireReloginAfterReset
@@ -134,7 +154,7 @@ export async function POST(request: NextRequest) {
           : "/dashboard",
       },
       { status: 200 }
-    ) satisfies NextResponse<TEmptySuccessResponse>;
+    ) satisfies NextResponse<TResetPasswordResponse>;
 
     // Set up device session if not requiring relogin
     if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {

@@ -7,19 +7,12 @@ import {
 } from "@/types/api";
 import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
-import { smsEnrollmentSchema } from "@/utils/validation/auth-validation";
+import { twoFactorEnrollmentSchema } from "@/utils/validation/auth-validation";
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if 2FA is enabled in config
-    if (!AUTH_CONFIG.twoFactorAuth.enabled) {
-      return NextResponse.json(
-        { error: "Two-factor authentication is not enabled in the config" },
-        { status: 403 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
     const supabase = await createClient();
+    const adminClient = await createClient({ useServiceRole: true });
 
     // 1. Verify user authentication first
     const {
@@ -35,16 +28,26 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Get and validate request body
-    const body = (await request.json()) as TEnroll2FARequest;
-    const method = body.method || "authenticator";
+    const rawBody = await request.json();
+    const validation = twoFactorEnrollmentSchema.safeParse(rawBody);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.issues[0]?.message || "Invalid input" },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    const body: TEnroll2FARequest = validation.data;
 
     // 3. Validate method configuration
-    const methodConfig = AUTH_CONFIG.twoFactorAuth.methods.find(
-      (m) => m.type === method
-    );
+    const methodConfig =
+      AUTH_CONFIG.verificationMethods.twoFactor[
+        body.method as keyof typeof AUTH_CONFIG.verificationMethods.twoFactor
+      ];
     if (!methodConfig?.enabled) {
       return NextResponse.json(
-        { error: `${method} method is not enabled` },
+        { error: `${body.method} method is not enabled` },
         { status: 403 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
     const clientIp = getClientIp(request);
 
     // 5. Apply rate limits in order of most specific to least specific
-    if (method === "sms" && smsRateLimit) {
+    if (body.method === "sms" && smsRateLimit) {
       // Check user-based rate limit first (most specific)
       const { success: userSuccess } = await smsRateLimit.user.limit(user.id);
       if (!userSuccess) {
@@ -91,19 +94,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Handle SMS enrollment with validated phone number
-    if (method === "sms") {
-      const validation = smsEnrollmentSchema.safeParse(body);
-      if (!validation.success) {
-        return NextResponse.json(
-          { error: validation.error.issues[0]?.message || "Invalid input" },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-
+    if (body.method === "sms") {
+      // Type narrowing - we know phone exists when method is "sms"
+      const { phone } = body as { phone: string };
       const { data: factorData, error: factorError } =
         await supabase.auth.mfa.enroll({
           factorType: "phone",
-          phone: validation.data.phone,
+          phone,
         });
 
       if (factorError) {
@@ -121,9 +118,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Handle authenticator enrollment
+    const { data: factors } = await supabase.auth.mfa.listFactors();
 
     // Check for existing unverified TOTP factors and remove them
-    const { data: factors } = await supabase.auth.mfa.listFactors();
     if (factors?.all) {
       const unverifiedTotpFactors = factors.all.filter(
         (f) => f.factor_type === "totp" && f.status === "unverified"

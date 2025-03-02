@@ -1,4 +1,4 @@
-import { Text, Img } from "@react-email/components";
+import { Img } from "@react-email/components";
 
 export function Header() {
   return (

@@ -10,8 +10,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 import { LogOutIcon, MoonIcon, UserIcon } from "lucide-react";
-import { useUserStore } from "@/store/user-store";
 import { toast } from "sonner";
+import { api } from "@/utils/api";
+import { useUser } from "@/hooks/use-auth";
 
 interface dropdownItem {
   label: string;
@@ -23,7 +24,7 @@ interface dropdownItem {
 export function UserDropdown() {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
-  const { user, logout } = useUserStore();
+  const { user, refresh: refreshUser } = useUser();
 
   const dropdownItems: dropdownItem[] = [
     {
@@ -46,22 +47,13 @@ export function UserDropdown() {
 
   async function handleSignOut() {
     try {
-      const response = await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        toast.error("Failed to logout", {
-          description: "Please try again later",
-        });
-      }
-
-      // Only update store and redirect on successful logout
-      logout();
+      await api.auth.logout();
+      await refreshUser(undefined, { revalidate: false });
       router.push("/");
     } catch (error) {
-      toast.error("Logout error", {
-        description: "Please try again later",
+      toast.error("Failed to log out", {
+        description:
+          error instanceof Error ? error.message : "Please try again later",
       });
     }
   }

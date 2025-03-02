@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { basicRateLimit, getClientIp } from "@/utils/rate-limit";
+import { TApiErrorResponse } from "@/types/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,11 +13,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
-        );
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
     }
 
     const supabase = await createClient();
+    const adminClient = await createClient({ useServiceRole: true });
 
     // Get device session ID from cookie
     const cookieStore = request.headers.get("cookie");
@@ -35,7 +37,10 @@ export async function POST(request: NextRequest) {
 
     // If we had a device session, delete it from DB
     if (deviceSessionId) {
-      await supabase.from("device_sessions").delete().eq("id", deviceSessionId);
+      await adminClient
+        .from("device_sessions")
+        .delete()
+        .eq("id", deviceSessionId);
     }
 
     return response;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AUTH_CONFIG } from "@/config/auth";
+import { isValidVerificationCodeFormat } from "@/utils/verification-codes";
 
 export const authSchema = z.object({
   email: z
@@ -131,7 +132,6 @@ export const validateTwoFactorCode = (code: string) => {
 };
 
 export const disable2FASchema = z.object({
-  factorId: z.string().min(1, "Factor ID is required"),
   method: z.enum(["authenticator", "sms"] as const),
   code: z
     .string()
@@ -156,6 +156,21 @@ export const smsEnrollmentSchema = z.object({
   method: z.literal("sms"),
   phone: phoneSchema,
 });
+
+// Authenticator enrollment validation
+export const authenticatorEnrollmentSchema = z.object({
+  method: z.literal("authenticator"),
+});
+
+// Combined 2FA enrollment schema
+export const twoFactorEnrollmentSchema = z.discriminatedUnion("method", [
+  authenticatorEnrollmentSchema,
+  smsEnrollmentSchema,
+]);
+
+export type TwoFactorEnrollmentSchema = z.infer<
+  typeof twoFactorEnrollmentSchema
+>;
 
 export type SMSEnrollmentSchema = z.infer<typeof smsEnrollmentSchema>;
 
@@ -185,3 +200,65 @@ export const getPasswordRequirements = (password: string) => {
       /[^A-Za-z0-9]/.test(password),
   };
 };
+
+// Add new general verification schema
+export const verificationSchema = z
+  .object({
+    factorId: z.string().min(1, "Factor ID is required"),
+    method: z.enum([
+      "authenticator",
+      "sms",
+      "password",
+      "email",
+      "backup_codes",
+    ] as const),
+    code: z.string().min(1, "Verification code is required"),
+  })
+  .refine(
+    (data) => {
+      // For regular 2FA codes (authenticator/SMS), validate 6-digit format
+      if (data.method === "authenticator" || data.method === "sms") {
+        return /^\d{6}$/.test(data.code);
+      }
+
+      // For email verification, validate according to config
+      if (data.method === "email") {
+        return new RegExp(
+          `^[A-Z0-9]{${AUTH_CONFIG.emailVerification.codeLength}}$`
+        ).test(data.code);
+      }
+
+      // For password verification, any non-empty string is fine
+      // (password has its own validation)
+      if (data.method === "password") {
+        return true;
+      }
+
+      // For backup codes, validate using the same format as enrollment
+      if (data.method === "backup_codes") {
+        return isValidVerificationCodeFormat({
+          code: data.code,
+          format: AUTH_CONFIG.backupCodes.format,
+          wordCount: AUTH_CONFIG.backupCodes.wordCount,
+          alphanumericLength: AUTH_CONFIG.backupCodes.alphanumericLength,
+        });
+      }
+
+      return false;
+    },
+    {
+      message: "Invalid code format",
+      path: ["code"], // Show error on the code field
+    }
+  );
+
+export type VerificationSchema = z.infer<typeof verificationSchema>;
+
+// Add schema for device session revocation
+export const revokeDeviceSessionSchema = z.object({
+  sessionId: z.string().min(1, "Session ID is required"),
+});
+
+export type RevokeDeviceSessionSchema = z.infer<
+  typeof revokeDeviceSessionSchema
+>;

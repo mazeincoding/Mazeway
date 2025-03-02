@@ -1,20 +1,16 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import {
+  TApiErrorResponse,
+  TDisable2FARequest,
+TEmptySuccessResponse,
+} from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
-import { AUTH_CONFIG } from "@/config/auth";
+import { getFactorForMethod } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if 2FA is enabled in config
-    if (!AUTH_CONFIG.twoFactorAuth.enabled) {
-      return NextResponse.json(
-        { error: "Two-factor authentication is not enabled in the config" },
-        { status: 403 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
     const supabase = await createClient();
 
     // 1. Verify user authentication
@@ -31,8 +27,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Get and validate request body
-    const body = await request.json();
-    const validation = disable2FASchema.safeParse(body);
+    const rawBody = await request.json();
+    const validation = disable2FASchema.safeParse(rawBody);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -41,7 +37,8 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { code, factorId } = validation.data;
+    const body: TDisable2FARequest = validation.data;
+    const { method, code } = body;
 
     // 3. Apply rate limits
     const clientIp = getClientIp(request);
@@ -55,9 +52,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Create challenge and verify code
+    // 4. Get factor ID for the method
+    const factor = await getFactorForMethod(supabase, method);
+    if (!factor.success || !factor.factorId) {
+      return NextResponse.json(
+        { error: factor.error || "2FA method not found" },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // 5. Create challenge and verify code
     const { data: challengeData, error: challengeError } =
-      await supabase.auth.mfa.challenge({ factorId });
+      await supabase.auth.mfa.challenge({ factorId: factor.factorId });
 
     if (challengeError) {
       console.error("Failed to create 2FA challenge:", challengeError);
@@ -68,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: verifyError } = await supabase.auth.mfa.verify({
-      factorId,
+      factorId: factor.factorId,
       challengeId: challengeData.id,
       code,
     });
@@ -81,9 +87,9 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 5. Disable the method
+    // 6. Disable the method
     const { error: unenrollError } = await supabase.auth.mfa.unenroll({
-      factorId,
+      factorId: factor.factorId,
     });
 
     if (unenrollError) {

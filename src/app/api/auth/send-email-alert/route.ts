@@ -2,6 +2,7 @@ import EmailAlertTemplate from "@emails/templates/email-alert";
 import { Resend } from "resend";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
+import { TApiErrorResponse } from "@/types/api";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
-        );
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
     }
 

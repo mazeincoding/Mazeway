@@ -1,12 +1,16 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { TApiErrorResponse, TChangeEmailResponse } from "@/types/api";
-import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
-import { checkTwoFactorRequirements, verifyTwoFactorCode } from "@/utils/auth";
 import {
-  emailChangeSchema,
-  twoFactorVerificationSchema,
-} from "@/utils/validation/auth-validation";
+  TApiErrorResponse,
+  TChangeEmailRequest,
+  TChangeEmailResponse,
+} from "@/types/api";
+import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import {
+  getUserVerificationMethods,
+  hasGracePeriodExpired,
+} from "@/utils/auth";
+import { emailChangeSchema } from "@/utils/validation/auth-validation";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
@@ -20,24 +24,24 @@ async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
 }
 
 export async function POST(request: NextRequest) {
-  if (apiRateLimit) {
-    const ip = getClientIp(request);
-    const { success } = await apiRateLimit.limit(ip);
-
-    if (!success) {
-      return NextResponse.json(
-        {
-          error: "Too many requests. Please try again later.",
-        },
-        { status: 429 }
-      );
-    }
-  }
-
-  const supabase = await createClient();
-
   try {
-    // Verify user authentication
+    if (apiRateLimit) {
+      const ip = getClientIp(request);
+      const { success } = await apiRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          {
+            error: "Too many requests. Please try again later.",
+          },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
+    const supabase = await createClient();
+
+    // 1. Verify user authentication
     const {
       data: { user },
       error: userError,
@@ -48,6 +52,19 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    // 2. Get and validate request body
+    const rawBody = await request.json();
+    const validation = emailChangeSchema.safeParse(rawBody);
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.issues[0]?.message || "Invalid input" },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    const { newEmail } = validation.data;
 
     // Get user data including has_password
     const { data: dbUser, error: dbError } = await supabase
@@ -71,49 +88,6 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const body = await request.json();
-
-    // Handle 2FA verification request
-    const twoFactorValidation = twoFactorVerificationSchema.safeParse(body);
-    if (twoFactorValidation.success) {
-      const { factorId, code } = twoFactorValidation.data;
-      const { newEmail } = body;
-
-      if (!newEmail) {
-        return NextResponse.json(
-          { error: "New email is required" },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-
-      try {
-        await verifyTwoFactorCode(supabase, factorId, code);
-        await updateUserEmail(supabase, newEmail);
-        return NextResponse.json({
-          message: "Please check your new email for verification",
-        });
-      } catch (error) {
-        return NextResponse.json(
-          {
-            error:
-              error instanceof Error ? error.message : "Failed to verify code",
-          },
-          { status: 400 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
-
-    // Handle initial email change request
-    const validation = emailChangeSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: validation.error.issues[0]?.message || "Invalid input" },
-        { status: 400 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    const { newEmail } = validation.data;
-
     // Check if email is actually different
     if (newEmail === user.email) {
       return NextResponse.json(
@@ -122,18 +96,33 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if 2FA is required
-    try {
-      const twoFactorResult = await checkTwoFactorRequirements(supabase);
+    // Get device session ID from cookie
+    const deviceSessionId = request.cookies.get("device_session_id");
+    if (!deviceSessionId?.value) {
+      return NextResponse.json(
+        { error: "No device session found" },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
 
-      if (twoFactorResult.requiresTwoFactor) {
+    // Check if verification is needed
+    try {
+      const gracePeriodExpired = await hasGracePeriodExpired(
+        supabase,
+        deviceSessionId.value
+      );
+      const { has2FA, factors } = await getUserVerificationMethods(supabase);
+
+      if (gracePeriodExpired && has2FA) {
         return NextResponse.json({
-          ...twoFactorResult,
+          requiresTwoFactor: true,
+          factorId: factors[0].factorId,
+          availableMethods: factors,
           newEmail,
         }) satisfies NextResponse<TChangeEmailResponse>;
       }
 
-      // If no 2FA required, update email directly
+      // If no 2FA required or within grace period, update email directly
       await updateUserEmail(supabase, newEmail);
       return NextResponse.json({
         message: "Please check your new email for verification",

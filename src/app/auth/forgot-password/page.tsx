@@ -59,7 +59,7 @@ export default function ForgotPassword() {
         if (response.status === 429) {
           toast.error("Too many attempts", {
             description: "Please wait a moment before trying again.",
-            duration: 4000,
+            duration: 3000,
           });
           return;
         }

@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { AUTH_CONFIG } from "@/config/auth";
-import { TTwoFactorMethod } from "@/types/auth";
+import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
 import { QrCodeIcon, MessageCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -12,9 +11,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { TwoFactorVerifyForm } from "./2fa-verify-form";
-import { useUserStore } from "@/store/user-store";
+import { VerifyForm } from "./verify-form";
+import {
+  getConfigured2FAMethods,
+  getUserVerificationMethods,
+} from "@/utils/auth";
 import { TwoFactorSetupDialog } from "./2fa-setup-dialog";
+import { createClient } from "@/utils/supabase/client";
 
 interface TwoFactorMethodsProps {
   enabledMethods: TTwoFactorMethod[];
@@ -27,8 +30,16 @@ interface TwoFactorMethodsProps {
   ) => Promise<void>;
   qrCode?: string;
   secret?: string;
+  backupCodes?: string[];
   isVerifying?: boolean;
   verificationError?: string | null;
+}
+
+// State for disabling a 2FA method
+interface DisableMethodState {
+  methodToDisable: TTwoFactorMethod;
+  userEnabledMethods: TVerificationFactor[];
+  currentMethod: TVerificationFactor;
 }
 
 export function TwoFactorMethods({
@@ -38,26 +49,30 @@ export function TwoFactorMethods({
   onVerify,
   qrCode,
   secret,
+  backupCodes,
   isVerifying = false,
   verificationError = null,
 }: TwoFactorMethodsProps) {
-  const { getFactorForMethod } = useUserStore();
-
   // Core states
   const [selectedMethod, setSelectedMethod] = useState<TTwoFactorMethod | null>(
     null
   );
   const [showSetupDialog, setShowSetupDialog] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
-  const [methodToDisable, setMethodToDisable] = useState<{
-    type: TTwoFactorMethod;
-    factorId: string;
-  } | null>(null);
+  const [disableState, setDisableState] = useState<DisableMethodState | null>(
+    null
+  );
+  const supabase = createClient();
 
   // Loading states
   const [isMethodLoading, setIsMethodLoading] = useState<
     Record<string, boolean>
   >({});
+  const [isDisableVerifying, setIsDisableVerifying] = useState(false);
+  const [disableError, setDisableError] = useState<string | null>(null);
+
+  // Get available 2FA methods from config
+  const availableConfiguredMethods = getConfigured2FAMethods();
 
   const handleMethodToggle = async (
     method: TTwoFactorMethod,
@@ -73,19 +88,26 @@ export function TwoFactorMethods({
         }
         setShowSetupDialog(true);
       } else {
-        const factor = await getFactorForMethod(method);
-        if (!factor) {
-          toast.error("Error", { description: "2FA method not found" });
+        // Get all available verification methods
+        const { factors: userEnabledMethods } =
+          await getUserVerificationMethods(supabase);
+
+        if (userEnabledMethods.length === 0) {
+          toast.error("Error", {
+            description: "No verification methods available",
+          });
           return;
         }
 
-        setMethodToDisable({
-          type: method,
-          factorId: factor.factorId,
+        setDisableState({
+          methodToDisable: method,
+          userEnabledMethods,
+          currentMethod: userEnabledMethods[0],
         });
         setShowDisableDialog(true);
       }
     } catch (error) {
+      console.error("Error in method toggle:", error);
       toast.error("Error", {
         description: "Failed to update 2FA method. Please try again.",
       });
@@ -94,32 +116,52 @@ export function TwoFactorMethods({
     }
   };
 
+  const handleVerificationMethodChange = (method: TVerificationFactor) => {
+    if (!disableState) return;
+    setDisableState({
+      ...disableState,
+      currentMethod: method,
+    });
+  };
+
   const handleDisableVerify = async (code: string) => {
-    if (!methodToDisable) return;
+    if (!disableState) return;
 
     try {
-      await onMethodDisable(methodToDisable.type, code);
+      setIsDisableVerifying(true);
+      setDisableError(null);
+      await onMethodDisable(disableState.methodToDisable, code);
       setShowDisableDialog(false);
-      setMethodToDisable(null);
+      setDisableState(null);
     } catch (error) {
       console.error("Error disabling 2FA:", error);
+      setDisableError(
+        error instanceof Error
+          ? error.message
+          : "Failed to disable 2FA. Please try again."
+      );
+    } finally {
+      setIsDisableVerifying(false);
     }
   };
 
   return (
     <>
       <div className="space-y-6">
-        {AUTH_CONFIG.twoFactorAuth.methods
-          .filter((method) => method.enabled)
-          .map((method) => (
-            <MethodCard
-              key={method.type}
-              method={method}
-              isEnabled={enabledMethods.includes(method.type)}
-              isLoading={isMethodLoading[method.type]}
-              onToggle={handleMethodToggle}
-            />
-          ))}
+        {availableConfiguredMethods
+          .filter((method) => method.type !== "backup_codes")
+          .map((method) => {
+            const isEnabled = enabledMethods.includes(method.type);
+            return (
+              <MethodCard
+                key={method.type}
+                method={method}
+                isEnabled={isEnabled}
+                isLoading={isMethodLoading[method.type]}
+                onToggle={handleMethodToggle}
+              />
+            );
+          })}
       </div>
 
       {selectedMethod && (
@@ -131,6 +173,7 @@ export function TwoFactorMethods({
           onVerify={onVerify}
           qrCode={qrCode}
           secret={secret}
+          backupCodes={backupCodes}
           isVerifying={isVerifying}
           verificationError={verificationError}
         />
@@ -142,19 +185,20 @@ export function TwoFactorMethods({
             <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
             <DialogDescription>
               Please verify your identity to disable{" "}
-              {methodToDisable?.type === "authenticator"
+              {disableState?.methodToDisable === "authenticator"
                 ? "authenticator app"
                 : "SMS"}{" "}
               authentication.
             </DialogDescription>
           </DialogHeader>
-          {methodToDisable && (
-            <TwoFactorVerifyForm
-              factorId={methodToDisable.factorId}
-              availableMethods={[methodToDisable]}
+          {disableState && (
+            <VerifyForm
+              factorId={disableState.currentMethod.factorId}
+              availableMethods={disableState.userEnabledMethods}
               onVerify={handleDisableVerify}
-              isVerifying={isVerifying}
-              error={verificationError}
+              onMethodChange={handleVerificationMethodChange}
+              isVerifying={isDisableVerifying}
+              error={disableError}
             />
           )}
         </DialogContent>
@@ -163,19 +207,18 @@ export function TwoFactorMethods({
   );
 }
 
-// Optional: Extract method card to its own component
 function MethodCard({
   method,
   isEnabled,
   isLoading,
   onToggle,
 }: {
-  method: (typeof AUTH_CONFIG.twoFactorAuth.methods)[number];
+  method: ReturnType<typeof getConfigured2FAMethods>[number];
   isEnabled: boolean;
   isLoading: boolean;
   onToggle: (method: TTwoFactorMethod, shouldEnable: boolean) => Promise<void>;
 }) {
-  const methodIcons: Record<TTwoFactorMethod, React.ReactNode> = {
+  const methodIcons: Partial<Record<TTwoFactorMethod, React.ReactNode>> = {
     authenticator: <QrCodeIcon className="h-6 w-6" />,
     sms: <MessageCircleIcon className="h-6 w-6" />,
   };

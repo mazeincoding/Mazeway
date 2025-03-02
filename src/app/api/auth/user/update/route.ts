@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { profileUpdateSchema } from "@/utils/validation/auth-validation";
-import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
+import {
+  TApiErrorResponse,
+  TEmptySuccessResponse,
+  TUpdateUserRequest,
+} from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -35,7 +39,11 @@ export async function POST(request: NextRequest) {
 
     // Validate request body
     const body = await request.json();
-    const validation = profileUpdateSchema.safeParse(body);
+    const validation = profileUpdateSchema.safeParse(body) as {
+      success: boolean;
+      data: TUpdateUserRequest;
+      error?: any;
+    };
 
     if (!validation.success) {
       return NextResponse.json(
@@ -46,7 +54,6 @@ export async function POST(request: NextRequest) {
 
     const updateData = validation.data.data;
 
-    // Don't allow email updates through this endpoint
     if (updateData.email) {
       return NextResponse.json(
         {

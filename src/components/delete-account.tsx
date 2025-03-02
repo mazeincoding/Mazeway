@@ -11,8 +11,9 @@ import {
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { TwoFactorVerifyForm } from "./2fa-verify-form";
-import { TTwoFactorMethod } from "@/types/auth";
+import { VerifyForm } from "./verify-form";
+import { TVerificationFactor } from "@/types/auth";
+import { api } from "@/utils/api";
 
 export default function DeleteAccount({
   children,
@@ -22,77 +23,87 @@ export default function DeleteAccount({
   const [isOpen, setIsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [twoFactorData, setTwoFactorData] = useState<{
+  const [verificationData, setVerificationData] = useState<{
     factorId: string;
-    availableMethods: Array<{
-      type: TTwoFactorMethod;
-      factorId: string;
-    }>;
+    availableMethods: TVerificationFactor[];
   } | null>(null);
   const router = useRouter();
 
-  const handleDelete = async (code?: string) => {
+  const handleDelete = async () => {
     try {
       setIsDeleting(true);
       setError(null);
 
-      const response = await fetch("/api/auth/user/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        ...(code && twoFactorData
-          ? {
-              body: JSON.stringify({
-                factorId: twoFactorData.factorId,
-                code,
-              }),
-            }
-          : {}),
-      });
+      // Try to delete account
+      const data = await api.auth.deleteAccount();
 
-      const data = await response.json();
-
-      if (response.status === 428 && data.requiresTwoFactor) {
-        // 2FA required
-        setTwoFactorData({
-          factorId: data.factorId,
-          availableMethods: data.availableMethods,
-        });
-        return;
-      }
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          toast.error("Too many attempts", {
-            description: "Please wait a moment before trying again.",
-            duration: 4000,
+      // If verification is needed, show verification form
+      if (
+        data.requiresTwoFactor ||
+        (data.availableMethods && data.availableMethods.length > 0)
+      ) {
+        if (data.availableMethods) {
+          setVerificationData({
+            factorId: data.factorId || data.availableMethods[0].factorId,
+            availableMethods: data.availableMethods,
           });
           return;
         }
-        throw new Error(data.error || "Failed to delete account");
       }
 
-      // Success - close dialog and redirect to home
+      // Success - close dialog and clean up
       setIsOpen(false);
+
+      // Show success message
       toast.success("Account deleted", {
         description: "Your account has been permanently deleted.",
       });
-      router.push("/");
+
+      // Clear any cached user data
+      await api.auth.logout();
+
+      // Small delay to ensure cleanup is complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Redirect to home and force a hard refresh to clear all state
+      window.location.href = "/";
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to delete account";
-      setError(message);
+      setError(error instanceof Error ? error.message : "An error occurred");
       toast.error("Error", {
-        description: message,
+        description:
+          error instanceof Error ? error.message : "An error occurred",
+        duration: 3000,
       });
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleVerify2FA = async (code: string) => {
-    await handleDelete(code);
+  const handleVerify = async (code: string) => {
+    try {
+      setIsDeleting(true);
+      setError(null);
+
+      if (!verificationData) return;
+
+      // Verify using the centralized verify endpoint
+      await api.auth.verify({
+        factorId: verificationData.factorId,
+        method: verificationData.availableMethods[0].type,
+        code,
+      });
+
+      // After verification, try to delete account again
+      await handleDelete();
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("Verification failed");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -100,18 +111,17 @@ export default function DeleteAccount({
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete account</DialogTitle>
+          <DialogTitle>Confirm Deletion</DialogTitle>
           <DialogDescription>
-            Warning: This will permanently delete your account and all your
-            data. This action is irreversible.
+            Are you sure you want to proceed?
           </DialogDescription>
         </DialogHeader>
 
-        {twoFactorData ? (
-          <TwoFactorVerifyForm
-            factorId={twoFactorData.factorId}
-            availableMethods={twoFactorData.availableMethods}
-            onVerify={handleVerify2FA}
+        {verificationData ? (
+          <VerifyForm
+            factorId={verificationData.factorId}
+            availableMethods={verificationData.availableMethods}
+            onVerify={handleVerify}
             isVerifying={isDeleting}
             error={error}
           />
@@ -119,10 +129,10 @@ export default function DeleteAccount({
           <DialogFooter>
             <Button
               variant="destructive"
-              onClick={() => handleDelete()}
+              onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? "Deleting..." : "Delete Account"}
+              {isDeleting ? "Deleting..." : "Yes, delete my account"}
             </Button>
           </DialogFooter>
         )}

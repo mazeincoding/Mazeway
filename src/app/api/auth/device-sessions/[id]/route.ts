@@ -22,7 +22,7 @@ import { AUTH_CONFIG } from "@/config/auth";
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Even though TypeScript thinks "await" doesn't have an effect
   // It does. It's required in Next.js dynamic API routes

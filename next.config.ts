@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
+  reactStrictMode: true,
+  productionBrowserSourceMaps: true,
 };
 
 export default nextConfig;

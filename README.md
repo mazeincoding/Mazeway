@@ -100,9 +100,8 @@ This is only the beginning.
 ### 1. Install dependencies
 In the terminal, run this:
 ```bash
-npm install --legacy-peer-deps
+npm install
 ```
-The `--legacy-peer-deps` flag is just because this project uses react 19, and not a lot of npm packages support that. You might get errors without the flag, so this should solve them.
 
 If you get errors with that flag too, check out [this list](https://docs.google.com/document/d/1piyDtOeEHoaIagc9K_vfglW37IKEo-4msLcZ92roLYU/edit?usp=sharing)
 

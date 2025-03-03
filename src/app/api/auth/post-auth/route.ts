@@ -129,30 +129,66 @@ export async function GET(request: Request) {
     }
 
     console.log("[AUTH] /api/auth/post-auth - Fetching trusted sessions");
-    const trustedSessionsResponse = await fetch(
-      `${origin}/api/auth/device-sessions/trusted`,
-      {
-        headers: {
-          Cookie: request.headers.get("cookie") || "",
-        },
-      }
-    );
+    let trustedSessions = null;
+    try {
+      // Get all cookies from the request and forward them properly
+      const cookieHeader = request.headers.get("cookie") || "";
+      console.log("[AUTH] /api/auth/post-auth - Forwarding cookies", {
+        hasCookies: !!cookieHeader,
+        cookieLength: cookieHeader.length,
+      });
 
-    if (!trustedSessionsResponse.ok) {
+      // Create absolute URL for proper cookie handling
+      const absoluteUrl = new URL(
+        "/api/auth/device-sessions/trusted",
+        origin
+      ).toString();
+
+      const trustedSessionsResponse = await fetch(absoluteUrl, {
+        headers: {
+          Cookie: cookieHeader,
+        },
+      });
+
+      if (!trustedSessionsResponse.ok) {
+        console.error(
+          "[AUTH] /api/auth/post-auth - Failed to get trusted sessions",
+          {
+            status: trustedSessionsResponse.status,
+            statusText: trustedSessionsResponse.statusText,
+            url: absoluteUrl,
+          }
+        );
+
+        // Just log the error but don't throw - fallback to empty trusted sessions
+        if (trustedSessionsResponse.status === 401) {
+          console.log(
+            "[AUTH] /api/auth/post-auth - Falling back to empty trusted sessions due to 401"
+          );
+        } else {
+          // For any other error status, throw the original error
+          throw new Error("Failed to get trusted sessions");
+        }
+      } else {
+        // Only parse the response if it was successful
+        const responseData = await trustedSessionsResponse.json();
+        trustedSessions = responseData.data;
+        console.log("[AUTH] /api/auth/post-auth - Trusted sessions fetched", {
+          count: trustedSessions ? trustedSessions.length : 0,
+        });
+      }
+    } catch (error) {
+      // Handle network errors but don't fail the authentication flow
       console.error(
-        "[AUTH] /api/auth/post-auth - Failed to get trusted sessions",
+        "[AUTH] /api/auth/post-auth - Error fetching trusted sessions",
         {
-          status: trustedSessionsResponse.status,
-          statusText: trustedSessionsResponse.statusText,
+          error: error instanceof Error ? error.message : String(error),
         }
       );
-      throw new Error("Failed to get trusted sessions");
+      console.log(
+        "[AUTH] /api/auth/post-auth - Continuing with empty trusted sessions"
+      );
     }
-
-    const { data: trustedSessions } = await trustedSessionsResponse.json();
-    console.log("[AUTH] /api/auth/post-auth - Trusted sessions fetched", {
-      count: trustedSessions ? trustedSessions.length : 0,
-    });
 
     const parser = new UAParser(request.headers.get("user-agent") || "");
     const deviceName = parser.getDevice().model || "Unknown Device";

@@ -23,7 +23,7 @@ export default function Home() {
         <div className="flex gap-2">
           <Link href="/auth/signup">
             <Button size="lg" className="text-base">
-              Try now
+              Try demo
             </Button>
           </Link>
         </div>

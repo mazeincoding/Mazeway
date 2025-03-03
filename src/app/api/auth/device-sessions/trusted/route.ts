@@ -54,6 +54,11 @@ export async function GET(request: NextRequest) {
     }) satisfies NextResponse<TGetTrustedDeviceSessionsResponse>;
   } catch (error) {
     const err = error as Error;
+    console.error("Error fetching trusted device sessions:", {
+      error: err.message,
+      stack: err.stack,
+    });
+
     return NextResponse.json(
       { error: err.message },
       {

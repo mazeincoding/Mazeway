@@ -12,11 +12,34 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
  * during session creation based on device confidence and verification status.
  */
 export async function GET(request: NextRequest) {
+  console.log("[AUTH] /api/auth/device-sessions/trusted - Request received", {
+    url: request.url,
+    timestamp: new Date().toISOString(),
+    headers: {
+      cookie: !!request.headers.get("cookie"),
+      useragent: request.headers.get("user-agent")?.substring(0, 50) + "...",
+    },
+  });
+
   if (apiRateLimit) {
     const ip = getClientIp(request);
+    console.log(
+      "[AUTH] /api/auth/device-sessions/trusted - Rate limiting check",
+      {
+        ip: ip,
+      }
+    );
+
     const { success } = await apiRateLimit.limit(ip);
 
     if (!success) {
+      console.error(
+        "[AUTH] /api/auth/device-sessions/trusted - Rate limit exceeded",
+        {
+          ip: ip,
+        }
+      );
+
       return NextResponse.json(
         {
           error: "Too many requests. Please try again later.",
@@ -29,11 +52,41 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
 
   try {
+    console.log(
+      "[AUTH] /api/auth/device-sessions/trusted - Getting user from auth"
+    );
+
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
-    if (userError || !user) throw new Error("Unauthorized");
+
+    if (userError) {
+      console.error("[AUTH] /api/auth/device-sessions/trusted - User error", {
+        error: userError.message,
+        status: userError.status,
+      });
+      throw new Error("Unauthorized");
+    }
+
+    if (!user) {
+      console.error(
+        "[AUTH] /api/auth/device-sessions/trusted - No user found in session"
+      );
+      throw new Error("Unauthorized");
+    }
+
+    console.log(
+      "[AUTH] /api/auth/device-sessions/trusted - User authenticated",
+      {
+        userId: user.id,
+        email: user.email,
+      }
+    );
+
+    console.log(
+      "[AUTH] /api/auth/device-sessions/trusted - Fetching trusted device sessions"
+    );
 
     const { data, error } = await supabase
       .from("device_sessions")
@@ -47,7 +100,23 @@ export async function GET(request: NextRequest) {
       .eq("is_trusted", true)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error(
+        "[AUTH] /api/auth/device-sessions/trusted - Database error",
+        {
+          error: error.message,
+          code: error.code,
+        }
+      );
+      throw error;
+    }
+
+    console.log(
+      "[AUTH] /api/auth/device-sessions/trusted - Sessions fetched successfully",
+      {
+        count: data ? data.length : 0,
+      }
+    );
 
     return NextResponse.json({
       data,

@@ -193,7 +193,7 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     -- Create devices table
     CREATE TABLE devices (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id uuid REFERENCES auth.users NOT NULL,
+      user_id uuid REFERENCES public.users NOT NULL,
       device_name text NOT NULL,
       browser text,
       os text,

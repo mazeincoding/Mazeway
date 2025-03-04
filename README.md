@@ -111,7 +111,9 @@ npm install
     - If you don't have an account, create one
     - Click "New project"
     - Name it "my-app-dev" (your actual app name), choose location and generate database password
+    - Name it "my-app-dev" (your actual app name), choose location and generate database password
 2.  Get API keys
+    - Once the project is fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
     - Once the project is fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
     - Get your "Project URL", "anon" key and "service_role" key
 
@@ -281,6 +283,14 @@ Congrats! 🎉 You just set up everything you need for the auth to work. You can
     - Copy these [email templates](docs/supabase-email-templates.md)
 
 6. Set up Google OAuth and connect to Supabase
+    - Head over to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+    - Run these [code snippets](docs/supabase-snippets.md)
+
+5. Change email templates
+    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
+    - Copy these [email templates](docs/supabase-email-templates.md)
+
+6. Set up Google OAuth and connect to Supabase
 
 This will allow users to sign in with Google.
 
@@ -310,13 +320,17 @@ Good to know:
         - Click "create credentials"
         - Choose "OAuth Client ID".
         - For "Application type", choose "Web application".
-        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000` (I know you're probably thinking "what about production" - don't worry about that yet. You haven't even set up auth yet. When you're ready to show off your auth to the entire world, scroll down to set up production)
+        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000` (don't worry about your custom domain or production)
         - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
             1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
             2. Scroll down until you see "Google" and expand it
             3. You'll find a field labeled "Callback URL (for OAuth)"".
         - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
         - Copy those, go back to Supabbase and paste those. Then click "Save"
+
+7. Add your redirect URL in Supabase
+    - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
+    - Add a redirect URL `http://localhost:3000/api/auth/callback`
 
 If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue.
 
@@ -384,6 +398,154 @@ Congrats! 🎉 You just set up everything you need for the auth to work. You can
 > [!NOTE]
 > When running the dev server, you may see a warning in your console about `supabase.auth.getSession()` being potentially insecure. This is a [known issue](https://github.com/supabase/auth-js/issues/873) with the Supabase auth library and can be safely ignored. The warning is a false positive - this project follows all security best practices and uses the recommended `@supabase/ssr` package correctly.
 
+## Go in production
+
+### 1. Deploy to Vercel
+1. Click this button:
+
+    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmazeincoding%2Fmazeway&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,NEXT_PUBLIC_SITE_URL,RECOVERY_TOKEN_SECRET,RESEND_API_KEY,RESEND_FROM_EMAIL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_PHONE_NUMBER)
+
+2. Give your project a name and hit create
+3. Fuck this... I'm gonna write this later
+
+### 1. Set up Supabase
+1. Create a Supabase project
+    - Go to [Supabase](https://supabase.com/dashboard/projects)
+    - Click "New project"
+    - Name it "my-app-prod" (your actual app name), choose location and generate database password
+2.  Get API keys
+    - Once the project is fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
+    - Get your "Project URL", "anon" key and "service_role" key
+
+    > Note that Supabase is changing "anon" and "service_role" to "publishable" and "secret". This may have changed when you're reading this.
+3. Add environment variables
+    - Open the `.env.example` file
+    - Copy the contents to a new file called `.env.local`
+    - Replace the values with your own:
+        - `NEXT_PUBLIC_SUPABASE_URL`: your project URL from step 2
+        - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your anon/publishable key from step 2
+        - `SUPABASE_SERVICE_ROLE_KEY`: your service role/secret key from step 2
+
+    > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys)
+
+4. Create Supabase tables
+    - Head over to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+    - Run these [code snippets](docs/supabase-snippets.md)
+
+5. Change email templates
+    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
+    - Copy these [email templates](docs/supabase-email-templates.md)
+
+6. Set up Google OAuth and connect to Supabase
+
+This will allow users to sign in with Google.
+
+Good to know:
+- this project is moving towards a "config-based" approach
+- where you can enable/disable what you want
+- that means, Google Auth is going to an optional feature
+- for now, it's required
+- for now, it's required
+
+    1. Get your Google OAuth credentials
+        - Go to [Google Cloud Console](https://console.cloud.google.com/)
+        - Create/select project in console
+        - Go to: [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
+        - Choose "External". ("Internal" might be disabled)
+    
+    2. Configure OAuth consent screen
+        - Enter your app name in the "App name" field (eg: auth-starter)
+        - Click the "user support email" dropdown and select your email here
+        - You can upload a logo if you want. The auth will work either way
+        - Scroll down to the "Authorized domains" heading and click the "ADD DOMAIN" button. Enter your Supabase project URL here. We got this in the early steps. Should look like `<PROJECT_ID>.supabase.co`.
+        - Scroll down to the "Developer contact information" heading and add your email.
+    
+        > Note: The URL shouldn't include the `https://` part
+    
+    3. Create OAuth credentials
+        - Go to: [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+        - Click "create credentials"
+        - Choose "OAuth Client ID".
+        - For "Application type", choose "Web application".
+        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000` (I know you're probably thinking "what about production" - don't worry about that yet. You haven't even set up auth yet. When you're ready to show off your auth to the entire world, scroll down to set up production)
+        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000` (I know you're probably thinking "what about production" - don't worry about that yet. You haven't even set up auth yet. When you're ready to show off your auth to the entire world, scroll down to set up production)
+        - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
+            1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+            1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+            2. Scroll down until you see "Google" and expand it
+            3. You'll find a field labeled "Callback URL (for OAuth)"".
+        - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
+        - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
+        - Copy those, go back to Supabbase and paste those. Then click "Save"
+
+If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue.
+If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue.
+
+### 3. Set up Resend (optional)
+Supabase (as of now) does give you 2 free emails per hour but it's unreliable. Sometimes, unclear errors will pop up because of their SMTP and you'll spend 2 hours debugging.
+
+You can totally skip setting up Resend (during development) but be mindful that if auth doesn't work, setting up a custom SMTP will probably fix it.
+
+Aside from that, the project uses Resend for:
+- email login alerts
+- device verification
+
+If you don't set up Resend:
+- The code won't attempt to use Resend at all
+- All devices will be "trusted" by default, which doesn't matter for development
+
+When you go in production, I recommend you set it up. Because:
+- you just need to get an API key and put it in the environment variables (`.env.local`).
+- you don't need to change any code
+- auth is supposed to be secure in production
+- you'll need a domain but you would anyway without Resend
+
+With that out the way, here's how to do it:
+
+**Luckily...**
+Resend makes it really straightforward to integrate with Supabase.
+
+You won't even need to touch the Supabase dashboard to do it.
+
+1. Create Resend account and set up domain
+    - Go to the [Resend website](https://resend.com)
+    - Create an account/login
+    - Go to [Domains](https://resend.com/domains)
+    - If you already have a domain here (that you wanna use) you can skip this. But if you don't got one (or want a new one) follow the steps by Resend. It should be clear what to do, but hit me up on [X (Twitter)](https://x.com/mazewinther1) if you're having trouble and I'll personally help you. You can also open a GitHub issue.
+
+    > Note: You will need a paid domain for this as mentioned above.
+    
+    > You can add any domain by the way. I'm on the Resend free tier so I added my personal domain (mazewinther.com). You know why? Because the free tier only gets you 1 domain, so by using my personal domain, I can re-use it for all of my apps and it still makes sense.
+    >
+    > If I were to add my app's domain, it'd only really make sense to use for that one app.
+    >
+    > If you're on a paid tier, just add your app's domain because you can have multiple domains. This is only a tip for people who wan't wanna spend money right away.
+    >
+    > Though Resend is really amazing, and I'd probably subscribe just to support the service itself.
+
+2. Set up API key and Supabase integration
+    - Once you have a domain, go to [API Keys](https://resend.com/api-keys) and click "Create API key"
+    - Enter a name for the API key (like your app name), then change "permission" to "Sending access" and click the "Domain" field to change it to the one you just added
+    - Now go to [Integrations](https://resend.com/settings/integrations)
+    - You should see Supabase listed. Click "Connect to Supabase"
+    - Resend will request access to your Supabase organization. Click "Authorize Resend"
+    - Select your Supabase project
+    - Select the domain you just added
+    - Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
+    - Update your `.env.local` file to add these (this is because aside from Supabase, the project uses Resend too):
+    ```diff
+    - RESEND_API_KEY=your-resend-api-key
+    - RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
+    + RESEND_API_KEY=your-resend-api-key
+    + RESEND_FROM_EMAIL="Your_name <example@yourdomain.com>"
+    ```
+
+Congrats! 🎉 You just set up everything you need for the auth to work. You can go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
+Congrats! 🎉 You just set up everything you need for the auth to work. You can go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
+
+> [!NOTE]
+> When running the dev server, you may see a warning in your console about `supabase.auth.getSession()` being potentially insecure. This is a [known issue](https://github.com/supabase/auth-js/issues/873) with the Supabase auth library and can be safely ignored. The warning is a false positive - this project follows all security best practices and uses the recommended `@supabase/ssr` package correctly.
+
 ## Recommended for production
 The features/things listed below are completely optional for development.
 
@@ -398,6 +560,7 @@ That makes zero sense because then they tell you to lower it to 1 hour (or below
 
 So let's go ahead and make Supabase (and your users) happy:
 1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
 2. Expand the "Email" provider
 3. Scroll down to "Email OTP Expiration"
 4. Set it to "1800" (1 hour)
@@ -407,7 +570,9 @@ So let's go ahead and make Supabase (and your users) happy:
 Some things will pile up in your database over time (verification codes, expired device sessions, eg), but it's not that crucial to clean them up right away.
 
 Even in early production, your database won't explode from some old data lying around (most data gets cleared by the code)
+Even in early production, your database won't explode from some old data lying around (most data gets cleared by the code)
 
+If you do want to set it up, check out [this guide](docs/cleanup-setup.md).
 If you do want to set it up, check out [this guide](docs/cleanup-setup.md).
 
 ### API Rate limiting (with Upstash Redis)
@@ -418,6 +583,7 @@ Yes, this does introduce another service you'll need to set up but:
 
 Here's how to do it:
 1. Set up Upstash account and database
+    - Go to the [Upstash website](https://console.upstash.com/login)
     - Go to the [Upstash website](https://console.upstash.com/login)
     - Create an account or log in
     - Click "create database"
@@ -533,6 +699,7 @@ If you really want to flex that your auth system can do everything:
     - Here, you'll find "Messaging Service SID". We're going to need this now! (along with the other things we got earlier)
 5. Connect Supabase with Twilio
     - Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+    - Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
     - Expand "Phone" and enable it
     - SMS provider: Twilio
     - Twilio account SID: you got this from step 2
@@ -586,6 +753,9 @@ What you need to know:
 3. Set up Resend
 4. Set up Upstash Redis for API rate limiting
 5. If you set up SMS for two-factor authentication:
+3. Set up Resend
+4. Set up Upstash Redis for API rate limiting
+5. If you set up SMS for two-factor authentication:
     - Upgrade from Twilio trial account (add payment info)
     - Register for A2P 10DLC (that fancy thing for business texting)
     - Wait for carrier approval
@@ -598,11 +768,19 @@ What you need to know:
     - [Database Settings](https://supabase.com/dashboard/project/_/settings/database)
 7. Change email OPT expiration (see how in "Recommended for production")
 8.  Publish your Google OAuth app:
+6. Enable "Enforce SSL on incoming connections" in Supabase:
+    - [Database Settings](https://supabase.com/dashboard/project/_/settings/database)
+7. Change email OPT expiration (see how in "Recommended for production")
+8.  Publish your Google OAuth app:
     - Go to [Google Cloud Console OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent?inv=1&invt=AbohWw)
     - Click the "Publish app" button to make it available to all users
 9.  Optional but good to have: set up automatic database cleanups
+9.  Optional but good to have: set up automatic database cleanups
    - Not super urgent - your database won't explode
    - But good to do if you expect lots of users or long-term use
+   - Check this [guide](docs/cleanup-setup.md)
+10. Set up dev/prod environments
+    - Follow this [guide](docs/dev-prod-setup.md)
    - Check this [guide](docs/cleanup-setup.md)
 10. Set up dev/prod environments
     - Follow this [guide](docs/dev-prod-setup.md)

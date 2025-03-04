@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export function Header({ isInitiallyLoggedIn, sidebar }: HeaderProps) {
   return (
-    <header className="flex items-center justify-between p-4 backdrop-blur-xl border-b sticky top-0 z-30 bg-background">
+    <header className="flex items-center justify-between p-4 backdrop-blur-lg border-b sticky top-0 z-30 bg-background/50">
       <div className="flex items-center gap-2">
         {sidebar}
         <Link href="/" className="flex items-center gap-2">

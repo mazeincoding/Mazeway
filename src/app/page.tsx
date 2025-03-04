@@ -13,8 +13,7 @@ export default function Home() {
             Demo
           </Badge>
           <h1 className="text-5xl font-semibold text-center text-pretty">
-            Complete auth foundation{" "}
-            <span className="text-muted-foreground">you can customize</span>
+            Mazeway Demo
           </h1>
           <p className="block text-lg text-muted-foreground text-pretty">
             Drop in production-ready auth code with everything apps need

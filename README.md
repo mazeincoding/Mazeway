@@ -31,6 +31,7 @@ Comparing Shadcn UI to bootstrap is like comparing Mazeway to Clerk:
 - plus:
     - community-driven
     - more secure
+    - more secure
     - auth config to change common things
     - later: extensions by the community
     - acts as a foundation, not a final product. Start here, build on it.
@@ -96,7 +97,7 @@ This starter pack includes all of that, and more.
 
 This is only the beginning.
   
-## Required setup
+## Quick setup (development)
 
 ### 1. Install dependencies
 In the terminal, run this:
@@ -104,16 +105,14 @@ In the terminal, run this:
 npm install
 ```
 
-If you get errors with that flag too, check out [this list](https://docs.google.com/document/d/1piyDtOeEHoaIagc9K_vfglW37IKEo-4msLcZ92roLYU/edit?usp=sharing)
-
 ### 2. Set up Supabase
 1. Create a Supabase project
     - Go to [Supabase](https://supabase.com/dashboard/projects)
     - If you don't have an account, create one
     - Click "New project"
-    - Give it a name, location and generate database password
+    - Name it "my-app-dev" (your actual app name), choose location and generate database password
 2.  Get API keys
-    - Once fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
+    - Once the project is fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
     - Get your "Project URL", "anon" key and "service_role" key
 
     > Note that Supabase is changing "anon" and "service_role" to "publishable" and "secret". This may have changed when you're reading this.
@@ -128,352 +127,14 @@ If you get errors with that flag too, check out [this list](https://docs.google.
     > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys)
 
 4. Create Supabase tables
-    - Head over to the Supabase [SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
-    - Run all these code snippets:
-    
-    **Create update_updated_at function**
-    ```sql
-    -- Create a function to update the "updated_at" column
-    CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-    RETURNS TRIGGER 
-    SECURITY DEFINER
-    SET search_path = public
-    AS $$
-    BEGIN
-      NEW.updated_at = now();
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-    ```
-    
-    **Create the user table**
-    ```sql
-    -- Step 1: Create the users table
-    CREATE TABLE users (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      email text UNIQUE NOT NULL,
-      name text NOT NULL,
-      avatar_url text,
-      has_password boolean DEFAULT false,
-      created_at timestamp with time zone DEFAULT now(),
-      updated_at timestamp with time zone DEFAULT now()
-    );
-    
-    -- Step 2: Enable Row-Level Security
-    ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-    
-    -- Step 3: Create RLS policies
-    
-    -- Allow users to insert their own data
-    CREATE POLICY "Allow user to insert their own data"
-    ON users
-    FOR INSERT
-    WITH CHECK (auth.uid() = id);
-    
-    -- Allow users to select their own data
-    CREATE POLICY "Allow user to select their own data"
-    ON users
-    FOR SELECT
-    USING (auth.uid() = id);
-    
-    -- Allow users to update their own data
-    CREATE POLICY "Allow user to update their own data"
-    ON users
-    FOR UPDATE
-    USING (auth.uid() = id);
-    
-    -- Step 4: Create trigger to update the "updated_at" column using the function we just created
-    CREATE TRIGGER update_users_updated_at
-    BEFORE UPDATE ON users
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-    ```
-
-    **Create devices table**
-    ```sql
-    -- Create devices table
-    CREATE TABLE devices (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id uuid REFERENCES public.users NOT NULL,
-      device_name text NOT NULL,
-      browser text,
-      os text,
-      ip_address text,
-      created_at timestamp with time zone DEFAULT now(),
-      updated_at timestamp with time zone DEFAULT now()
-    );
-    
-    -- Enable RLS
-    ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
-    
-    -- Create RLS policies
-    CREATE POLICY "Users can create their own devices"
-    ON devices
-    FOR INSERT
-    WITH CHECK (user_id = auth.uid());
-    
-    CREATE POLICY "Users can view their own devices"
-    ON devices
-    FOR SELECT
-    USING (user_id = auth.uid());
-    
-    -- Create trigger for updated_at
-    CREATE TRIGGER update_devices_updated_at
-    BEFORE UPDATE ON devices
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-    ```
-
-    **Create device sessions table**
-    ```sql
-    CREATE TABLE device_sessions (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      device_id uuid REFERENCES devices(id) ON DELETE CASCADE,
-      is_trusted boolean DEFAULT false,
-      needs_verification boolean DEFAULT false,
-      confidence_score integer DEFAULT 0,
-      aal text DEFAULT 'aal1' CHECK (aal IN ('aal1', 'aal2')),
-      expires_at timestamp with time zone NOT NULL,
-      -- When this device was verified via email code (for unknown device login)
-      device_verified_at timestamp with time zone,
-      -- When user last performed 2FA/basic verification for sensitive actions
-      last_sensitive_verification_at timestamp with time zone,
-      created_at timestamp with time zone DEFAULT now(),
-      updated_at timestamp with time zone DEFAULT now()
-    );
-    
-    -- Step 2: Enable Row-Level Security
-    ALTER TABLE device_sessions ENABLE ROW LEVEL SECURITY;
-    
-    -- Step 3: Create RLS policies
-    
-    -- Allow users to view their own device sessions
-    CREATE POLICY "Allow users to view their own device sessions"
-    ON device_sessions
-    FOR SELECT
-    USING (auth.uid() = user_id);
-    
-    -- Step 4: Create trigger to update the "updated_at" column
-    CREATE TRIGGER update_device_sessions_updated_at
-    BEFORE UPDATE ON device_sessions
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-    
-    -- Step 5: Create indexes for faster queries
-    CREATE INDEX idx_device_sessions_user_id ON device_sessions(user_id);
-    CREATE INDEX idx_device_sessions_device_id ON device_sessions(device_id);
-    ```
-    
-    **Create verification codes table**
-    ```sql
-    -- Create verification_codes table
-    CREATE TABLE verification_codes (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      device_session_id uuid REFERENCES device_sessions(id) ON DELETE CASCADE,
-      code_hash text NOT NULL,
-      salt text NOT NULL,
-      expires_at timestamp with time zone NOT NULL,
-      created_at timestamp with time zone DEFAULT now(),
-      updated_at timestamp with time zone DEFAULT now()
-    );
-
-    -- Enable RLS
-    ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
-
-    -- Create trigger for updated_at
-    CREATE TRIGGER update_verification_codes_updated_at
-    BEFORE UPDATE ON verification_codes
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-    -- Create index for faster lookups
-    CREATE INDEX idx_verification_codes_device_session_id 
-    ON verification_codes(device_session_id);
-
-    -- Create index for faster expiry cleanup
-    CREATE INDEX idx_verification_codes_expires_at 
-    ON verification_codes(expires_at);
-    ```
-
-    **Create backup codes table**
-    ```sql
-    -- Create backup_codes table
-    CREATE TABLE backup_codes (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id uuid REFERENCES auth.users NOT NULL,
-        code_hash text NOT NULL,
-        salt text NOT NULL,
-        used_at timestamp with time zone,
-        created_at timestamp with time zone DEFAULT now(),
-        updated_at timestamp with time zone DEFAULT now()
-    );
-    
-    -- Enable RLS 
-    ALTER TABLE backup_codes ENABLE ROW LEVEL SECURITY;
-    
-    -- Create trigger for updated_at
-    CREATE TRIGGER update_backup_codes_updated_at
-    BEFORE UPDATE ON backup_codes
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-    
-    -- Create index for faster lookups
-    CREATE INDEX idx_backup_codes_user_id ON backup_codes(user_id);
-    ```
+    - Head over to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+    - Run these [code snippets](docs/supabase-snippets.md)
 
 5. Change email templates
-    - Go to Supabase [Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
-    - Paste the code into each individual template:
+    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
+    - Copy these [email templates](docs/supabase-email-templates.md)
 
-    **Confirm signup**
-    ```html
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-      <title>Confirm your signup</title>
-      <style>
-        @media only screen and (max-width: 600px) {
-          .container {
-            width: 100% !important;
-          }
-        }
-      </style>
-    </head>
-    <body style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
-      <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
-        <!-- Header with Logo -->
-        <div>
-          <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
-        </div>
-    
-        <!-- Main Heading -->
-        <h1 style="font-size: 24px; font-weight: 600; color: #202124; text-align: left; margin: 30px 0 20px;">Confirm Your Signup</h1>
-    
-        <!-- Main Content -->
-        <div style="margin-bottom: 16px;">
-          <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
-            Thank you for signing up. Please confirm your email address to complete your registration.
-          </p>
-        </div>
-    
-        <!-- Action Button Section -->
-        <div style="background-color: #ffffff; padding: 20px 0; text-align: left; margin-bottom: 20px;">
-          <a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup" style="background-color: #000000; color: white; padding: 12px     24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Confirm Email</a>
-        </div>
-    
-        <!-- Footer Text -->
-        <p style="font-size: 14px; color: #5f6368; margin-top: 20px; text-align: left;">
-          If you did not create an account, please ignore this email.
-        </p>
-      </div>
-    </body>
-    </html>
-    ```
-    
-    **Change Email Address**
-    ```html
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-      <title>Confirm Change of Email</title>
-      <style>
-        @media only screen and (max-width: 600px) {
-          .container {
-            width: 100% !important;
-          }
-        }
-      </style>
-    </head>
-    <body style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
-      <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
-        <!-- Header with Logo -->
-        <div>
-          <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
-        </div>
-    
-        <!-- Main Heading -->
-        <h1 style="font-size: 24px; font-weight: 600; color: #202124; text-align: left; margin: 30px 0 20px;">Confirm Change of Email</h1>
-    
-        <!-- Main Content -->
-        <div style="margin-bottom: 16px;">
-          <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
-            We received a request to change your email address from {{ .Email }} to {{ .NewEmail }}. Please confirm this change by clicking the button below.
-          </p>
-        </div>
-    
-        <!-- Action Button Section -->
-        <div style="background-color: #ffffff; padding: 20px 0; text-align: left; margin-bottom: 20px;">
-          <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account" style="background-color: #000000; color: white;     padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Confirm Email Change</a>
-        </div>
-    
-        <!-- Footer Text -->
-        <p style="font-size: 14px; color: #5f6368; margin-top: 20px; text-align: left;">
-          If you did not request this change, please secure your account immediately by changing your password.
-        </p>
-      </div>
-    </body>
-    </html>
-    ```
-    
-    **Reset Password**
-    ```html
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-      <title>Reset Your Password</title>
-      <style>
-        @media only screen and (max-width: 600px) {
-          .container {
-            width: 100% !important;
-          }
-        }
-      </style>
-    </head>
-    <body style="background-color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
-      <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
-        <!-- Header with Logo -->
-        <div>
-          <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
-        </div>
-    
-        <!-- Main Heading -->
-        <h1 style="font-size: 24px; font-weight: 600; color: #202124; text-align: left; margin: 30px 0 20px;">Reset Your Password</h1>
-    
-        <!-- Main Content -->
-        <div style="margin-bottom: 16px;">
-          <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
-            We received a request to reset your password. Click the button below to create a new password.
-          </p>
-        </div>
-    
-        <!-- Action Button Section -->
-        <div style="background-color: #ffffff; padding: 20px 0; text-align: left; margin-bottom: 20px;">
-          <a href="{{ .SiteURL }}/api/auth/callback?type=recovery&token_hash={{ .TokenHash }}" style="background-color: #000000; color: white; padding: 12px     24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Reset Password</a>
-        </div>
-    
-        <!-- Footer Text -->
-        <p style="font-size: 14px; color: #5f6368; margin-top: 20px; text-align: left;">
-          If you did not request a password reset, please ignore this email or contact support if you have concerns.
-        </p>
-      </div>
-    </body>
-    </html>
-    ```
-    > [!NOTE]
-    > You can customize these email templates depending on your needs, like the primary color or other stuff.
-    >
-    > Don't stress too much about this in development. This README has a production checklist that covers this already so you won't forget.
-    >
-    > Same deal with the logo. Production checklist got you covered for when you actually need it.
-
-1. Set up Google OAuth and connect to Supabase
+6. Set up Google OAuth and connect to Supabase
 
 This will allow users to sign in with Google.
 
@@ -481,7 +142,7 @@ Good to know:
 - this project is moving towards a "config-based" approach
 - where you can enable/disable what you want
 - that means, Google Auth is going to an optional feature
-- for now, it's required (but super simple to do)
+- for now, it's required
 
     1. Get your Google OAuth credentials
         - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -503,15 +164,19 @@ Good to know:
         - Click "create credentials"
         - Choose "OAuth Client ID".
         - For "Application type", choose "Web application".
-        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000`.
+        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000` (don't worry about your custom domain or production)
         - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
-            1. Go to Supabase [Auth Providers](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/auth/providers)
+            1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
             2. Scroll down until you see "Google" and expand it
             3. You'll find a field labeled "Callback URL (for OAuth)"".
-        - Hit "create" in the Google console and you will be shown your "Client ID" and "Client secret"
+        - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
         - Copy those, go back to Supabbase and paste those. Then click "Save"
 
-If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue, or just contact me directly [X](https://x.com/mazewinther1) [Email](emailto:hi@mazecoding.com)
+7. Add your redirect URL in Supabase
+    - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
+    - Add a redirect URL `http://localhost:3000/api/auth/callback`
+
+If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue.
 
 ### 3. Set up Resend (optional)
 Supabase (as of now) does give you 2 free emails per hour but it's unreliable. Sometimes, unclear errors will pop up because of their SMTP and you'll spend 2 hours debugging.
@@ -572,21 +237,152 @@ You won't even need to touch the Supabase dashboard to do it.
     + RESEND_FROM_EMAIL="Your_name <example@yourdomain.com>"
     ```
 
-Congrats! 🎉 You just set up everything you need for the auth to work. You can:
-- Go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
+Congrats! 🎉 You just set up everything you need for the auth to work. You can go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
 
 > [!NOTE]
 > When running the dev server, you may see a warning in your console about `supabase.auth.getSession()` being potentially insecure. This is a [known issue](https://github.com/supabase/auth-js/issues/873) with the Supabase auth library and can be safely ignored. The warning is a false positive - this project follows all security best practices and uses the recommended `@supabase/ssr` package correctly.
 
-- Or if setup was too fast for you, keep reading. You'll learn about the project you're working with, optional steps (recommended for production) and more fun stuff.
+## Go in production
 
-No joke: 99% of auth is done for production but **when you go in production**, I really recommend you:
-- go back and set up Resend if you didn't already
-- set up API rate limiting
+### 1. Deploy to Vercel
+1. Click this button:
 
-Luckily, those things are super easy to do. You literally just need to set up 2 services (Resend and Upstash Redis), get API keys and replace them in `.env.local`. The code will handle everything else automatically.
+    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmazeincoding%2Fmazeway&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,NEXT_PUBLIC_SITE_URL,RECOVERY_TOKEN_SECRET,RESEND_API_KEY,RESEND_FROM_EMAIL,UPSTASH_REDIS_REST_URL,UPSTASH_REDIS_REST_TOKEN,TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_PHONE_NUMBER)
 
-For development, do whatever you want. Set it up later if you want.
+2. Give your project a name and hit create
+3. Fuck this... I'm gonna write this later
+
+### 1. Set up Supabase
+1. Create a Supabase project
+    - Go to [Supabase](https://supabase.com/dashboard/projects)
+    - Click "New project"
+    - Name it "my-app-prod" (your actual app name), choose location and generate database password
+2.  Get API keys
+    - Once the project is fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
+    - Get your "Project URL", "anon" key and "service_role" key
+
+    > Note that Supabase is changing "anon" and "service_role" to "publishable" and "secret". This may have changed when you're reading this.
+3. Add environment variables
+    - Open the `.env.example` file
+    - Copy the contents to a new file called `.env.local`
+    - Replace the values with your own:
+        - `NEXT_PUBLIC_SUPABASE_URL`: your project URL from step 2
+        - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: your anon/publishable key from step 2
+        - `SUPABASE_SERVICE_ROLE_KEY`: your service role/secret key from step 2
+
+    > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys)
+
+4. Create Supabase tables
+    - Head over to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+    - Run these [code snippets](docs/supabase-snippets.md)
+
+5. Change email templates
+    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
+    - Copy these [email templates](docs/supabase-email-templates.md)
+
+6. Set up Google OAuth and connect to Supabase
+
+This will allow users to sign in with Google.
+
+Good to know:
+- this project is moving towards a "config-based" approach
+- where you can enable/disable what you want
+- that means, Google Auth is going to an optional feature
+- for now, it's required
+
+    1. Get your Google OAuth credentials
+        - Go to [Google Cloud Console](https://console.cloud.google.com/)
+        - Create/select project in console
+        - Go to: [https://console.cloud.google.com/apis/credentials/consent](https://console.cloud.google.com/apis/credentials/consent)
+        - Choose "External". ("Internal" might be disabled)
+    
+    2. Configure OAuth consent screen
+        - Enter your app name in the "App name" field (eg: auth-starter)
+        - Click the "user support email" dropdown and select your email here
+        - You can upload a logo if you want. The auth will work either way
+        - Scroll down to the "Authorized domains" heading and click the "ADD DOMAIN" button. Enter your Supabase project URL here. We got this in the early steps. Should look like `<PROJECT_ID>.supabase.co`.
+        - Scroll down to the "Developer contact information" heading and add your email.
+    
+        > Note: The URL shouldn't include the `https://` part
+    
+    3. Create OAuth credentials
+        - Go to: [https://console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+        - Click "create credentials"
+        - Choose "OAuth Client ID".
+        - For "Application type", choose "Web application".
+        - Under "Authorized JavaScript origins", add your site URL. That's `http://localhost:3000` (I know you're probably thinking "what about production" - don't worry about that yet. You haven't even set up auth yet. When you're ready to show off your auth to the entire world, scroll down to set up production)
+        - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
+            1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+            2. Scroll down until you see "Google" and expand it
+            3. You'll find a field labeled "Callback URL (for OAuth)"".
+        - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
+        - Copy those, go back to Supabbase and paste those. Then click "Save"
+
+If you have trouble following along, you can check the official docs [here](https://supabase.com/docs/guides/auth/social-login/auth-google). You can also open a GitHub issue.
+
+### 3. Set up Resend (optional)
+Supabase (as of now) does give you 2 free emails per hour but it's unreliable. Sometimes, unclear errors will pop up because of their SMTP and you'll spend 2 hours debugging.
+
+You can totally skip setting up Resend (during development) but be mindful that if auth doesn't work, setting up a custom SMTP will probably fix it.
+
+Aside from that, the project uses Resend for:
+- email login alerts
+- device verification
+
+If you don't set up Resend:
+- The code won't attempt to use Resend at all
+- All devices will be "trusted" by default, which doesn't matter for development
+
+When you go in production, I recommend you set it up. Because:
+- you just need to get an API key and put it in the environment variables (`.env.local`).
+- you don't need to change any code
+- auth is supposed to be secure in production
+- you'll need a domain but you would anyway without Resend
+
+With that out the way, here's how to do it:
+
+**Luckily...**
+Resend makes it really straightforward to integrate with Supabase.
+
+You won't even need to touch the Supabase dashboard to do it.
+
+1. Create Resend account and set up domain
+    - Go to the [Resend website](https://resend.com)
+    - Create an account/login
+    - Go to [Domains](https://resend.com/domains)
+    - If you already have a domain here (that you wanna use) you can skip this. But if you don't got one (or want a new one) follow the steps by Resend. It should be clear what to do, but hit me up on [X (Twitter)](https://x.com/mazewinther1) if you're having trouble and I'll personally help you. You can also open a GitHub issue.
+
+    > Note: You will need a paid domain for this as mentioned above.
+    
+    > You can add any domain by the way. I'm on the Resend free tier so I added my personal domain (mazewinther.com). You know why? Because the free tier only gets you 1 domain, so by using my personal domain, I can re-use it for all of my apps and it still makes sense.
+    >
+    > If I were to add my app's domain, it'd only really make sense to use for that one app.
+    >
+    > If you're on a paid tier, just add your app's domain because you can have multiple domains. This is only a tip for people who wan't wanna spend money right away.
+    >
+    > Though Resend is really amazing, and I'd probably subscribe just to support the service itself.
+
+2. Set up API key and Supabase integration
+    - Once you have a domain, go to [API Keys](https://resend.com/api-keys) and click "Create API key"
+    - Enter a name for the API key (like your app name), then change "permission" to "Sending access" and click the "Domain" field to change it to the one you just added
+    - Now go to [Integrations](https://resend.com/settings/integrations)
+    - You should see Supabase listed. Click "Connect to Supabase"
+    - Resend will request access to your Supabase organization. Click "Authorize Resend"
+    - Select your Supabase project
+    - Select the domain you just added
+    - Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
+    - Update your `.env.local` file to add these (this is because aside from Supabase, the project uses Resend too):
+    ```diff
+    - RESEND_API_KEY=your-resend-api-key
+    - RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
+    + RESEND_API_KEY=your-resend-api-key
+    + RESEND_FROM_EMAIL="Your_name <example@yourdomain.com>"
+    ```
+
+Congrats! 🎉 You just set up everything you need for the auth to work. You can go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
+
+> [!NOTE]
+> When running the dev server, you may see a warning in your console about `supabase.auth.getSession()` being potentially insecure. This is a [known issue](https://github.com/supabase/auth-js/issues/873) with the Supabase auth library and can be safely ignored. The warning is a false positive - this project follows all security best practices and uses the recommended `@supabase/ssr` package correctly.
 
 ## Recommended for production
 The features/things listed below are completely optional for development.
@@ -601,7 +397,7 @@ By default, Supabase likes to put it at 24 hours.
 That makes zero sense because then they tell you to lower it to 1 hour (or below).
 
 So let's go ahead and make Supabase (and your users) happy:
-1. Go to Supabase [Auth Providers](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/auth/providers)
+1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
 2. Expand the "Email" provider
 3. Scroll down to "Email OTP Expiration"
 4. Set it to "1800" (1 hour)
@@ -610,16 +406,11 @@ So let's go ahead and make Supabase (and your users) happy:
 ### Clean up database automatically
 Some things will pile up in your database over time (verification codes, expired device sessions, eg), but it's not that crucial to clean them up right away.
 
-Even in early production, your database won't explode from some old data lying around.
+Even in early production, your database won't explode from some old data lying around (most data gets cleared by the code)
 
-If you DO want to set it up, check out [this guide](docs/cleanup-setup.md).
+If you do want to set it up, check out [this guide](docs/cleanup-setup.md).
 
 ### API Rate limiting (with Upstash Redis)
-At first, the idea for implementing rate-limiting was to just create a Supabase table and store how many requests an IP made but:
-- it's not fast enough for this
-- need cleanup jobs for expired records
-- even more complex to maintain than introducing another service
-- also risk of table bloat
 
 Yes, this does introduce another service you'll need to set up but:
 - you literally need to get 2 API keys.
@@ -627,7 +418,7 @@ Yes, this does introduce another service you'll need to set up but:
 
 Here's how to do it:
 1. Set up Upstash account and database
-    - Go to the Upstash website: [https://console.upstash.com/login](https://console.upstash.com/login)
+    - Go to the [Upstash website](https://console.upstash.com/login)
     - Create an account or log in
     - Click "create database"
     - Name it whatever you want like "auth-rate-limit"
@@ -741,7 +532,7 @@ If you really want to flex that your auth system can do everything:
     - Now, go to "Properties" (direct link: [Messaging Properties](https://console.twilio.com/us1/service/sms/_/messaging-service-properties?frameUrl=%2Fconsole%2Fsms%2Fservices%2FMG3fd63140e331b046c661d315701decbc%2Fproperties%3Fx-target-region%3Dus1))
     - Here, you'll find "Messaging Service SID". We're going to need this now! (along with the other things we got earlier)
 5. Connect Supabase with Twilio
-    - Go to Supabase [Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+    - Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
     - Expand "Phone" and enable it
     - SMS provider: Twilio
     - Twilio account SID: you got this from step 2
@@ -792,12 +583,9 @@ What you need to know:
     - Even though you change the primary color in `src/app/globals.css`...
     - They're not applied to your email templates automatically
     - Double check the email templates in this project and the Supabase dashboard
-3. Set up Supabase for production. This will be more clear once I know more about it, but:
-    - Check out this: [X post](https://x.com/dshukertjr/status/1880601786647728638). It seems like that's how you handle dev/production nowadays
-    - Or create 2 Supabase projects: one for dev and one for production. But try the one above this first.
-4. Set up Resend
-5. Set up Upstash Redis for API rate limiting
-6. If you set up SMS for two-factor authentication:
+3. Set up Resend
+4. Set up Upstash Redis for API rate limiting
+5. If you set up SMS for two-factor authentication:
     - Upgrade from Twilio trial account (add payment info)
     - Register for A2P 10DLC (that fancy thing for business texting)
     - Wait for carrier approval
@@ -806,16 +594,18 @@ What you need to know:
         - Monthly fees
         - Registration fees
         - Different rates per country
-7. Enable "Enforce SSL on incoming connections" in Supabase:
-    - [Database Settings](https://supabase.com/dashboard/project/rqsfebcljeizuojtkabi/settings/database)
-8. Change email OPT expiration (see how in "Recommended for production")
-9.  Publish your Google OAuth app:
+6. Enable "Enforce SSL on incoming connections" in Supabase:
+    - [Database Settings](https://supabase.com/dashboard/project/_/settings/database)
+7. Change email OPT expiration (see how in "Recommended for production")
+8.  Publish your Google OAuth app:
     - Go to [Google Cloud Console OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent?inv=1&invt=AbohWw)
     - Click the "Publish app" button to make it available to all users
-10. Optional but good to have: Set up session cleanup
+9.  Optional but good to have: set up automatic database cleanups
    - Not super urgent - your database won't explode
    - But good to do if you expect lots of users or long-term use
-   - Will be much simpler to set up soon via Supabase dashboard
+   - Check this [guide](docs/cleanup-setup.md)
+10. Set up dev/prod environments
+    - Follow this [guide](docs/dev-prod-setup.md)
 
 ## Get to know the project better
 

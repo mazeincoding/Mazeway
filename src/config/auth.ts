@@ -76,6 +76,13 @@ export const AUTH_CONFIG = {
     codeLength: 6,
   },
 
+  // Email login alerts configuration
+  emailAlerts: {
+    enabled: true, // Master switch to enable/disable all login email alerts
+    alertMode: "unknown_only" as "all" | "unknown_only", // "all" = send for every login, "unknown_only" = only for new/unknown devices
+    confidenceThreshold: 70, // Only send alerts for devices with confidence score below this threshold when in "unknown_only" mode
+  },
+
   // Email verification configuration
   emailVerification: {
     codeExpirationTime: 10, // minutes

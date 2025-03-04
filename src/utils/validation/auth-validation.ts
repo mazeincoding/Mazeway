@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AUTH_CONFIG } from "@/config/auth";
 import { isValidVerificationCodeFormat } from "@/utils/verification-codes";
+import { TSendEmailAlertRequest } from "@/types/api";
 
 export const authSchema = z.object({
   email: z
@@ -251,6 +252,42 @@ export const verificationSchema = z
       path: ["code"], // Show error on the code field
     }
   );
+
+// Email alert validation schema - exactly matching TSendEmailAlertRequest
+export const emailAlertSchema = z.object({
+  email: authSchema.shape.email,
+  device: z.union([
+    z.string().min(1, "Device information is required"),
+    z
+      .object({
+        user_id: z.string().min(1, "User ID is required"),
+        device_name: z.string().min(1, "Device name is required"),
+        browser: z.string().nullable(),
+        os: z.string().nullable(),
+        ip_address: z.string().optional(),
+      })
+      .refine((data) => true, { message: "Valid TDeviceInfo object required" }),
+  ]),
+});
+
+// Ensure schema type matches the API type
+export type EmailAlertSchema = TSendEmailAlertRequest;
+
+// Type-safe validation function
+export const validateEmailAlert = (
+  data: unknown
+): {
+  isValid: boolean;
+  error?: string;
+  data: TSendEmailAlertRequest | null;
+} => {
+  const result = emailAlertSchema.safeParse(data);
+  return {
+    isValid: result.success,
+    error: !result.success ? result.error.issues[0]?.message : undefined,
+    data: result.success ? (result.data as TSendEmailAlertRequest) : null,
+  };
+};
 
 export type VerificationSchema = z.infer<typeof verificationSchema>;
 

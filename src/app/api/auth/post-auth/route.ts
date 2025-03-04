@@ -17,7 +17,7 @@ import type { TDeviceSessionProvider } from "@/utils/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
 
 export async function GET(request: Request) {
-  console.log("[AUTH] /api/auth/post-auth - Request received", {
+  console.log("Request received", {
     url: request.url,
     timestamp: new Date().toISOString(),
   });
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
   const isLocalEnv = process.env.NODE_ENV === "development";
 
-  console.log("[AUTH] /api/auth/post-auth - Parameters", {
+  console.log("Parameters", {
     claimedProvider,
     next,
     origin,
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       claimedProvider === "google" ||
       claimedProvider === "email";
     if (!isValidProvider) {
-      console.error("[AUTH] /api/auth/post-auth - Invalid provider", {
+      console.error("Invalid provider", {
         provider: claimedProvider,
       });
       throw new Error("Invalid provider");
@@ -56,14 +56,14 @@ export async function GET(request: Request) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error("[AUTH] /api/auth/post-auth - Failed to get user", {
+      console.error("Failed to get user", {
         error: userError?.message,
         hasUser: !!user,
       });
       throw new Error("No user found");
     }
 
-    console.log("[AUTH] /api/auth/post-auth - User authenticated", {
+    console.log("User authenticated", {
       userId: user.id,
       email: user.email,
     });
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
       // Add more providers here as they're supported
     }
 
-    console.log("[AUTH] /api/auth/post-auth - Determined provider", {
+    console.log("Determined provider", {
       provider,
       claimedProvider,
     });
@@ -96,14 +96,14 @@ export async function GET(request: Request) {
       .single();
 
     if (dbError) {
-      console.log("[AUTH] /api/auth/post-auth - Error fetching user from DB", {
+      console.log("Error fetching user from DB", {
         error: dbError.message,
         code: dbError.code,
       });
     }
 
     if (!dbUser) {
-      console.log("[AUTH] /api/auth/post-auth - Creating new user record", {
+      console.log("Creating new user record", {
         userId: user.id,
       });
 
@@ -116,24 +116,22 @@ export async function GET(request: Request) {
       });
 
       if (createError) {
-        console.error("[AUTH] /api/auth/post-auth - Failed to create user", {
+        console.error("Failed to create user", {
           error: createError.message,
           code: createError.code,
         });
         throw new Error("Failed to create user");
       }
 
-      console.log(
-        "[AUTH] /api/auth/post-auth - User record created successfully"
-      );
+      console.log("User record created successfully");
     }
 
-    console.log("[AUTH] /api/auth/post-auth - Fetching trusted sessions");
+    console.log("Fetching trusted sessions");
     let trustedSessions = null;
     try {
       // Get all cookies from the request and forward them properly
       const cookieHeader = request.headers.get("cookie") || "";
-      console.log("[AUTH] /api/auth/post-auth - Forwarding cookies", {
+      console.log("Forwarding cookies", {
         hasCookies: !!cookieHeader,
         cookieLength: cookieHeader.length,
       });
@@ -151,20 +149,15 @@ export async function GET(request: Request) {
       });
 
       if (!trustedSessionsResponse.ok) {
-        console.error(
-          "[AUTH] /api/auth/post-auth - Failed to get trusted sessions",
-          {
-            status: trustedSessionsResponse.status,
-            statusText: trustedSessionsResponse.statusText,
-            url: absoluteUrl,
-          }
-        );
+        console.error("Failed to get trusted sessions", {
+          status: trustedSessionsResponse.status,
+          statusText: trustedSessionsResponse.statusText,
+          url: absoluteUrl,
+        });
 
         // Just log the error but don't throw - fallback to empty trusted sessions
         if (trustedSessionsResponse.status === 401) {
-          console.log(
-            "[AUTH] /api/auth/post-auth - Falling back to empty trusted sessions due to 401"
-          );
+          console.log("Falling back to empty trusted sessions due to 401");
         } else {
           // For any other error status, throw the original error
           throw new Error("Failed to get trusted sessions");
@@ -173,21 +166,16 @@ export async function GET(request: Request) {
         // Only parse the response if it was successful
         const responseData = await trustedSessionsResponse.json();
         trustedSessions = responseData.data;
-        console.log("[AUTH] /api/auth/post-auth - Trusted sessions fetched", {
+        console.log("Trusted sessions fetched", {
           count: trustedSessions ? trustedSessions.length : 0,
         });
       }
     } catch (error) {
       // Handle network errors but don't fail the authentication flow
-      console.error(
-        "[AUTH] /api/auth/post-auth - Error fetching trusted sessions",
-        {
-          error: error instanceof Error ? error.message : String(error),
-        }
-      );
-      console.log(
-        "[AUTH] /api/auth/post-auth - Continuing with empty trusted sessions"
-      );
+      console.error("Error fetching trusted sessions", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      console.log("Continuing with empty trusted sessions");
     }
 
     const parser = new UAParser(request.headers.get("user-agent") || "");
@@ -203,7 +191,7 @@ export async function GET(request: Request) {
       ip_address: request.headers.get("x-forwarded-for") || "::1",
     };
 
-    console.log("[AUTH] /api/auth/post-auth - Current device info", {
+    console.log("Current device info", {
       deviceName,
       browser,
       os,
@@ -216,18 +204,18 @@ export async function GET(request: Request) {
     );
 
     const confidenceLevel = getConfidenceLevel(score);
-    console.log("[AUTH] /api/auth/post-auth - Device confidence", {
+    console.log("Device confidence", {
       score,
       confidenceLevel,
     });
 
     const { has2FA, factors } = await getUserVerificationMethods(supabase);
-    console.log("[AUTH] /api/auth/post-auth - User verification methods", {
+    console.log("User verification methods", {
       has2FA,
       factorCount: factors.length,
     });
 
-    console.log("[AUTH] /api/auth/post-auth - Setting up device session", {
+    console.log("Setting up device session", {
       userId: user.id,
       trustLevel: isOAuthProvider ? "oauth" : "normal",
       skipVerification: has2FA,
@@ -240,7 +228,7 @@ export async function GET(request: Request) {
       provider,
     });
 
-    console.log("[AUTH] /api/auth/post-auth - Device session created", {
+    console.log("Device session created", {
       sessionId: session_id,
     });
 
@@ -255,19 +243,17 @@ export async function GET(request: Request) {
       maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
     });
 
-    console.log("[AUTH] /api/auth/post-auth - Set device_session_id cookie");
+    console.log("Set device_session_id cookie");
 
     const shouldRefresh = searchParams.get("should_refresh") === "true";
     if (shouldRefresh) {
       response.headers.set("X-Should-Refresh-User", "true");
-      console.log("[AUTH] /api/auth/post-auth - Set refresh header");
+      console.log("Set refresh header");
     }
 
     // If 2FA is required and this is an OAuth login, show 2FA form before proceeding
     if (has2FA && isOAuthProvider) {
-      console.log(
-        "[AUTH] /api/auth/post-auth - 2FA required for OAuth login, redirecting to 2FA form"
-      );
+      console.log("2FA required for OAuth login, redirecting to 2FA form");
 
       const verifyUrl = new URL(`${origin}/auth/login`);
       verifyUrl.searchParams.set("requires_2fa", "true");
@@ -281,7 +267,7 @@ export async function GET(request: Request) {
       verifyUrl.searchParams.set("next", next);
       response.headers.set("Location", verifyUrl.toString());
 
-      console.log("[AUTH] /api/auth/post-auth - Redirecting to 2FA", {
+      console.log("Redirecting to 2FA", {
         redirectUrl: verifyUrl.toString(),
       });
 
@@ -295,22 +281,17 @@ export async function GET(request: Request) {
       .single();
 
     if (sessionError) {
-      console.error(
-        "[AUTH] /api/auth/post-auth - Error getting device session",
-        {
-          error: sessionError.message,
-          code: sessionError.code,
-        }
-      );
+      console.error("Error getting device session", {
+        error: sessionError.message,
+        code: sessionError.code,
+      });
     }
 
     if (session?.needs_verification) {
-      console.log(
-        "[AUTH] /api/auth/post-auth - Device session needs verification"
-      );
+      console.log("Device session needs verification");
 
       try {
-        console.log("[AUTH] /api/auth/post-auth - Sending verification code");
+        console.log("Sending verification code");
 
         const sendCodeResponse = await fetch(
           `${origin}/api/auth/verify-device/send-code`,
@@ -329,22 +310,17 @@ export async function GET(request: Request) {
 
         if (!sendCodeResponse.ok) {
           const error = await sendCodeResponse.json();
-          console.error(
-            "[AUTH] /api/auth/post-auth - Failed to send verification code",
-            {
-              status: sendCodeResponse.status,
-              error: error.error,
-            }
-          );
+          console.error("Failed to send verification code", {
+            status: sendCodeResponse.status,
+            error: error.error,
+          });
 
           throw new Error(
             error.error || "We couldn't send you a verification code right now."
           );
         }
 
-        console.log(
-          "[AUTH] /api/auth/post-auth - Verification code sent, redirecting to verify-device"
-        );
+        console.log("Verification code sent, redirecting to verify-device");
 
         response.headers.set(
           "Location",
@@ -352,31 +328,85 @@ export async function GET(request: Request) {
         );
         return response;
       } catch (error) {
-        console.error(
-          "[AUTH] /api/auth/post-auth - Network error sending verification code",
-          {
-            error: error instanceof Error ? error.message : "Unknown error",
-          }
-        );
+        console.error("Network error sending verification code", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
 
         throw new Error("network_error");
       }
     }
 
-    console.log(
-      "[AUTH] /api/auth/post-auth - Authentication successful, redirecting to",
-      next
-    );
+    console.log("Authentication successful, redirecting to", next);
+
+    // Send email alert based on configuration
+    if (AUTH_CONFIG.emailAlerts.enabled) {
+      try {
+        // First check if Resend is configured
+        if (!process.env.RESEND_API_KEY) {
+          console.log("Skipping email alert because Resend is not configured");
+        } else {
+          const shouldSendAlert =
+            AUTH_CONFIG.emailAlerts.alertMode === "all" ||
+            (AUTH_CONFIG.emailAlerts.alertMode === "unknown_only" &&
+              score < AUTH_CONFIG.emailAlerts.confidenceThreshold);
+
+          if (shouldSendAlert) {
+            // Send the email alert
+            const emailAlertResponse = await fetch(
+              `${origin}/api/auth/send-email-alert`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Cookie: request.headers.get("cookie") || "",
+                },
+                body: JSON.stringify({
+                  email: user.email,
+                  device: {
+                    device_name: deviceName,
+                    browser,
+                    os,
+                    ip_address: currentDevice.ip_address,
+                  },
+                }),
+              }
+            );
+
+            if (!emailAlertResponse.ok) {
+              // Just log the error but don't fail the authentication flow
+              console.error("Failed to send email alert", {
+                status: emailAlertResponse.status,
+                statusText: emailAlertResponse.statusText,
+              });
+            } else {
+              console.log("Email alert sent successfully");
+            }
+          } else {
+            console.log("Skipping email alert based on configuration", {
+              alertMode: AUTH_CONFIG.emailAlerts.alertMode,
+              confidenceScore: score,
+              threshold: AUTH_CONFIG.emailAlerts.confidenceThreshold,
+            });
+          }
+        }
+      } catch (error) {
+        // Log error but don't fail the authentication flow
+        console.error("Error sending email alert", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     return response;
   } catch (error) {
     const err = error as Error;
-    console.error("[AUTH] /api/auth/post-auth - Error in post-auth flow", {
+    console.error("Error in post-auth flow", {
       error: err.message,
       stack: err.stack,
     });
 
     // Always logout on error
-    console.log("[AUTH] /api/auth/post-auth - Logging out user due to error");
+    console.log("Logging out user due to error");
     await fetch(`${origin}/api/auth/logout`, {
       method: "POST",
       headers: {
@@ -394,7 +424,7 @@ export async function GET(request: Request) {
     else if (err.message.includes("trusted sessions"))
       errorType = "failed_to_get_trusted_sessions";
 
-    console.log("[AUTH] /api/auth/post-auth - Redirecting to error page", {
+    console.log("Redirecting to error page", {
       errorType,
       message: err.message,
     });

@@ -30,10 +30,10 @@ Comparing Shadcn UI to bootstrap is like comparing Mazeway to Clerk:
 - actual complete auth
 - plus:
     - community-driven
-    - more secure (believe it or not, we literally extended Supabase's security and made it all configurable)
+    - more secure
     - auth config to change common things
-    - later: extensions by the community (it'll)
-    - acts as a foundation, not an end. Start here, build on it.
+    - later: extensions by the community
+    - acts as a foundation, not a final product. Start here, build on it.
 
 The project uses modern tech:
 - Next.js 15

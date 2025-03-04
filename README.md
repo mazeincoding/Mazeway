@@ -1,10 +1,5 @@
 # Mazeway Auth
 
-> [!NOTE]
-> I don't recommended using this project in production yet!
->
-> Docs are still being updated to fully support a dev/prod environment.
-
 Authentication should live in your project, not a node_modules folder.
 
 Think Clerk, but you own the code.

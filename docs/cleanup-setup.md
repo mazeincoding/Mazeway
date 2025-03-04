@@ -31,6 +31,3 @@
       $$ SELECT public.cleanup_expired_records(); $$
     );
     ```
-
-## Good to know
-- If setup fails, no big deal. Your database won't explode from old sessions

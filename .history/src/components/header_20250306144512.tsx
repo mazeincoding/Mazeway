@@ -40,6 +40,7 @@ export function Header({ isInitiallyLoggedIn, sidebar }: HeaderProps) {
             </Button>
           </Link>
         </div>
+
         {isInitiallyLoggedIn ? (
           <UserDropdown />
         ) : (

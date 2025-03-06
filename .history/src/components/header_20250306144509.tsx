@@ -28,18 +28,22 @@ export function Header({ isInitiallyLoggedIn, sidebar }: HeaderProps) {
         </Link>
       </div>
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1">
-          <Link href="https://github.com/mazeincoding/mazeway" target="_blank">
-            <Button variant="ghost" size="icon">
-              <FaGithub className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="https://twitter.com/mazewinther1" target="_blank">
-            <Button variant="ghost" size="icon">
-              <FaTwitter className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
+          <div className="flex items-center gap-1">
+            <Link
+              href="https://github.com/mazeincoding/mazeway"
+              target="_blank"
+            >
+              <Button variant="ghost" size="icon">
+                <FaGithub className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="https://twitter.com/mazewinther1" target="_blank">
+              <Button variant="ghost" size="icon">
+                <FaTwitter className="h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        )}
         {isInitiallyLoggedIn ? (
           <UserDropdown />
         ) : (

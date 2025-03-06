@@ -44,5 +44,11 @@ next-env.d.ts
 .cursorrules
 .cursorignore
 
+# I'm adding this because I used the local history for the first time in this project
+# Now I can't stop the IDE from saving a million files to this folder
+# It probably got trust issues with me, like I'm gonna lose my work again
+# You can delete this if you don't got same problem (unlikely you do)
+.history
+
 CONTRIBUTING.dev.md
 scripts/decode-jwt.py

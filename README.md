@@ -821,6 +821,18 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
     - And your domain
     - Enter the sender name (like your app name, company name)
     - Click "Configure SMTP integration"
+5. Set up automatic database cleanups
+    - If you already set it up, the extension "pg_cron" will already be enabled
+    - This is because when we dumped the database, it includes enabled extensions.
+    - But your actual cron job won't be in your prod project
+    - Run this in the [SQL Editor](https://supabase.com/dashboard/project/_/sql/new?skip=true):
+    ```sql
+    SELECT cron.schedule(
+      'cleanup_database',         -- Job name
+      '0 0 * * *',             -- Cron schedule for midnight
+      $$ SELECT public.cleanup_expired_records(); $$
+    );
+    ```
 
 ### 3. Deploy to Vercel
 

@@ -688,47 +688,6 @@ Here's how to do it:
 
 > In the auth config of this project (`src/config/auth.ts`) API rate limiting is already enabled by default. If you ever need (to test something for example), you can disable it in the config.
 
-## Production checklist
-
-1. Logo Setup
-   - Upload your logo to Cloudinary (or your preferred CDN, but this one is cool)
-     - Reason: We need the logo accessible everywhere (web app, emails, etc), not just in Next.js
-     - Pro tip: Compress your image first at [Iloveimg.com](https://www.iloveimg.com/compress-image) (not an ad)
-     - If you're gonna use Cloudinary, you just:
-         - Go to [Cloudinary](https://console.cloudinary.com/console)
-         - Click "Assets" in the sidebar
-         - Then "Upload" in the top right corner
-         - Go to "Assets". Your logo should appear. Right-click -> Copy URL -> Original
-   - Update the logo URL in:
-     - `emails/components/header.tsx`
-     - `src/components/header.tsx`
-     - Your email templates in the Supabase dashboard ([direct link](https://supabase.com/dashboard/project/_/auth/templates))
-2. Change branding color in emails
-   - Even though you change the primary color in `src/app/globals.css`...
-   - They're not applied to your email templates automatically
-   - Double check the email templates in this project and the Supabase dashboard
-3. Set up Resend
-4. Set up Upstash Redis for API rate limiting
-5. If you set up SMS for two-factor authentication:
-   - Upgrade from Twilio trial account (add payment info)
-   - Register for A2P 10DLC (that fancy thing for business texting)
-   - Wait for carrier approval
-   - Be ready for:
-     - Per-message costs (~$0.0079 per SMS)
-     - Monthly fees
-     - Registration fees
-     - Different rates per country
-6. Enable "Enforce SSL on incoming connections" in Supabase:
-   - [Database Settings](https://supabase.com/dashboard/project/_/settings/database)
-7. Change email OPT expiration (see how in "Recommended for production")
-8. Publish your Google OAuth app:
-   - Go to [Google Cloud Console OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent?inv=1&invt=AbohWw)
-   - Click the "Publish app" button to make it available to all users
-9. Optional but good to have: set up automatic database cleanups
-    - Not super urgent - your database won't explode
-    - But good to do if you expect lots of users or long-term use
-    - Check this [guide](docs/cleanup-setup.md)
-
 ## Go in production
 
 This is gonna be an actionable, step-by-step guide to get your app in production.
@@ -869,7 +828,46 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
 2. When adding the environment variables, make sure to copy the contents of your `.env.production` environment variables and pasting them in Vercel (or any other deployment platform)
 3. Also, you can delete the `.env.production` file now if you want. We only created it to track environment variables when setting up production. Totally up to you.
 
+## Production checklist
 
+1. Logo Setup
+   - Upload your logo to Cloudinary (or your preferred CDN, but this one is cool)
+     - Reason: We need the logo accessible everywhere (web app, emails, etc), not just in Next.js
+     - Pro tip: Compress your image first at [Iloveimg.com](https://www.iloveimg.com/compress-image) (not an ad)
+     - If you're gonna use Cloudinary, you just:
+         - Go to [Cloudinary](https://console.cloudinary.com/console)
+         - Click "Assets" in the sidebar
+         - Then "Upload" in the top right corner
+         - Go to "Assets". Your logo should appear. Right-click -> Copy URL -> Original
+   - Update the logo URL in:
+     - `emails/components/header.tsx`
+     - `src/components/header.tsx`
+     - Your email templates in the Supabase dashboard ([direct link](https://supabase.com/dashboard/project/_/auth/templates))
+2. Change branding color in emails
+   - Even though you change the primary color in `src/app/globals.css`...
+   - They're not applied to your email templates automatically
+   - Double check the email templates in this project and the Supabase dashboard
+3. Set up Resend
+4. Set up Upstash Redis for API rate limiting
+5. If you set up SMS for two-factor authentication:
+   - Upgrade from Twilio trial account (add payment info)
+   - Register for A2P 10DLC (that fancy thing for business texting)
+   - Wait for carrier approval
+   - Be ready for:
+     - Per-message costs (~$0.0079 per SMS)
+     - Monthly fees
+     - Registration fees
+     - Different rates per country
+6. Enable "Enforce SSL on incoming connections" in Supabase:
+   - [Database Settings](https://supabase.com/dashboard/project/_/settings/database)
+7. Change email OPT expiration (see how in "Recommended for production")
+8. Publish your Google OAuth app:
+   - Go to [Google Cloud Console OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent?inv=1&invt=AbohWw)
+   - Click the "Publish app" button to make it available to all users
+9. Optional but good to have: set up automatic database cleanups
+    - Not super urgent - your database won't explode
+    - But good to do if you expect lots of users or long-term use
+    - Check this [guide](docs/cleanup-setup.md)
 
 ## Pro tips + note for Supabase
 

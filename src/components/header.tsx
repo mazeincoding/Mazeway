@@ -18,7 +18,7 @@ export function Header({ isInitiallyLoggedIn, sidebar }: HeaderProps) {
         {sidebar}
         <Link href="/" className="flex items-center gap-2">
           <Image
-            src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png"
+            src="https://res.cloudinary.com/dzjgehvid/image/upload/v1741312446/Frame_38_1_1_vb3lre.png"
             alt="Logo"
             width={135}
             height={36}

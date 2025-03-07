@@ -3,11 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
+      // Cloudinary CDN
       {
         protocol: "https",
-        hostname: "rqsfebcljeizuojtkabi.supabase.co",
+        hostname: "res.cloudinary.com",
         port: "",
-        pathname: "/storage/v1/object/public/**",
+        pathname: "/**",
       },
     ],
   },

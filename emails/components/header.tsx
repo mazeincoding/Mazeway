@@ -5,7 +5,7 @@ export function Header() {
     <div>
       {/* App logo */}
       <Img
-        src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png"
+        src="https://res.cloudinary.com/dzjgehvid/image/upload/v1741312446/Frame_38_1_1_vb3lre.png"
         alt="Logo"
         style={{
           marginBottom: "12px",

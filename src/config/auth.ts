@@ -48,7 +48,7 @@ export const AUTH_CONFIG = {
     format: "words" as "words" | "alphanumeric" | "numeric",
     count: 10, // Number of backup codes to generate
     wordCount: 6, // Number of words per code (if using words format)
-    alphanumericLength: 8, // Length of alphanumeric codes
+    alphanumericLength: 8, // Length of alphanumeric codes (if using alphanumeric format)
   },
 
   deviceSessions: {

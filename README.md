@@ -75,6 +75,7 @@ That's what this project gives you: a foundation that you can build on.
 - Sign-in options:
   - `Email/password`
   - `Google`
+  - More soon!
 - Complete authentication flow:
   - Login/signup pages
   - Password reset

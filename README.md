@@ -198,7 +198,7 @@ Good to know:
      - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
      - Copy those, go back to Supabbase and paste those. Then click "Save"
 
-1. Add your redirect URL in Supabase
+6. Add your redirect URL in Supabase
    - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
    - Add this redirect URL: `http://localhost:3000/api/auth/callback`
 

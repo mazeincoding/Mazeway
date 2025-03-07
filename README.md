@@ -192,9 +192,9 @@ Good to know:
      - For "Application type", choose "Web application".
      - Under "Authorized JavaScript origins", add your site URL which is `http://localhost:3000`
      - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
-       1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
-       2. Scroll down until you see "Google" and expand it
-       3. You'll find a field labeled "Callback URL (for OAuth)"".
+         1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+         2. Scroll down until you see "Google" and expand it
+         3. You'll find a field labeled "Callback URL (for OAuth)"".
      - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
      - Copy those, go back to Supabbase and paste those. Then click "Save"
 

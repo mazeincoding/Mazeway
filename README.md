@@ -11,44 +11,43 @@ This is a complete, production-ready auth starter **for** anyone, including ente
 ### The philosophy
 
 People like [Shadcn UI](ui.shadcn.com) because:
-
-- the components are in YOUR project
-- you own them
-- you can do whatever you want
-- they don't belong in a node_modules folder
+- The components are in YOUR project
+- You own all the code
+- Can do whatever you want with them
+- They don't belong in a node_modules folder
 
 Comparing Shadcn UI to bootstrap is like comparing Mazeway to Clerk:
 
 **Clerk**:
-
-- locked in
-- gets expensive quick
-- can't self host
-- limited customization
-- closed-source
-- still lacks some auth (that you can't add)
+- Locked in
+- Gets expensive quick
+- Can't self host
+- Limited customization
+- Closed-source
+- Still lacks some auth (that you can't add)
 
 ---
 
 **Mazeway**:
+- Affordable thanks to Supabase
+- Can be self-hosted
+- Unlimited customization
+- Open-source
+- Actual complete auth
+- Plus:
+  - Community-driven
+  - More secure
+  - Auth config to change common things
+  - Later: extensions by the community
+  - Acts as a foundation, not a final product. Start here, build on it.
 
-- affordable thanks to Supabase
-- can be self-hosted
-- unlimited customization
-- open-source
-- actual complete auth
-- plus:
-  - community-driven
-  - more secure
-  - more secure
-  - auth config to change common things
-  - later: extensions by the community
-  - acts as a foundation, not a final product. Start here, build on it.
+Thanks for letting me roast my competitors. Seriously though, Clerk isn't bad at all, it just serves a different purpose than Mazeway.
+- Clerk: for people who want a quick service (Bootstrap people)
+- Mazeway: for people who want to own their code and pay less (Shadcn people)
 
 ### Tech stack
 
 The project uses modern tech:
-
 - Next.js 15
 - Tailwind CSS
 - Shadcn UI
@@ -57,7 +56,6 @@ The project uses modern tech:
 - Upstash Redis
 
 I see a lot of new apps having only 5% of authentication. Including:
-
 - Missing login page
 - No "forgot password" option
 - Missing crucial security (2FA, device sessions, email alerts, and more)
@@ -110,7 +108,6 @@ This is only the beginning.
 ## Getting started
 
 Before we get started, understand:
-
 - Do not at ANY point during this setup think about production
 - We will do it LATER. Some examples:
 - "Should I use a professional email here..."
@@ -120,7 +117,6 @@ Before we get started, understand:
 ### 1. Install dependencies
 
 In the terminal, run this:
-
 ```bash
 npm install
 ```
@@ -133,14 +129,12 @@ npm install
    - Click "New project"
    - Name it "my-app-dev" (your actual app name), choose location and generate a database password
 2. Get API keys
-
    - Once the project is fully created, go to [API Settings](https://supabase.com/dashboard/project/_/settings/api)
    - Get your "Project URL", "anon" key and "service_role" key
 
    > Note that Supabase is changing "anon" and "service_role" to "publishable" and "secret". This may have changed when you're reading this.
 
 3. Update environment variables
-
    - Open the `.env.example` file
    - Copy the contents to a new file called `.env.local`
    - Replace the values with your own:
@@ -151,58 +145,60 @@ npm install
    > Note: The ANON key is designed to be public! See [Reddit discussion](https://www.reddit.com/r/Supabase/comments/1fcndq7/is_it_safe_to_expose_my_supabase_url_and/) and [Supabase docs](https://supabase.com/docs/guides/api/api-keys)
 
 4. Create Supabase tables
-
    - Head over to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
    - Run these [code snippets](docs/supabase-snippets.md)
 
 5. Change email templates
-
    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
    - Copy and paste these [email templates](docs/supabase-email-templates.md)
 
 6. Set up Google OAuth and connect to Supabase
 
-This will allow users to sign in with Google.
+    This will allow users to sign in with Google.
 
-Good to know:
+    Good to know:
+    - This project is moving towards a "start simple, add more" approach
+    - Where you just set up the required things, and everything else will be optional
+    - That means, Google Auth is going to an optional feature
+    - For now, it's required
 
-- this project is moving towards a "start simple, add more" approach
-- where you just set up the required things, and everything else will be optional
-- that means, Google Auth is going to an optional feature
-- for now, it's required
+    1. Configure Google Auth
+        - Go to [Google Cloud Console](https://console.cloud.google.com/)
+        - Create a new project in the top left corner
+        - Go to APIs and services -> OAuth consent screen ([direct link](https://console.cloud.google.com/auth/overview))
+        - Click "Get started" and enter an app name in the "App name" field (eg: auth-starter)
+        - Choose your email for "User support email"
+        - For the Audience, select External
+        - Enter an email for "Contact Information"
+    2. Update Auth Branding
+        - In the left sidebar, go to "Branding" ([link](https://console.cloud.google.com/auth/branding))
+        - Scroll down to "Authorized domains" and click the "ADD DOMAIN" button. Enter your Supabase project URL here. We got this in the early steps. Should look like `<PROJECT_ID>.supabase.co`.
 
-  1. Configure Google Auth
-     - Go to [Google Cloud Console](https://console.cloud.google.com/)
-     - Create a new project in the top left corner
-     - Go to APIs and services -> OAuth consent screen ([direct link](https://console.cloud.google.com/auth/overview))
-     - Click "Get started" and enter an app name in the "App name" field (eg: auth-starter)
-     - Choose your email for "User support email"
-     - For the Audience, select External
-     - Enter an email for "Contact Information"
-  2. Update Auth Branding
+        > Note: The URL shouldn't include the `https://` part
 
-     - In the left sidebar, go to "Branding" ([link](https://console.cloud.google.com/auth/branding))
-     - Scroll down to "Authorized domains" and click the "ADD DOMAIN" button. Enter your Supabase project URL here. We got this in the early steps. Should look like `<PROJECT_ID>.supabase.co`.
+    3. Create OAuth client (previously OAuth credentials)
+        - Go to: [Google OAuth Clients](https://console.cloud.google.com/auth/clients)
+        - Click "create client"
+        - For "Application type", choose "Web application".
+        - Under "Authorized JavaScript origins", add your site URL which is `http://localhost:3000`
+        - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
+            1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+            2. Scroll down until you see "Google" and expand it
+            3. You'll find a field labeled "Callback URL (for OAuth)"".
+        - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
+        - Copy those, go back to Supabbase and paste those. Then click "Save"
 
-     > Note: The URL shouldn't include the `https://` part
+    If you have trouble following along, you can check out Supabase's [official docs](https://supabase.com/docs/guides/auth/social-login/auth-google)
 
-  3. Create OAuth client (previously OAuth credentials)
-     - Go to: [Google OAuth Clients](https://console.cloud.google.com/auth/clients)
-     - Click "create client"
-     - For "Application type", choose "Web application".
-     - Under "Authorized JavaScript origins", add your site URL which is `http://localhost:3000`
-     - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
-         1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
-         2. Scroll down until you see "Google" and expand it
-         3. You'll find a field labeled "Callback URL (for OAuth)"".
-     - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
-     - Copy those, go back to Supabbase and paste those. Then click "Save"
+7. Add the callback redirect URL in Supabase (ensures Supabase can redirect here)
+    > Good to know:
+    >
+    > The callback URL isn't just used for Google OAuth like you might think.
+    >
+    > It's also used for resetting the password.
 
-6. Add your redirect URL in Supabase
-   - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
-   - Add this redirect URL: `http://localhost:3000/api/auth/callback`
-
-If you have trouble following along, you can check out Supabase's [official docs](https://supabase.com/docs/guides/auth/social-login/auth-google)
+    - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
+    - Add this redirect URL: `http://localhost:3000/api/auth/callback`
 
 ### 3. Set up Resend (optional)
 
@@ -211,13 +207,11 @@ Supabase (as of now) gives you 2 free emails per hour but it's unreliable. Somet
 You can totally skip setting up Resend but be mindful that if auth doesn't work, setting up Resend will probably fix it.
 
 Aside from that, the project uses Resend for:
-
 - Email login alerts
 - Device verification
 - Email verification
 
 If you don't set up Resend:
-
 - Users won't get login alerts at all
 - Device verification will be disabled entirely
 - Email verification won't be enabled
@@ -317,7 +311,6 @@ You're not limited to these customization options (you own the auth) but it's ju
 ### Verification Methods
 
 The following methods are available:
-
 - Email verification
 - Password verification
 - Authenticator (2FA)
@@ -327,7 +320,6 @@ The following methods are available:
 #### Setting up SMS two-factor auth
 
 I really don't see why you'd do this because:
-
 - Costs money (per SMS, monthly fees, registration fees)
 - Compliance headaches (A2P 10DLC registration, carrier approvals)
 - Different rates per country (good luck with that pricing)
@@ -340,17 +332,14 @@ I really don't see why you'd do this because:
   - No carrier drama
 
 Good news:
-
-- this starter does support SMS
+- This starter does support SMS
 - You don't need to dig into the code to implement it
 
 But, consider if you really need this. The only benefits SMS has:
-
 - Users know it
 - Nobody knows what an authenticator app is
 
 Though I'd argue both points:
-
 - If apps keep using SMS, users will NEVER adapt to anything more secure
 - They don't know SMS isn't secure (it isn't)
 - The more apps that start to ditch SMS (and introduce more secure methods) the faster users will adapt
@@ -429,7 +418,6 @@ If you really want to flex that your auth system can do everything:
 ```
 
 What you need to know:
-
 - For development (with a trial account) you can only send SMS messages to verified numbers
 - "Verified numbers" is the ones you manually verify in the Twilio console
 - When you signed up for an account and verified a phone number, that counts as one.
@@ -477,7 +465,6 @@ All the other password requirements are self-explanatory.
 You might notice we use two different approaches for handling data and API calls. This isn't an accident - each serves a specific purpose:
 
 1. **SWR Hooks** (`/hooks/use-auth.ts`):
-
    - Think of these as "data subscribers"
    - Perfect for data that changes and needs to stay fresh (like user data)
    - Automatically revalidates when you:
@@ -507,7 +494,6 @@ const result = await api.auth.logout();
 ### Types: where they are and why the naming convention
 
 We define types here `src/types`. We have:
-
 - `src/types/api.ts` (API requests and responses)
 - `src/types/auth.ts` (anything auth related)
 
@@ -522,7 +508,6 @@ Examples:
 ### API routes VS server actions: why we use API routes
 
 API routes seemed like a better option because:
-
 - Can't use server actions outside of Next.js app (for mobile app etc)
 - Some API routes (like `/api/auth/callback`, `/api/auth/confirm` and `/api/auth/post-auth`) can't be server actions because they're used by external services
 - At that point, why sometimes use routes and other times server actions?
@@ -536,17 +521,15 @@ The `/auth/error` page is just for generic, "can't recover" errors.
 Usually, the API route responds with an error so the frontend can show it to the user.
 
 In some cases, there is no frontend to display errors, for API routes like:
-
-- callback
-- confirm
-- post-auth (for successful login/signup)
+- `callback`
+- `confirm`
+- `post-auth` (for successful login/signup)
 
 That's why we have a generic auth error page. For most stuff, the API responds with error/success.
 
 ### Email templates
 
 Most templates will actually be in your Supabase dashboard. The ones you can find in there are:
-
 - Confirm sign up
 - Invite user
 - Magic Link
@@ -555,7 +538,6 @@ Most templates will actually be in your Supabase dashboard. The ones you can fin
 - Reauthentication
 
 All other email templates live in this project in `/emails/templates`. You'll find:
-
 - Verify device (`/emails/templates/device-verification.tsx`)
 - Login alert (`/emails/templates/email-alert.tsx`)
 - Verify email (`/emails/templates/email-verification.tsx`)
@@ -574,18 +556,18 @@ It should give you a localhost URL (eg: `http://localhost:3000`). Just copy that
 
 Next, expand "templates" in the sidebar and click any templates. You can preview them here! 🎉
 
+For the email templates in your Supabase dashboard, you can preview them directly there.
+
 ### Auth in API routes, components for rendering
 
 For example:
 
 - ❌ We don't do this in a component:
-
 ```typescript
 supabase.auth.signInWithEmailAndPassword();
 ```
 
 - ✅ We call an API route to logout the user:
-
 ```typescript
 import { api } from "@/utils/api";
 
@@ -593,7 +575,6 @@ api.auth.logout(); // this will do a fetch call to our login route
 ```
 
 Reasons:
-
 1. Security: API routes can implement additional security checks
 2. Separation of concerns: auth lives in the API routes, components/pages handle the UI
 3. Consistency: all auth flows go through API routes
@@ -605,13 +586,11 @@ Reasons:
 ### Difference between forgot password, change password and reset password
 
 Notice how we got 3, very similar API routes?
-
 - `/api/auth/forgot-password`
 - `/api/auth/change-password`
 - `/api/auth/reset-password`
 
 The names look similar, but they serve entirely different purposes.
-
 - `/api/auth/forgot-password`: Sends a password reset email
 - `/api/auth/change-password`: Used to change the password of authenticated users. It accepts a current and new password.
 - `/api/auth/reset-password`: Part of the forgot password flow: it takes a new password and a token, which it uses to update the password.
@@ -634,7 +613,6 @@ By default, Supabase likes to put it at 24 hours.
 That makes zero sense because then they tell you to lower it down to 1 hour (or below).
 
 So let's go ahead and make Supabase happy:
-
 1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
 2. Expand the "Email" provider
 3. Scroll down to "Email OTP Expiration"
@@ -694,6 +672,7 @@ Here's how to do it:
 This is gonna be an actionable, step-by-step guide to get your app in production.
 
 ### 1. Create production environment variables
+
 - Create a new file called `.env.production`
 - Copy the contents of `.env.local` to it
 - Replace the values with your own:

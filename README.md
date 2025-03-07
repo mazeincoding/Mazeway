@@ -855,6 +855,11 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
      - `emails/components/header.tsx`
      - `src/components/header.tsx`
      - Your email templates in the Supabase dashboard ([direct link](https://supabase.com/dashboard/project/_/auth/templates))
+   - "When should I use the CDN vs the /public folder"
+       - General thumb of rule:
+       - Is it used ONLY in the Next.js app? -> /public
+       - Is it used anywhere else OR needs transformation? -> CDN
+       - Only thing I'd say is keep the OG image in the /public folder (it's page-specific and Next.js optimizes it)
 2. Change branding color in emails
    - Even though you change the primary color in `src/app/globals.css`...
    - They're not applied to your email templates automatically

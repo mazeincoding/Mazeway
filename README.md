@@ -859,7 +859,12 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
        - General thumb of rule:
        - Is it used ONLY in the Next.js app? -> /public
        - Is it used anywhere else OR needs transformation? -> CDN
-       - Only thing I'd say is keep the OG image in the /public folder (it's page-specific and Next.js optimizes it)
+       - OG images should be the /public folder because of same reasons:
+           - They're page-specific
+           - Only used in your Next.js app
+           - For meta tags
+           - You might later want different OG images for different pages
+           - You don't need to transform them
 2. Change branding color in emails
    - Even though you change the primary color in `src/app/globals.css`...
    - They're not applied to your email templates automatically

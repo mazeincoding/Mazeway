@@ -869,10 +869,7 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
 2. When adding the environment variables, make sure to copy the contents of your `.env.production` environment variables and pasting them in Vercel (or any other deployment platform)
 3. Also, you can delete the `.env.production` file now if you want. We only created it to track environment variables when setting up production. Totally up to you.
 
-Congrats! 🎉 You just set up everything you need for the auth to work. You can go ahead and run `npm run dev` in the terminal, and head over to `http://localhost:3000` in the browser to test it out.
 
-> [!NOTE]
-> When running the dev server, you may see a warning in your console about `supabase.auth.getSession()` being potentially insecure. This is a [known issue](https://github.com/supabase/auth-js/issues/873) with the Supabase auth library and can be safely ignored. The warning is a false positive - this project follows all security best practices and uses the recommended `@supabase/ssr` package correctly.
 
 ## Pro tips + note for Supabase
 

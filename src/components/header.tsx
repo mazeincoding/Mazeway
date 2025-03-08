@@ -23,7 +23,7 @@ export function Header({ isInitiallyLoggedIn, sidebar }: HeaderProps) {
             width={810}
             height={121}
             priority
-            className="dark:invert w-full h-7"
+            className="dark:invert w-auto h-7"
           />
         </Link>
       </div>

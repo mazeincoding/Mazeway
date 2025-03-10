@@ -40,22 +40,51 @@ async function resetAuthConfig() {
     const configPath = path.join(process.cwd(), "src", "config", "auth.ts");
     let configContent = fs.readFileSync(configPath, "utf8");
 
+    // Track which providers were actually disabled
+    const disabledProviders: string[] = [];
+
+    // Helper to replace and track changes
+    const disableProvider = (
+      content: string,
+      pattern: RegExp,
+      name: string
+    ) => {
+      const newContent = content.replace(pattern, "$1false");
+      if (newContent !== content) {
+        disabledProviders.push(name);
+      }
+      return newContent;
+    };
+
     // Disable providers using regex replacements
-    configContent = configContent
-      // Disable Google
-      .replace(/(google:\s*{\s*enabled:\s*)true/, "$1false")
-      // Disable GitHub
-      .replace(/(github:\s*{\s*enabled:\s*)true/, "$1false")
-      // Disable SMS 2FA
-      .replace(/(sms:\s*{[^}]+enabled:\s*)true/, "$1false");
+    configContent = disableProvider(
+      configContent,
+      /(google:\s*{\s*enabled:\s*)true/,
+      "Google authentication"
+    );
+    configContent = disableProvider(
+      configContent,
+      /(github:\s*{\s*enabled:\s*)true/,
+      "GitHub authentication"
+    );
+    configContent = disableProvider(
+      configContent,
+      /(sms:\s*{[^}]+enabled:\s*)true/,
+      "SMS two-factor authentication"
+    );
 
     // Write the modified config back
     fs.writeFileSync(configPath, configContent, "utf8");
 
     console.log("✅ Auth configuration has been reset!");
-    console.log("\nChanges made:");
-    console.log("- Disabled all social providers");
-    console.log("- Disabled SMS 2FA");
+
+    if (disabledProviders.length > 0) {
+      console.log("\nDisabled the following providers:");
+      disabledProviders.forEach((provider) => console.log(`- ${provider}`));
+    } else {
+      console.log("\nNo providers were enabled, nothing to disable.");
+    }
+
     console.log("\nConfiguration file updated at:", configPath);
   } catch (error) {
     console.error("❌ Failed to reset auth configuration:", error);

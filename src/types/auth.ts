@@ -1,7 +1,8 @@
-import { TDeviceSessionProvider } from "@/utils/device-sessions/server";
-
 // Authentication Assurance Level type
 export type TAAL = "aal1" | "aal2";
+
+// Only the providers we actually support
+export type TDeviceSessionProvider = "browser" | "google" | "email";
 
 export interface TDeviceInfo {
   user_id: string;
@@ -15,6 +16,7 @@ export interface TDeviceSessionOptions {
   trustLevel: "high" | "oauth" | "normal";
   skipVerification?: boolean;
   provider?: TDeviceSessionProvider;
+  isNewUser?: boolean; // Indicates if this is a first-time signup
 }
 
 // Base verification methods

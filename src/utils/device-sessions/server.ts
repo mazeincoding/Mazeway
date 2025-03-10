@@ -3,9 +3,6 @@ import { TDeviceInfo, TDeviceSessionOptions } from "@/types/auth";
 import { UAParser } from "ua-parser-js";
 import { AUTH_CONFIG } from "@/config/auth";
 
-// Only the providers we actually support
-export type TDeviceSessionProvider = "browser" | "google" | "email";
-
 async function createDevice(device: TDeviceInfo) {
   if (typeof window !== "undefined") {
     throw new Error("Cannot create or find device on the client");
@@ -68,25 +65,34 @@ export async function setupDeviceSession(
   let needs_verification: boolean;
   let is_trusted: boolean;
 
-  switch (options.trustLevel) {
-    case "high":
-      // High trust for password reset, email verification, etc.
-      confidence_score = 100;
-      needs_verification = false;
-      is_trusted = true;
-      break;
-    case "oauth":
-      // OAuth providers are generally trusted
-      confidence_score = 85;
-      needs_verification = false;
-      is_trusted = true;
-      break;
-    case "normal":
-      // Regular email/password login
-      confidence_score = 70;
-      needs_verification = !options.skipVerification;
-      is_trusted = false;
-      break;
+  // First-time signup device should be trusted
+  if (options.isNewUser) {
+    // This is the device that created the account, so we trust it
+    confidence_score = 100;
+    needs_verification = false;
+    is_trusted = true;
+  } else {
+    // For existing users, use the standard trust levels
+    switch (options.trustLevel) {
+      case "high":
+        // High trust for password reset, email verification, etc.
+        confidence_score = 100;
+        needs_verification = false;
+        is_trusted = true;
+        break;
+      case "oauth":
+        // OAuth providers are generally trusted
+        confidence_score = 85;
+        needs_verification = false;
+        is_trusted = true;
+        break;
+      case "normal":
+        // Regular email/password login
+        confidence_score = 70;
+        needs_verification = !options.skipVerification;
+        is_trusted = false;
+        break;
+    }
   }
 
   // Create the session

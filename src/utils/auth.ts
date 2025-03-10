@@ -23,9 +23,11 @@ export function calculateDeviceConfidence(
   storedSessions: TDeviceSession[] | null,
   current: TDeviceInfo
 ): number {
-  // First device login gets high confidence
+  // If no stored sessions, calculate a baseline score
+  // Trust for first-time signups is handled explicitly in setupDeviceSession
   if (!storedSessions?.length) {
-    return 100;
+    // No device sessions to compare to
+    return 0;
   }
 
   // Calculate confidence against each stored device and return highest score

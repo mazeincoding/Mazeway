@@ -11,9 +11,8 @@ import {
   getUserVerificationMethods,
   getConfidenceLevel,
 } from "@/utils/auth";
-import { TDeviceInfo } from "@/types/auth";
+import { TDeviceInfo, TDeviceSessionProvider } from "@/types/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
-import type { TDeviceSessionProvider } from "@/utils/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
 
 export async function GET(request: Request) {
@@ -102,10 +101,14 @@ export async function GET(request: Request) {
       });
     }
 
+    let isNewUser = false;
+
     if (!dbUser) {
       console.log("Creating new user record", {
         userId: user.id,
       });
+
+      isNewUser = true;
 
       const { error: createError } = await supabase.from("users").insert({
         id: user.id,
@@ -220,12 +223,14 @@ export async function GET(request: Request) {
       trustLevel: isOAuthProvider ? "oauth" : "normal",
       skipVerification: has2FA,
       provider,
+      isNewUser,
     });
 
     const session_id = await setupDeviceSession(request, user.id, {
       trustLevel: isOAuthProvider ? "oauth" : "normal",
       skipVerification: has2FA, // Skip device verification if 2FA is required
       provider,
+      isNewUser,
     });
 
     console.log("Device session created", {

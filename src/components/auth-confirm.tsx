@@ -57,7 +57,7 @@ export function Confirm({ email, show, onClose }: ConfirmProps) {
 
   return (
     <div
-      className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-200 ease-in-out backdrop-blur-xl ${
+      className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-200 ease-in-out backdrop-blur-2xl ${
         show ? "opacity-100 visible" : "opacity-0 invisible"
       }`}
     >
@@ -80,7 +80,7 @@ export function Confirm({ email, show, onClose }: ConfirmProps) {
         </p>
         {email && (
           <Button
-            className="bg-transparent hover:bg-transparent h-auto w-auto text-muted-foreground hover:text-foreground p-0"
+            className="bg-transparent hover:bg-transparent h-auto w-auto text-muted-foreground hover:text-foreground p-0 shadow-none"
             onClick={handleResend}
             disabled={timeLeft > 0 || isResending}
           >

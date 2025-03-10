@@ -10,7 +10,6 @@ async function confirmReset(): Promise<boolean> {
 
   console.log("\n🔒 This script will reset the following auth configuration:");
   console.log("- Google authentication provider (if enabled)");
-  console.log("- GitHub authentication provider (if enabled)");
   console.log("- SMS two-factor authentication (if enabled)");
   console.log(
     "\nOther settings like email/password auth, authenticator app 2FA,"
@@ -61,11 +60,6 @@ async function resetAuthConfig() {
       configContent,
       /(google:\s*{\s*enabled:\s*)true/,
       "Google authentication"
-    );
-    configContent = disableProvider(
-      configContent,
-      /(github:\s*{\s*enabled:\s*)true/,
-      "GitHub authentication"
     );
     configContent = disableProvider(
       configContent,

@@ -6,6 +6,11 @@
 import { TTwoFactorMethod, TVerificationMethod } from "@/types/auth";
 
 export const AUTH_CONFIG = {
+  socialProviders: {
+    google: {
+      enabled: false, // Enable if you set up Google Auth
+    },
+  },
   // Available verification methods
   verificationMethods: {
     // Basic verification methods (for non-2FA accounts)

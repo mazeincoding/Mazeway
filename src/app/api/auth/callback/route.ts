@@ -28,6 +28,14 @@ export async function GET(request: Request) {
   if (code) {
     console.log("[AUTH] /api/auth/callback - Processing OAuth code exchange");
 
+    // Check if Google auth is enabled before processing OAuth code exchange
+    if (!AUTH_CONFIG.socialProviders.google.enabled) {
+      console.error("[AUTH] /api/auth/callback - Google auth is disabled");
+      return NextResponse.redirect(
+        `${origin}/auth/error?error=google_auth_disabled&message=${encodeURIComponent("Google authentication is disabled")}`
+      );
+    }
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {

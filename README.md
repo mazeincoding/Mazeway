@@ -152,45 +152,7 @@ npm install
    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
    - Copy and paste these [email templates](docs/supabase-email-templates.md)
 
-6. Set up Google OAuth and connect to Supabase
-
-    This will allow users to sign in with Google.
-
-    Good to know:
-    - This project is moving towards a "start simple, add more" approach
-    - Where you just set up the required things, and everything else will be optional
-    - That means, Google Auth is going to an optional feature
-    - For now, it's required
-
-    1. Configure Google Auth
-        - Go to [Google Cloud Console](https://console.cloud.google.com/)
-        - Create a new project in the top left corner
-        - Go to APIs and services -> OAuth consent screen ([direct link](https://console.cloud.google.com/auth/overview))
-        - Click "Get started" and enter an app name in the "App name" field (eg: auth-starter)
-        - Choose your email for "User support email"
-        - For the Audience, select External
-        - Enter an email for "Contact Information"
-    2. Update Auth Branding
-        - In the left sidebar, go to "Branding" ([link](https://console.cloud.google.com/auth/branding))
-        - Scroll down to "Authorized domains" and click the "ADD DOMAIN" button. Enter your Supabase project URL here. We got this in the early steps. Should look like `<PROJECT_ID>.supabase.co`.
-
-        > Note: The URL shouldn't include the `https://` part
-
-    3. Create OAuth client (previously OAuth credentials)
-        - Go to: [Google OAuth Clients](https://console.cloud.google.com/auth/clients)
-        - Click "create client"
-        - For "Application type", choose "Web application".
-        - Under "Authorized JavaScript origins", add your site URL which is `http://localhost:3000`
-        - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
-            1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
-            2. Scroll down until you see "Google" and expand it
-            3. You'll find a field labeled "Callback URL (for OAuth)"".
-        - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
-        - Copy those, go back to Supabbase and paste those. Then click "Save"
-
-    If you have trouble following along, you can check out Supabase's [official docs](https://supabase.com/docs/guides/auth/social-login/auth-google)
-
-7. Add the callback redirect URL in Supabase (ensures Supabase can redirect here)
+7. Add the callback redirect URL in Supabase (ensures Supabase can redirect to `/api/auth/callback`)
     > Good to know:
     >
     > The callback URL isn't just used for Google OAuth like you might think.
@@ -267,6 +229,8 @@ You're not limited to these customization options (you own the auth) but it's ju
 
 ### Quick reference
 
+- **Social Providers**
+    - Google
 - **Verification Methods**
   - Email
   - Password
@@ -307,6 +271,46 @@ You're not limited to these customization options (you own the auth) but it's ju
   - Require uppercase
   - Require numbers
   - Require symbols
+
+### Social providers
+
+All the social providers are **disabled by default** in the auth config.
+
+This allows you to enable just what you actually need. The instructions below show you how to set up each provider.
+
+PLEASE UNDERSTAND:
+- This section only covers development
+- You're gonna be setting up Google OAuth for development first
+- When you're ready for production, the "Go in production" section got you covered
+
+#### Google
+
+1. Configure Google Auth
+    - Go to [Google Cloud Console](https://console.cloud.google.com/)
+    - Create a new project in the top left corner
+    - Go to APIs and services -> OAuth consent screen ([direct link](https://console.cloud.google.com/auth/overview))
+    - Click "Get started" and enter an app name in the "App name" field (eg: auth-starter)
+    - Choose your email for "User support email"
+    - For the Audience, select External
+    - Enter an email for "Contact Information"
+2. Update Auth Branding
+    - In the left sidebar, go to "Branding" ([link](https://console.cloud.google.com/auth/branding))
+    - Scroll down to "Authorized domains" and click the "ADD DOMAIN" button. Enter your Supabase project URL here. We got this in the early steps. It should look like `<PROJECT_ID>.supabase.co`.
+
+    > Note: The URL shouldn't include the `https://` part
+3. Create OAuth client (previously OAuth credentials)
+    - Go to: [Google OAuth Clients](https://console.cloud.google.com/auth/clients)
+    - Click "create client"
+    - For "Application type", choose "Web application".
+    - Under "Authorized JavaScript origins", add your site URL which is `http://localhost:3000`
+
+    - Under "Authorized redirect URLs", enter the "callback URL" from the Supabase dashboard. To get it, follow these steps:
+        1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+        2. Scroll down until you see "Google" and expand it
+        3. You'll find a field labeled "Callback URL (for OAuth)".
+        
+    - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
+    - Copy those, go back to Supabase and paste those. Then click "Save"
 
 ### Verification Methods
 
@@ -756,28 +760,27 @@ If everything went well, your database should be set up and match your developme
 
 Remember, this only sets up the database. The auth settings, Supabase storage buckets, email templates and other stuff won't automatically be applied to your production project.
 
-I'm not gonna assume you never changed a thing like email templates (you likely did) so instead of giving you some magical, step-by-step guide on everything you need to do, I'm just gonna give you a checklist or "reminder list" of things to add to your production project:
+I'm not gonna assume you never changed a thing like email templates (you likely did) so instead of giving you some magical, step-by-step guide on everything you need to do, I'm just gonna give you a checklist or "reminder list" of things to do on your production project:
 
 1. Add email templates
     - Your templates are here: [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
     - Just copy them from your dev project to production
-2. Enable Google Auth and connect your production project to it
+2. Enable any social providers and connect your production project to them
     > [!NOTE]
-    > I'm gonna assume you set up Google Auth and didn't just ditch it from the project.
-    >
-    > But if you did get rid of it, that's fine. Just skip enabling the provider.
-    >
-    > If you still have Google Auth, follow along:
+    > If you're not using any social providers, just skip this.
+    
+    **Google**
     - Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+    - Make sure your production project is selected
     - Enable Google
     - Add your Client ID and Client Secret
         - To get them, go to the [Google Cloud Console](https://console.cloud.google.com/)
-        - Make sure the correct project is selected (the one you created during development)
+        - Make sure the correct project is selected (the one you created earlier)
         - Go to "APIs and services"
         - Click "Credentials" in the sidebar
         - You should see the OAuth client you created. Click the edit icon on it
         - On the right, you should see your "Client ID" and "Client Secret"
-    - Copy the Callback URL from Supabase (still in the Supabase Google provider)
+    - Copy the Callback URL from Supabase (in the Supabase Google provider)
     - Click "Save changes" (so you don't forget)
     - In the Google Cloud Console, Go back to "Credentials" (or "Clients") and click your OAuth client
     - Under "Authorized JavaScript origins", you should have:
@@ -818,7 +821,7 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
 
 1. Go to Vercel and deploy as usual
 2. When adding the environment variables, make sure to copy the contents of your `.env.production` environment variables and pasting them in Vercel (or any other deployment platform)
-3. Also, you can delete the `.env.production` file now if you want. We only created it to track environment variables when setting up production. Totally up to you.
+3. Also, you can delete the `.env.production` file now if you want. We only created it to track environment variables when setting up production. Totally up to you. Some people find it handy.
 
 ## Production checklist
 

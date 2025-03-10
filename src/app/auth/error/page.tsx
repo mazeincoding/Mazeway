@@ -23,6 +23,7 @@ type TErrorCategory =
   | "profile_creation_failed"
   | "failed_to_create_user"
   | "google_callback_error"
+  | "google_auth_disabled"
   | "failed_to_get_session"
   | "reset_password_error"
   | "invalid_callback";
@@ -123,6 +124,22 @@ const ERROR_CONFIGS: Record<TErrorCategory, TErrorConfig> = {
         label: "Go Home",
         href: "/",
         type: "default",
+      },
+    ],
+  },
+  google_auth_disabled: {
+    title: "Google sign-in unavailable",
+    message: "Google authentication is currently disabled on this site.",
+    actions: [
+      {
+        label: "Log in with email",
+        href: "/auth/login",
+        type: "default",
+      },
+      {
+        label: "Go Home",
+        href: "/",
+        type: "secondary",
       },
     ],
   },

@@ -2,9 +2,18 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { TApiErrorResponse } from "@/types/api";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Google auth is enabled in the config
+    if (!AUTH_CONFIG.socialProviders.google.enabled) {
+      return NextResponse.json(
+        { error: "Google authentication is disabled" },
+        { status: 403 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     if (authRateLimit) {
       const ip = getClientIp(request);
       const { success } = await authRateLimit.limit(ip);

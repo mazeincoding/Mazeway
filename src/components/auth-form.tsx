@@ -464,6 +464,11 @@ export function SocialButtons() {
     }
   }
 
+  // If Google auth is disabled, don't render anything
+  if (!AUTH_CONFIG.socialProviders.google.enabled) {
+    return null;
+  }
+
   return (
     <div className="flex gap-2">
       <Button

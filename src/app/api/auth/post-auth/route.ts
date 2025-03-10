@@ -48,6 +48,21 @@ export async function GET(request: Request) {
       throw new Error("Invalid provider");
     }
 
+    // Check if Google auth is enabled when the provider is Google
+    if (
+      claimedProvider === "google" &&
+      !AUTH_CONFIG.socialProviders.google.enabled
+    ) {
+      console.error("Google auth is disabled but received Google provider", {
+        provider: claimedProvider,
+      });
+
+      // Redirect to error page instead of throwing an error
+      return NextResponse.redirect(
+        `${origin}/auth/error?error=google_auth_disabled&message=${encodeURIComponent("Google authentication is disabled")}`
+      );
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

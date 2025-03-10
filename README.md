@@ -121,6 +121,17 @@ In the terminal, run this:
 npm install
 ```
 
+### 2. Reset auth config
+
+We'll dive into this later.
+
+But it essentially allows you to tweak custom things.
+
+Reset it:
+```bash
+npm run reset-config
+```
+
 ### 2. Set up Supabase
 
 1. Create a Supabase project

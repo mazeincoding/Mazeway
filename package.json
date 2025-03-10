@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "setup:cleanup": "tsx scripts/setup-cleanup.ts",
-    "deploy:cleanup": "tsx scripts/deploy-cleanup.ts"
+    "deploy:cleanup": "tsx scripts/deploy-cleanup.ts",
+    "reset-config": "tsx scripts/reset-auth-config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

@@ -323,6 +323,18 @@ PLEASE UNDERSTAND:
     - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
     - Copy those, go back to Supabase and paste those. Then click "Save"
 
+4. Enable Google in the auth config
+    - Open up `src/config/auth.ts`
+    - Enable the Google provider:
+    ```diff
+    socialProviders: {
+      google: {
+    -   enabled: false,
+    +   enabled: true,
+      },
+    }
+    ```
+
 ### Verification Methods
 
 The following methods are available:

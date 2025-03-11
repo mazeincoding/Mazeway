@@ -73,6 +73,7 @@ That's what this project gives you: a foundation that you can build on.
 - Sign-in options:
   - `Email/password`
   - `Google`
+  - `GitHub` (new)
   - More soon!
 - Complete authentication flow:
   - Login/signup pages
@@ -242,6 +243,7 @@ You're not limited to these customization options (you own the auth) but it's ju
 
 - **Social Providers**
     - Google
+    - GitHub
 - **Verification Methods**
   - Email
   - Password

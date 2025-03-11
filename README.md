@@ -242,6 +242,7 @@ You're not limited to these customization options (you own the auth) but it's ju
 
 - **Social Providers**
     - Google
+    - GitHub
 - **Verification Methods**
   - Email
   - Password

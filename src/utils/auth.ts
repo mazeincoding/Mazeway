@@ -7,6 +7,7 @@ import {
   TVerificationMethod,
   TUser,
   TVerificationFactor,
+  TSocialProvider,
 } from "@/types/auth";
 
 /**
@@ -414,4 +415,37 @@ export async function getAuthenticatorAssuranceLevel(
     .single();
 
   return session?.aal || "aal1";
+}
+
+/**
+ * Gets the list of social authentication providers connected to a user's account
+ * @param supabase Supabase client instance
+ * @returns Array of connected social providers
+ */
+export async function getUserSocialProviders(
+  supabase: SupabaseClient
+): Promise<TSocialProvider[]> {
+  try {
+    // Get current user
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      throw error || new Error("No user found");
+    }
+
+    const providers: TSocialProvider[] = [];
+
+    // Get identities from auth metadata to check OAuth providers
+    const identities = data.user.identities || [];
+
+    // Add OAuth providers the user has connected
+    identities.forEach((identity) => {
+      if (identity.provider === "google") providers.push("google");
+      if (identity.provider === "github") providers.push("github");
+    });
+
+    return providers;
+  } catch (err) {
+    console.error("Failed to get user social providers:", err);
+    return [];
+  }
 }

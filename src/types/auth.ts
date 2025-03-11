@@ -1,8 +1,11 @@
 // Authentication Assurance Level type
 export type TAAL = "aal1" | "aal2";
 
-// Only the providers we actually support
-export type TDeviceSessionProvider = "browser" | "google" | "github" | "email";
+// Social providers supported by the app
+export type TSocialProvider = "google" | "github";
+
+// Providers that can create a device session
+export type TDeviceSessionProvider = "browser" | "email" | TSocialProvider;
 
 export interface TDeviceInfo {
   user_id: string;

@@ -2,7 +2,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { KeyRound, ShieldIcon, Link } from "lucide-react";
+import { KeyRound, ShieldIcon, Link } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
+import { FaGoogle, FaGithub } from "react-icons/fa";
+import { AUTH_CONFIG } from "@/config/auth";
 import { FaGoogle, FaGithub } from "react-icons/fa";
 import { AUTH_CONFIG } from "@/config/auth";
 import {
@@ -65,6 +68,8 @@ export default function Security() {
       newPassword: "",
     },
   });
+
+  const { socialProviders } = AUTH_CONFIG;
 
   const { socialProviders } = AUTH_CONFIG;
 

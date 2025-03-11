@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
 import { getUserVerificationMethods } from "@/utils/auth";
+import { AuthApiError } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
   console.log("[AUTH] /api/auth/callback - Request received", {
@@ -33,14 +34,26 @@ export async function GET(request: Request) {
     // Check if the provider is enabled before processing OAuth code exchange
     if (provider === "google" && !AUTH_CONFIG.socialProviders.google.enabled) {
       console.error("[AUTH] /api/auth/callback - Google auth is disabled");
+      const actions = encodeURIComponent(
+        JSON.stringify([
+          { label: "Log in with email", href: "/auth/login", type: "default" },
+          { label: "Go home", href: "/", type: "secondary" },
+        ])
+      );
       return NextResponse.redirect(
-        `${origin}/auth/error?error=google_auth_disabled&message=${encodeURIComponent("Google authentication is disabled")}`
+        `${origin}/auth/error?title=${encodeURIComponent("Google sign-in unavailable")}&message=${encodeURIComponent("Google authentication is currently disabled on this site.")}&actions=${actions}&error=provider_disabled`
       );
     }
     if (provider === "github" && !AUTH_CONFIG.socialProviders.github.enabled) {
       console.error("[AUTH] /api/auth/callback - GitHub auth is disabled");
+      const actions = encodeURIComponent(
+        JSON.stringify([
+          { label: "Log in with email", href: "/auth/login", type: "default" },
+          { label: "Go home", href: "/", type: "secondary" },
+        ])
+      );
       return NextResponse.redirect(
-        `${origin}/auth/error?error=github_auth_disabled&message=${encodeURIComponent("GitHub authentication is disabled")}`
+        `${origin}/auth/error?title=${encodeURIComponent("GitHub sign-in unavailable")}&message=${encodeURIComponent("GitHub authentication is currently disabled on this site.")}&actions=${actions}&error=provider_disabled`
       );
     }
 
@@ -52,8 +65,20 @@ export async function GET(request: Request) {
         code: error.status,
       });
 
+      const actions = encodeURIComponent(
+        JSON.stringify([
+          { label: "Try again", href: "/auth/login", type: "default" },
+        ])
+      );
+
+      // If it's a Supabase auth error, use its code
+      const errorCode =
+        error instanceof AuthApiError
+          ? error.code || error.message
+          : error.message;
+
       return NextResponse.redirect(
-        `${origin}/auth/error?error=oauth_error&message=${encodeURIComponent(error.message)}`
+        `${origin}/auth/error?title=${encodeURIComponent("Authentication failed")}&message=${encodeURIComponent("There was a problem signing in. Please try again or contact support.")}&actions=${actions}&error=${errorCode}`
       );
     }
 
@@ -73,8 +98,11 @@ export async function GET(request: Request) {
       type,
     });
 
+    const actions = encodeURIComponent(
+      JSON.stringify([{ label: "Go home", href: "/", type: "default" }])
+    );
     return NextResponse.redirect(
-      `${origin}/auth/error?error=invalid_callback&message=${encodeURIComponent("Missing parameters")}`
+      `${origin}/auth/error?title=${encodeURIComponent("Invalid link")}&message=${encodeURIComponent("The authentication link is invalid or incomplete.")}&actions=${actions}&error=validation_failed`
     );
   }
 
@@ -105,8 +133,25 @@ export async function GET(request: Request) {
         code: error.status,
       });
 
+      const actions = encodeURIComponent(
+        JSON.stringify([
+          {
+            label: "Try again",
+            href: "/auth/forgot-password",
+            type: "default",
+          },
+          { label: "Go home", href: "/", type: "secondary" },
+        ])
+      );
+
+      // If it's a Supabase auth error, use its code
+      const errorCode =
+        error instanceof AuthApiError
+          ? error.code || error.message
+          : error.message;
+
       return NextResponse.redirect(
-        `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent(error.message)}`
+        `${origin}/auth/error?title=${encodeURIComponent("Password reset failed")}&message=${encodeURIComponent("There was a problem resetting your password. Please try again.")}&actions=${actions}&error=${errorCode}`
       );
     }
 
@@ -120,8 +165,25 @@ export async function GET(request: Request) {
         error: errorMessage,
       });
 
+      const actions = encodeURIComponent(
+        JSON.stringify([
+          {
+            label: "Try again",
+            href: "/auth/forgot-password",
+            type: "default",
+          },
+          { label: "Go home", href: "/", type: "secondary" },
+        ])
+      );
+
+      // If it's a Supabase auth error, use its code
+      const errorCode =
+        postError instanceof AuthApiError
+          ? postError.code || postError.message
+          : errorMessage;
+
       return NextResponse.redirect(
-        `${origin}/auth/error?error=reset_password_error&message=${encodeURIComponent(errorMessage)}`
+        `${origin}/auth/error?title=${encodeURIComponent("Password reset failed")}&message=${encodeURIComponent("There was a problem with your session. Please try again.")}&actions=${actions}&error=${errorCode}`
       );
     }
 
@@ -190,7 +252,13 @@ export async function GET(request: Request) {
   // Invalid type
   console.error("[AUTH] /api/auth/callback - Invalid callback type", { type });
 
+  const actions = encodeURIComponent(
+    JSON.stringify([
+      { label: "Log in", href: "/auth/login", type: "default" },
+      { label: "Go home", href: "/", type: "secondary" },
+    ])
+  );
   return NextResponse.redirect(
-    `${origin}/auth/error?error=invalid_callback&message=${encodeURIComponent("Invalid callback request")}`
+    `${origin}/auth/error?title=${encodeURIComponent("Invalid request")}&message=${encodeURIComponent("The authentication request was invalid. Please try logging in again.")}&actions=${actions}&error=validation_failed`
   );
 }

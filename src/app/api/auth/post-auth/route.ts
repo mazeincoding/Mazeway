@@ -14,6 +14,7 @@ import {
 import { TDeviceInfo, TDeviceSessionProvider } from "@/types/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
+import { AuthApiError } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
   console.log("Request received", {
@@ -439,23 +440,40 @@ export async function GET(request: Request) {
       },
     });
 
-    // Determine error type from message
-    let errorType = "unknown_error";
-    if (err.message.includes("No user found")) errorType = "failed_to_get_user";
-    else if (err.message.includes("row-level security policy"))
-      errorType = "failed_to_create_user";
-    else if (err.message.includes("device session"))
-      errorType = "failed_to_create_session";
-    else if (err.message.includes("trusted sessions"))
-      errorType = "failed_to_get_trusted_sessions";
+    let errorTitle = "Authentication error";
+    let errorMessage = "There was a problem completing your authentication.";
+
+    // Handle Supabase Auth errors
+    if (err instanceof AuthApiError) {
+      switch (err.code) {
+        case "user_not_found":
+          errorTitle = "Session Error";
+          errorMessage =
+            "We couldn't find your user session. Please try logging in again.";
+          break;
+        case "user_already_exists":
+          errorTitle = "Account Creation Failed";
+          errorMessage =
+            "We couldn't create your account. Please try signing up again.";
+          break;
+        // Add other Supabase error codes as needed
+      }
+    }
+
+    const actions = encodeURIComponent(
+      JSON.stringify([
+        { label: "Try again", href: "/auth/login", type: "default" },
+        { label: "Go home", href: "/", type: "secondary" },
+      ])
+    );
 
     console.log("Redirecting to error page", {
-      errorType,
-      message: err.message,
+      error:
+        err instanceof AuthApiError ? err.code || err.message : err.message,
     });
 
     return NextResponse.redirect(
-      `${origin}/auth/error?error=${errorType}&message=${encodeURIComponent(err.message)}`
+      `${origin}/auth/error?title=${encodeURIComponent(errorTitle)}&message=${encodeURIComponent(errorMessage)}&actions=${actions}&error=${encodeURIComponent(err instanceof AuthApiError ? err.code || err.message : err.message)}`
     );
   }
 }

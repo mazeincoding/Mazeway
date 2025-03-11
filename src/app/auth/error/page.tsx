@@ -15,242 +15,35 @@ import {
 } from "@/components/ui/card";
 import { Suspense } from "react";
 
-type TErrorCategory =
-  | "auth_confirm"
-  | "confirm_expired"
-  | "missing_params"
-  | "confirm_invalid"
-  | "profile_creation_failed"
-  | "failed_to_create_user"
-  | "google_callback_error"
-  | "google_auth_disabled"
-  | "github_callback_error"
-  | "github_auth_disabled"
-  | "failed_to_get_session"
-  | "reset_password_error"
-  | "invalid_callback";
-interface TErrorConfig {
-  title: string;
-  message: string;
-  actions: {
-    label: string;
-    href: string;
-    type?: "default" | "secondary";
-  }[];
+interface TErrorAction {
+  label: string;
+  href: string;
+  type?: "default" | "secondary";
 }
-
-const ERROR_CONFIGS: Record<TErrorCategory, TErrorConfig> = {
-  auth_confirm: {
-    title: "Error confirming email",
-    message: "There was an error while confirming your email.",
-    actions: [
-      {
-        label: "Resend email",
-        href: "/auth/confirm",
-        type: "default",
-      },
-      {
-        label: "Go Home",
-        href: "/",
-        type: "secondary",
-      },
-    ],
-  },
-  confirm_expired: {
-    title: "Your link has expired",
-    message: "Your link is no longer valid. Please request a new link.",
-    actions: [
-      {
-        label: "Resend email",
-        href: "/auth/confirm",
-        type: "default",
-      },
-      {
-        label: "Go Home",
-        href: "/",
-        type: "secondary",
-      },
-    ],
-  },
-  missing_params: {
-    title: "Invalid link",
-    message: "The confirmation link is invalid or incomplete.",
-    actions: [
-      {
-        label: "Go Home",
-        href: "/",
-        type: "default",
-      },
-    ],
-  },
-  confirm_invalid: {
-    title: "Invalid link",
-    message: "The confirmation link is invalid or incomplete.",
-    actions: [
-      {
-        label: "Go Home",
-        href: "/",
-        type: "default",
-      },
-    ],
-  },
-  profile_creation_failed: {
-    title: "Profile creation failed",
-    message:
-      "Your email was verified, but we couldn't create your profile. Please try logging in - if the problem persists, contact support.",
-    actions: [
-      {
-        label: "Go Home",
-        href: "/",
-        type: "default",
-      },
-    ],
-  },
-  failed_to_create_user: {
-    title: "Failed to create user",
-    message:
-      "We were unable to create your user. Try refreshing the page and signing up again. If that doesn't work, contact support.",
-    actions: [
-      {
-        label: "Go Home",
-        href: "/",
-        type: "default",
-      },
-    ],
-  },
-  google_callback_error: {
-    title: "Google sign-in failed",
-    message: "There was a problem signing in with Google. Please try again.",
-    actions: [
-      {
-        label: "Go Home",
-        href: "/",
-        type: "default",
-      },
-    ],
-  },
-  google_auth_disabled: {
-    title: "Google sign-in unavailable",
-    message: "Google authentication is currently disabled on this site.",
-    actions: [
-      {
-        label: "Log in with email",
-        href: "/auth/login",
-        type: "default",
-      },
-      {
-        label: "Go Home",
-        href: "/",
-        type: "secondary",
-      },
-    ],
-  },
-  github_callback_error: {
-    title: "GitHub sign-in failed",
-    message: "There was a problem signing in with GitHub. Please try again.",
-    actions: [
-      {
-        label: "Go Home",
-        href: "/",
-        type: "default",
-      },
-    ],
-  },
-  github_auth_disabled: {
-    title: "GitHub sign-in unavailable",
-    message: "GitHub authentication is currently disabled on this site.",
-    actions: [
-      {
-        label: "Log in with email",
-        href: "/auth/login",
-        type: "default",
-      },
-      {
-        label: "Go Home",
-        href: "/",
-        type: "secondary",
-      },
-    ],
-  },
-  failed_to_get_session: {
-    title: "Failed to get session",
-    message: "There was a problem getting your session. Please try again.",
-    actions: [
-      {
-        label: "Go Home",
-        href: "/",
-        type: "default",
-      },
-    ],
-  },
-  reset_password_error: {
-    title: "Password reset failed",
-    message: "There was a problem resetting your password. Please try again.",
-    actions: [
-      {
-        label: "Try Again",
-        href: "/auth/forgot-password",
-        type: "default",
-      },
-      {
-        label: "Go Home",
-        href: "/",
-        type: "secondary",
-      },
-    ],
-  },
-  invalid_callback: {
-    title: "Invalid authentication callback",
-    message:
-      "The authentication callback request was invalid or malformed. Please try logging in again.",
-    actions: [
-      {
-        label: "Log in",
-        href: "/auth/login",
-        type: "default",
-      },
-      {
-        label: "Go Home",
-        href: "/",
-        type: "secondary",
-      },
-    ],
-  },
-};
-
-const DEFAULT_ERROR: TErrorConfig = {
-  title: "Something went wrong",
-  message: "An unexpected error occurred. Please try again.",
-  actions: [
-    {
-      label: "Go Home",
-      href: "/",
-    },
-  ],
-};
 
 function ErrorContent() {
   const searchParams = useSearchParams();
-  const errorType = searchParams.get("error");
-  const errorMessage = searchParams.get("message");
+  const errorTitle = searchParams.get("title") || "Something went wrong";
+  const errorMessage =
+    searchParams.get("message") || "An unexpected error occurred";
+  const errorActions = searchParams.get("actions")
+    ? JSON.parse(decodeURIComponent(searchParams.get("actions") || "[]"))
+    : [{ label: "Go Home", href: "/", type: "default" }];
+  const errorObject = searchParams.get("error");
   const [showDetails, setShowDetails] = useState(false);
-
-  const errorConfig = errorType
-    ? ERROR_CONFIGS[errorType as TErrorCategory] || DEFAULT_ERROR
-    : DEFAULT_ERROR;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-5 text-center px-4 py-8 md:px-8 max-w-xl mx-auto">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl">{errorConfig.title}</CardTitle>
+          <CardTitle className="text-2xl">{errorTitle}</CardTitle>
           <CardDescription className="text-pretty text-sm">
-            {errorConfig.message}
+            {errorMessage}
           </CardDescription>
         </CardHeader>
         <CardContent className="pb-5">
           <div className="w-full flex flex-col gap-3">
-            {errorConfig.actions.map((action) => (
+            {errorActions.map((action: TErrorAction) => (
               <Link key={action.href} href={action.href} className="w-full">
                 <Button
                   variant={action.type === "default" ? "default" : "outline"}
@@ -262,7 +55,7 @@ function ErrorContent() {
             ))}
           </div>
         </CardContent>
-        {errorMessage && (
+        {errorObject && (
           <CardFooter className="flex-col gap-2">
             <>
               <button
@@ -279,8 +72,7 @@ function ErrorContent() {
                   <code>
                     {JSON.stringify(
                       {
-                        error: errorType,
-                        message: errorMessage,
+                        error: errorObject,
                       },
                       null,
                       2

@@ -51,7 +51,7 @@ function SettingCardHeader({
     <>
       <CardHeader
         className={cn(
-          "flex-row space-y-0 gap-4 items-center bg-accent/50",
+          "flex-row space-y-0 gap-4 items-center bg-accent/50 rounded-t-lg",
           className
         )}
         {...props}

@@ -24,6 +24,8 @@ type TErrorCategory =
   | "failed_to_create_user"
   | "google_callback_error"
   | "google_auth_disabled"
+  | "github_callback_error"
+  | "github_auth_disabled"
   | "failed_to_get_session"
   | "reset_password_error"
   | "invalid_callback";
@@ -130,6 +132,33 @@ const ERROR_CONFIGS: Record<TErrorCategory, TErrorConfig> = {
   google_auth_disabled: {
     title: "Google sign-in unavailable",
     message: "Google authentication is currently disabled on this site.",
+    actions: [
+      {
+        label: "Log in with email",
+        href: "/auth/login",
+        type: "default",
+      },
+      {
+        label: "Go Home",
+        href: "/",
+        type: "secondary",
+      },
+    ],
+  },
+  github_callback_error: {
+    title: "GitHub sign-in failed",
+    message: "There was a problem signing in with GitHub. Please try again.",
+    actions: [
+      {
+        label: "Go Home",
+        href: "/",
+        type: "default",
+      },
+    ],
+  },
+  github_auth_disabled: {
+    title: "GitHub sign-in unavailable",
+    message: "GitHub authentication is currently disabled on this site.",
     actions: [
       {
         label: "Log in with email",

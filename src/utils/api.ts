@@ -16,6 +16,7 @@ import type {
   TCheckEmailRequest,
   TCheckEmailResponse,
   TGoogleSignInResponse,
+  TGithubSignInResponse,
   TChangeEmailRequest,
   TForgotPasswordRequest,
   TPasswordChangeResponse,
@@ -180,6 +181,13 @@ export const api = {
         method: "POST",
       });
       return handleResponse<TGoogleSignInResponse>(response);
+    },
+
+    githubSignIn: async () => {
+      const response = await fetch("/api/auth/github/signin", {
+        method: "POST",
+      });
+      return handleResponse<TGithubSignInResponse>(response);
     },
 
     verifyPassword: async (password: string) => {

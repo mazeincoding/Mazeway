@@ -10,6 +10,9 @@ export const AUTH_CONFIG = {
     google: {
       enabled: true, // Enable if you set up Google Auth
     },
+    github: {
+      enabled: true, // Enable if you set up GitHub Auth
+    },
   },
   // Available verification methods
   verificationMethods: {

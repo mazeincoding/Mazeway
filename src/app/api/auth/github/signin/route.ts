@@ -6,10 +6,10 @@ import { AUTH_CONFIG } from "@/config/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Google auth is enabled in the config
-    if (!AUTH_CONFIG.socialProviders.google.enabled) {
+    // Check if GitHub auth is enabled in the config
+    if (!AUTH_CONFIG.socialProviders.github.enabled) {
       return NextResponse.json(
-        { error: "Google authentication is disabled" },
+        { error: "GitHub authentication is disabled" },
         { status: 403 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
@@ -30,18 +30,14 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
 
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider: "github",
       options: {
-        redirectTo: `${origin}/api/auth/callback?provider=google`,
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
+        redirectTo: `${origin}/api/auth/callback?provider=github`,
       },
     });
 
     if (error) {
-      console.error("Google OAuth error:", error);
+      console.error("GitHub OAuth error:", error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 

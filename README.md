@@ -323,6 +323,26 @@ PLEASE UNDERSTAND:
     - In the Google console, click "create" and you will be shown your "Client ID" and "Client secret"
     - Copy those, go back to Supabase and paste those. Then click "Save"
 
+#### GitHub
+
+1. Get your callback URL from Supabase
+    - The next step requires a callback URL
+    - Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+    - Expand "GitHub"
+    - Copy the "Callback URL"
+2. Register a new OAuth app on GitHub
+    - Go to [GitHub OAuth Apps](https://github.com/settings/developers)
+    - Click "New OAuth app"
+    - For "Application name" enter your app's name
+    - Enter `localhost:3000/` for the homepage URL (don't worry about production, it's covered in the "Go in production" section)
+    - Paste the "Callback URL" into the "Authorization callback URL" field
+    - Click "Register application"
+3. Get your credentials and add them 
+    - Click "Generate a new secret"
+    - Copy both your "Client ID" and the secret you just generated
+    - Go back to the [Supabase GitHub provider](https://supabase.com/dashboard/project/_/auth/providers?provider=GitHub)
+    - Add your Client ID and secret here
+
 ### Verification Methods
 
 The following methods are available:
@@ -784,7 +804,7 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
     - Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
     - Make sure your production project is selected
     - Enable Google
-    - Add your Client ID and Client Secret
+    - Add your "Client ID" and "Client Secret"
         - To get them, go to the [Google Cloud Console](https://console.cloud.google.com/)
         - Make sure the correct project is selected (the one you created earlier)
         - Go to "APIs and services"
@@ -793,13 +813,29 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
         - On the right, you should see your "Client ID" and "Client Secret"
     - Copy the Callback URL from Supabase (in the Supabase Google provider)
     - Click "Save changes" (so you don't forget)
-    - In the Google Cloud Console, Go back to "Credentials" (or "Clients") and click your OAuth client
+    - In the Google Cloud Console, go back to "Credentials" (or "Clients") and click your OAuth client
     - Under "Authorized JavaScript origins", you should have:
         - `http://localhost:3000`
         - `https://your-production-domain.com` (add this)
     - And under "Authorized redirect URIs", you should have:
         - `https://your-dev-project-url.supabase.co/auth/v1/callback` (dev project)
         - `https://your-prod-project-url.supabase.co/auth/v1/callback` (production project, add this)
+    
+    **GitHub**
+    - Navigate to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+    - Make sure your production project is selected
+    - Expand "GitHub"
+    - Enable the provider
+    - Copy the "Callback URL"
+    - Go to [GitHub OAuth Apps](https://github.com/settings/developers)
+    - Click "New OAuth App"
+    - For "Application name" enter your app's name
+    - Enter your app domain for the homepage URL (eg: `https://mazeway.dev`)
+    - Paste the "Callback URL" into the "Authorization callback URL" field
+    - Click "Register application"
+    - Copy your "Client ID" and generate a secret, then copy that too
+    - Go back to the Supabase GitHub provider and paste the values
+
 3. Add any Supabase storage buckets you might have (and upload any files you might need)
   - Go to [Supabase Storage](https://supabase.com/dashboard/project/_/storage/buckets)
   - Add anything you might need

@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { FaGoogle } from "react-icons/fa";
+import { FaGoogle, FaGithub } from "react-icons/fa";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -464,24 +464,65 @@ export function SocialButtons() {
     }
   }
 
-  // If Google auth is disabled, don't render anything
-  if (!AUTH_CONFIG.socialProviders.google.enabled) {
+  async function handleGithubSignIn() {
+    try {
+      setIsPending(true);
+      const data = await api.auth.githubSignIn();
+
+      // Redirect to GitHub's consent page
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error("GitHub sign in error:", error);
+      toast.error("Error", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to sign in with GitHub",
+        duration: 3000,
+      });
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  // If both providers are disabled, don't render anything
+  if (
+    !AUTH_CONFIG.socialProviders.google.enabled &&
+    !AUTH_CONFIG.socialProviders.github.enabled
+  ) {
     return null;
   }
 
   return (
     <div className="flex gap-2">
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={handleGoogleSignIn}
-        disabled={isPending}
-      >
-        <>
+      {AUTH_CONFIG.socialProviders.google.enabled && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleSignIn}
+          disabled={isPending}
+        >
           <FaGoogle className="w-4 h-4" />
-          Continue with Google
-        </>
-      </Button>
+          {!AUTH_CONFIG.socialProviders.github.enabled
+            ? "Continue with Google"
+            : "Google"}
+        </Button>
+      )}
+      {AUTH_CONFIG.socialProviders.github.enabled && (
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={handleGithubSignIn}
+          disabled={isPending}
+        >
+          <FaGithub className="w-4 h-4" />
+          {!AUTH_CONFIG.socialProviders.google.enabled
+            ? "Continue with GitHub"
+            : "GitHub"}
+        </Button>
+      )}
     </div>
   );
 }

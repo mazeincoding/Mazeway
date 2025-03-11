@@ -211,6 +211,11 @@ export interface TGoogleSignInResponse {
   url: string;
 }
 
+// /api/auth/github/signin
+export interface TGithubSignInResponse {
+  url: string;
+}
+
 // Generic success response
 export interface TEmptySuccessResponse {}
 

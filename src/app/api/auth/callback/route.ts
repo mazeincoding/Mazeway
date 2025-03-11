@@ -15,12 +15,14 @@ export async function GET(request: Request) {
   const next = searchParams.get("next") ?? "/";
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type");
+  const provider = searchParams.get("provider") || "browser";
 
   console.log("[AUTH] /api/auth/callback - Parameters", {
     hasCode: !!code,
     next,
     hasTokenHash: !!token_hash,
     type,
+    provider,
   });
 
   const supabase = await createClient();
@@ -28,11 +30,17 @@ export async function GET(request: Request) {
   if (code) {
     console.log("[AUTH] /api/auth/callback - Processing OAuth code exchange");
 
-    // Check if Google auth is enabled before processing OAuth code exchange
-    if (!AUTH_CONFIG.socialProviders.google.enabled) {
+    // Check if the provider is enabled before processing OAuth code exchange
+    if (provider === "google" && !AUTH_CONFIG.socialProviders.google.enabled) {
       console.error("[AUTH] /api/auth/callback - Google auth is disabled");
       return NextResponse.redirect(
         `${origin}/auth/error?error=google_auth_disabled&message=${encodeURIComponent("Google authentication is disabled")}`
+      );
+    }
+    if (provider === "github" && !AUTH_CONFIG.socialProviders.github.enabled) {
+      console.error("[AUTH] /api/auth/callback - GitHub auth is disabled");
+      return NextResponse.redirect(
+        `${origin}/auth/error?error=github_auth_disabled&message=${encodeURIComponent("GitHub authentication is disabled")}`
       );
     }
 
@@ -54,7 +62,7 @@ export async function GET(request: Request) {
     );
 
     return NextResponse.redirect(
-      `${origin}/api/auth/post-auth?provider=google&next=${next}&should_refresh=true`
+      `${origin}/api/auth/post-auth?provider=${provider}&next=${next}&should_refresh=true`
     );
   }
 

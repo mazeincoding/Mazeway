@@ -40,6 +40,7 @@ export async function GET(request: Request) {
     const isValidProvider =
       claimedProvider === "browser" ||
       claimedProvider === "google" ||
+      claimedProvider === "github" ||
       claimedProvider === "email";
     if (!isValidProvider) {
       console.error("Invalid provider", {
@@ -48,18 +49,20 @@ export async function GET(request: Request) {
       throw new Error("Invalid provider");
     }
 
-    // Check if Google auth is enabled when the provider is Google
+    // Check if the provider is enabled when using OAuth
     if (
-      claimedProvider === "google" &&
-      !AUTH_CONFIG.socialProviders.google.enabled
+      (claimedProvider === "google" &&
+        !AUTH_CONFIG.socialProviders.google.enabled) ||
+      (claimedProvider === "github" &&
+        !AUTH_CONFIG.socialProviders.github.enabled)
     ) {
-      console.error("Google auth is disabled but received Google provider", {
+      console.error("OAuth provider is disabled but received OAuth provider", {
         provider: claimedProvider,
       });
 
       // Redirect to error page instead of throwing an error
       return NextResponse.redirect(
-        `${origin}/auth/error?error=google_auth_disabled&message=${encodeURIComponent("Google authentication is disabled")}`
+        `${origin}/auth/error?error=${claimedProvider}_auth_disabled&message=${encodeURIComponent(`${claimedProvider} authentication is disabled`)}`
       );
     }
 
@@ -90,6 +93,8 @@ export async function GET(request: Request) {
       const identity = user.identities[0];
       if (identity.provider === "google") {
         provider = "google";
+      } else if (identity.provider === "github") {
+        provider = "github";
       } else if (identity.provider === "email") {
         provider = "email";
       }

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { TApiErrorResponse, TGetUserResponse } from "@/types/api";
-import type { TTwoFactorMethod, TUserWithAuth } from "@/types/auth";
+import type {
+  TTwoFactorMethod,
+  TUserWithAuth,
+  TSocialProvider,
+} from "@/types/auth";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { getUserVerificationMethods } from "@/utils/auth";
 
@@ -73,6 +77,8 @@ export async function GET(request: NextRequest) {
         twoFactorEnabled: enabled2faMethods.length > 0,
         enabled2faMethods,
         availableVerificationMethods,
+        identities:
+          authUser.identities?.map((i) => i.provider as TSocialProvider) || [],
       },
     };
 

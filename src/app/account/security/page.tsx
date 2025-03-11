@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { KeyRound, ShieldIcon } from "lucide-react";
+import { KeyRound, ShieldIcon, Link } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
+import { FaGoogle, FaGithub } from "react-icons/fa";
+import { AUTH_CONFIG } from "@/config/auth";
 import {
   passwordChangeSchema,
   type PasswordChangeSchema,
@@ -63,6 +65,8 @@ export default function Security() {
       newPassword: "",
     },
   });
+
+  const { socialProviders } = AUTH_CONFIG;
 
   const handlePasswordVisibilityChange = (field: string, show: boolean) => {
     setShowPasswords({
@@ -358,6 +362,84 @@ export default function Security() {
           </Button>
         </SettingCard.Footer>
       </SettingCard>
+
+      {Object.values(socialProviders).some((provider) => provider.enabled) && (
+        <SettingCard icon={Link}>
+          <SettingCard.Header>
+            <SettingCard.Title>Connected accounts</SettingCard.Title>
+            <SettingCard.Description>
+              Manage the accounts you use to sign in with.
+            </SettingCard.Description>
+          </SettingCard.Header>
+          <SettingCard.Content>
+            <div className="space-y-6">
+              {socialProviders.google.enabled && (
+                <div className="flex items-center justify-between border p-4 px-6 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
+                      <FaGoogle className="h-6 w-6" />
+                    </div>
+                    <div className="flex flex-col">
+                      <h3 className="text-lg font-semibold">Google</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Sign in with your Google account
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant={
+                      user?.auth.identities.includes("google")
+                        ? "destructive"
+                        : "outline"
+                    }
+                    size="sm"
+                  >
+                    {user?.auth.identities.includes("google")
+                      ? "Disconnect"
+                      : "Connect"}
+                  </Button>
+                </div>
+              )}
+
+              {socialProviders.github.enabled && (
+                <div className="flex items-center justify-between border p-4 px-6 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
+                      <FaGithub className="h-6 w-6" />
+                    </div>
+                    <div className="flex flex-col">
+                      <h3 className="text-lg font-semibold">GitHub</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Sign in with your GitHub account
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant={
+                      user?.auth.identities.includes("github")
+                        ? "destructive"
+                        : "outline"
+                    }
+                    size="sm"
+                  >
+                    {user?.auth.identities.includes("github")
+                      ? "Disconnect"
+                      : "Connect"}
+                  </Button>
+                </div>
+              )}
+
+              {!Object.values(socialProviders).some(
+                (provider) => provider.enabled
+              ) && (
+                <div className="text-center text-muted-foreground">
+                  No social providers are currently enabled.
+                </div>
+              )}
+            </div>
+          </SettingCard.Content>
+        </SettingCard>
+      )}
 
       <SettingCard icon={ShieldIcon}>
         <SettingCard.Header>

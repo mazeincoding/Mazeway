@@ -5,15 +5,15 @@ import {
   TDisable2FARequest,
   TEmptySuccessResponse,
 } from "@/types/api";
-import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
 import { getFactorForMethod, getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    if (apiRateLimit) {
+    if (authRateLimit) {
       const ip = getClientIp(request);
-      const { success } = await apiRateLimit.limit(ip);
+      const { success } = await authRateLimit.limit(ip);
 
       if (!success) {
         return NextResponse.json(

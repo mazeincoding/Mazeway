@@ -20,7 +20,7 @@ import {
   TEmptySuccessResponse,
   TPasswordChangeResponse,
 } from "@/types/api";
-import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
   hasGracePeriodExpired,
   getUserVerificationMethods,
@@ -29,23 +29,24 @@ import {
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
 
 export async function POST(request: NextRequest) {
-  if (apiRateLimit) {
-    const ip = getClientIp(request);
-    const { success } = await apiRateLimit.limit(ip);
-
-    if (!success) {
-      return NextResponse.json(
-        {
-          error: "Too many requests. Please try again later.",
-        },
-        { status: 429 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-  }
-
-  const supabase = await createClient();
-
   try {
+    // Rate limiting
+    if (authRateLimit) {
+      const ip = getClientIp(request);
+      const { success } = await authRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          {
+            error: "Too many requests. Please try again later.",
+          },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
+    const supabase = await createClient();
+
     const { user, error } = await getUser(supabase);
     if (error || !user) {
       return NextResponse.json(

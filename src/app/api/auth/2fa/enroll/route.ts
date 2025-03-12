@@ -5,22 +5,29 @@ import {
   TEnroll2FARequest,
   TEnroll2FAResponse,
 } from "@/types/api";
-import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
+import {
+  authRateLimit,
+  smsRateLimit,
+  getClientIp,
+  apiRateLimit,
+} from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
 import { twoFactorEnrollmentSchema } from "@/utils/validation/auth-validation";
 import { getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    if (apiRateLimit) {
+    if (authRateLimit) {
       const ip = getClientIp(request);
-      const { success } = await apiRateLimit.limit(ip);
+      if (apiRateLimit) {
+        const { success } = await apiRateLimit.limit(ip);
 
-      if (!success) {
-        return NextResponse.json(
-          { error: "Too many requests. Please try again later." },
-          { status: 429 }
-        ) satisfies NextResponse<TApiErrorResponse>;
+        if (!success) {
+          return NextResponse.json(
+            { error: "Too many requests. Please try again later." },
+            { status: 429 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
       }
     }
 

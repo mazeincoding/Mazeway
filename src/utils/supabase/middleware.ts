@@ -135,13 +135,26 @@ export async function updateSession(request: NextRequest) {
         return supabaseResponse;
       }
 
-      // Check if 2FA is required for this user
-      const { has2FA } = await getUserVerificationMethods(supabase);
+      const deviceSessionId = request.cookies.get("device_session_id");
 
-      // If 2FA is required, check AAL2 status
-      if (has2FA) {
-        const deviceSessionId = request.cookies.get("device_session_id");
+      // Run auth checks in parallel
+      const [verificationMethods, deviceSessionResult] = await Promise.all([
+        getUserVerificationMethods(supabase),
+        isProtectedPath && deviceSessionId
+          ? (supabase
+              .from("device_sessions")
+              .select("needs_verification, expires_at")
+              .eq("id", deviceSessionId.value)
+              .eq("user_id", user.id)
+              .gt("expires_at", new Date().toISOString())
+              .single() as unknown as Promise<{
+              data: { needs_verification: boolean; expires_at: string } | null;
+            }>)
+          : Promise.resolve({ data: null }),
+      ]);
 
+      // Handle 2FA check
+      if (verificationMethods.has2FA) {
         const currentLevel = await getAuthenticatorAssuranceLevel(
           supabase,
           deviceSessionId?.value || ""
@@ -167,9 +180,8 @@ export async function updateSession(request: NextRequest) {
         }
       }
 
-      // Only check device session on protected routes
+      // Handle device session check for protected routes
       if (isProtectedPath) {
-        const deviceSessionId = request.cookies.get("device_session_id");
         const verificationPaths = [
           "/auth/verify-device",
           "/api/auth/verify-device",
@@ -194,16 +206,7 @@ export async function updateSession(request: NextRequest) {
           return handleInvalidDeviceSession(request);
         }
 
-        // Query device session by ID
-        const { data: deviceSession } = (await supabase
-          .from("device_sessions")
-          .select("needs_verification, expires_at")
-          .eq("id", deviceSessionId.value)
-          .eq("user_id", user.id)
-          .gt("expires_at", new Date().toISOString())
-          .single()) as unknown as {
-          data: { needs_verification: boolean; expires_at: string } | null;
-        };
+        const deviceSession = deviceSessionResult.data;
 
         if (!deviceSession) {
           if (isApiPath) {
@@ -215,13 +218,10 @@ export async function updateSession(request: NextRequest) {
           return handleInvalidDeviceSession(request);
         }
 
-        // Redirect to verification if needed
-        if (deviceSession.needs_verification) {
-          if (!isVerificationPath) {
-            const url = request.nextUrl.clone();
-            url.pathname = "/auth/verify-device";
-            return NextResponse.redirect(url);
-          }
+        if (deviceSession.needs_verification && !isVerificationPath) {
+          const url = request.nextUrl.clone();
+          url.pathname = "/auth/verify-device";
+          return NextResponse.redirect(url);
         }
       }
 

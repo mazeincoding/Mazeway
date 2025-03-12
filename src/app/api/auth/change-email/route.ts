@@ -1,10 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  TApiErrorResponse,
-  TChangeEmailRequest,
-  TChangeEmailResponse,
-} from "@/types/api";
+import { TApiErrorResponse, TChangeEmailResponse } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
   getUserVerificationMethods,

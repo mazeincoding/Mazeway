@@ -35,6 +35,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { VerifyForm } from "@/components/verify-form";
+import { SocialProviders } from "@/components/social-providers";
 
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
@@ -371,71 +372,10 @@ export default function Security() {
             </SettingCard.Description>
           </SettingCard.Header>
           <SettingCard.Content>
-            <div className="space-y-6">
-              {socialProviders.google.enabled && (
-                <div className="flex items-center justify-between border p-4 px-6 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
-                      <FaGoogle className="h-6 w-6" />
-                    </div>
-                    <div className="flex flex-col">
-                      <h3 className="text-lg font-semibold">Google</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Sign in with your Google account
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant={
-                      user?.auth.identities.includes("google")
-                        ? "destructive"
-                        : "outline"
-                    }
-                    size="sm"
-                  >
-                    {user?.auth.identities.includes("google")
-                      ? "Disconnect"
-                      : "Connect"}
-                  </Button>
-                </div>
-              )}
-
-              {socialProviders.github.enabled && (
-                <div className="flex items-center justify-between border p-4 px-6 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
-                      <FaGithub className="h-6 w-6" />
-                    </div>
-                    <div className="flex flex-col">
-                      <h3 className="text-lg font-semibold">GitHub</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Sign in with your GitHub account
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant={
-                      user?.auth.identities.includes("github")
-                        ? "destructive"
-                        : "outline"
-                    }
-                    size="sm"
-                  >
-                    {user?.auth.identities.includes("github")
-                      ? "Disconnect"
-                      : "Connect"}
-                  </Button>
-                </div>
-              )}
-
-              {!Object.values(socialProviders).some(
-                (provider) => provider.enabled
-              ) && (
-                <div className="text-center text-muted-foreground">
-                  No social providers are currently enabled.
-                </div>
-              )}
-            </div>
+            <SocialProviders
+              identities={user?.auth.identities ?? []}
+              isLoading={isLoading}
+            />
           </SettingCard.Content>
         </SettingCard>
       )}

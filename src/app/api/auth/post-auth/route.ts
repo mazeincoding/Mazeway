@@ -10,6 +10,7 @@ import {
   calculateDeviceConfidence,
   getUserVerificationMethods,
   getConfidenceLevel,
+  getUser,
 } from "@/utils/auth";
 import { TDeviceInfo, TDeviceSessionProvider } from "@/types/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
@@ -68,14 +69,10 @@ export async function GET(request: Request) {
     }
 
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       console.error("Failed to get user", {
-        error: userError?.message,
+        error,
         hasUser: !!user,
       });
       throw new Error("No user found");
@@ -90,8 +87,8 @@ export async function GET(request: Request) {
     // Default to the claimed provider, but verify with user data when possible
     let provider: TDeviceSessionProvider = claimedProvider;
 
-    if (user.identities && user.identities.length > 0) {
-      const identity = user.identities[0];
+    if (user.auth.identities && user.auth.identities.length > 0) {
+      const identity = user.auth.identities[0];
       if (identity.provider === "google") {
         provider = "google";
       } else if (identity.provider === "github") {

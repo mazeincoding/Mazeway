@@ -13,6 +13,7 @@ import {
   verifyVerificationCode,
   generateVerificationCodes,
 } from "@/utils/verification-codes";
+import { getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,12 +21,8 @@ export async function POST(request: NextRequest) {
     const adminClient = await createClient({ useServiceRole: true });
 
     // 1. Verify user authentication first
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

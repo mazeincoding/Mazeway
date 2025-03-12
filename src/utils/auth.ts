@@ -7,6 +7,7 @@ import {
   TVerificationMethod,
   TUser,
   TVerificationFactor,
+  TUserWithAuth,
 } from "@/types/auth";
 
 /**
@@ -414,4 +415,69 @@ export async function getAuthenticatorAssuranceLevel(
     .single();
 
   return session?.aal || "aal1";
+}
+
+/**
+ * Gets complete user data combining Supabase auth with profile data
+ * Use this in server contexts (API routes, server components, utilities)
+ *
+ * @param supabase Supabase client instance
+ * @returns Object containing user data or error
+ */
+export async function getUser(supabase: SupabaseClient) {
+  try {
+    // Get authenticated user
+    const {
+      data: { user: authUser },
+      error: userError,
+    } = await supabase.auth.getUser();
+    if (userError || !authUser) {
+      return { user: null, error: "Unauthorized" };
+    }
+
+    // Get user profile from database
+    const { data: userData, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", authUser.id)
+      .single();
+
+    if (profileError) {
+      console.error("Failed to fetch user profile:", profileError);
+      return { user: null, error: "Failed to fetch user profile" };
+    }
+
+    // Get MFA factors
+    const { data: mfaData } = await supabase.auth.mfa.listFactors();
+
+    // Get enabled 2FA methods
+    const enabled2faMethods =
+      mfaData?.all
+        ?.filter((factor) => factor.status === "verified")
+        .map((factor) =>
+          factor.factor_type === "totp" ? "authenticator" : "sms"
+        ) || [];
+
+    // Get available verification methods
+    const { methods: availableVerificationMethods } =
+      await getUserVerificationMethods(supabase);
+
+    // Combine user data
+    const userWithAuth: TUserWithAuth = {
+      ...userData,
+      auth: {
+        emailVerified: !!authUser.email_confirmed_at,
+        lastSignInAt: authUser.last_sign_in_at,
+        twoFactorEnabled: enabled2faMethods.length > 0,
+        enabled2faMethods,
+        availableVerificationMethods,
+        identities: authUser.identities,
+      },
+    };
+
+    return { user: userWithAuth };
+  } catch (error) {
+    console.error("Error in getUser:", error);
+    return { user: null, error: "Failed to get user data" };
+  }
 }

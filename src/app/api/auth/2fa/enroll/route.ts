@@ -8,19 +8,25 @@ import {
 import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
 import { twoFactorEnrollmentSchema } from "@/utils/validation/auth-validation";
+import { getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    if (apiRateLimit) {
+      const ip = getClientIp(request);
+      const { success } = await apiRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
     const supabase = await createClient();
-    const adminClient = await createClient({ useServiceRole: true });
-
-    // 1. Verify user authentication first
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

@@ -19,6 +19,7 @@ import { AUTH_CONFIG } from "@/config/auth";
 import {
   getUserVerificationMethods,
   getAuthenticatorAssuranceLevel,
+  getUser,
 } from "@/utils/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
 
@@ -49,11 +50,8 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Otherwise verify current user through Supabase
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError || !user) {
+      const { user, error } = await getUser(supabase);
+      if (error || !user) {
         return NextResponse.json(
           { error: "No authenticated user" },
           { status: 401 }

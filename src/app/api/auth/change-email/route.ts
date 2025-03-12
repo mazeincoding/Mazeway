@@ -9,6 +9,7 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
   getUserVerificationMethods,
   hasGracePeriodExpired,
+  getUser,
 } from "@/utils/auth";
 import { emailChangeSchema } from "@/utils/validation/auth-validation";
 import { SupabaseClient } from "@supabase/supabase-js";
@@ -40,13 +41,8 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-
-    // 1. Verify user authentication
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

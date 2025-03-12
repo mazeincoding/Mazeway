@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
-import { getUserVerificationMethods } from "@/utils/auth";
+import { getUserVerificationMethods, getUser } from "@/utils/auth";
 import { AuthApiError } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
@@ -110,18 +110,7 @@ export async function GET(request: Request) {
   if (type === "recovery") {
     console.log("[AUTH] /api/auth/callback - Processing recovery flow");
 
-    const { data: preCheck, error: preError } = await supabase.auth.getUser();
-    if (preError) {
-      console.error("[AUTH] /api/auth/callback - Pre-check user error", {
-        error: preError.message,
-      });
-    } else {
-      console.log("[AUTH] /api/auth/callback - Pre-check user status", {
-        userExists: !!preCheck?.user,
-        userId: preCheck?.user?.id,
-      });
-    }
-
+    // Verify the password reset token
     const { error } = await supabase.auth.verifyOtp({
       token_hash,
       type,
@@ -157,11 +146,11 @@ export async function GET(request: Request) {
 
     console.log("[AUTH] /api/auth/callback - OTP verification successful");
 
-    const { data: postCheck, error: postError } = await supabase.auth.getUser();
-
-    if (postError || !postCheck.user?.id) {
-      const errorMessage = postError?.message || "Invalid user session";
-      console.error("[AUTH] /api/auth/callback - Post-check user error", {
+    // Get user data after successful verification
+    const { user, error: userError } = await getUser(supabase);
+    if (userError || !user) {
+      const errorMessage = userError || "Invalid user session";
+      console.error("[AUTH] /api/auth/callback - Failed to get user data", {
         error: errorMessage,
       });
 
@@ -176,20 +165,14 @@ export async function GET(request: Request) {
         ])
       );
 
-      // If it's a Supabase auth error, use its code
-      const errorCode =
-        postError instanceof AuthApiError
-          ? postError.code || postError.message
-          : errorMessage;
-
       return NextResponse.redirect(
-        `${origin}/auth/error?title=${encodeURIComponent("Password reset failed")}&message=${encodeURIComponent("There was a problem with your session. Please try again.")}&actions=${actions}&error=${errorCode}`
+        `${origin}/auth/error?title=${encodeURIComponent("Password reset failed")}&message=${encodeURIComponent("There was a problem with your session. Please try again.")}&actions=${actions}&error=${errorMessage}`
       );
     }
 
-    console.log("[AUTH] /api/auth/callback - Post-check user status", {
-      userId: postCheck.user.id,
-      email: postCheck.user.email,
+    console.log("[AUTH] /api/auth/callback - Got user data", {
+      userId: user.id,
+      email: user.email,
     });
 
     // Check if user has 2FA enabled
@@ -219,7 +202,7 @@ export async function GET(request: Request) {
       );
 
       // Create encrypted recovery token with user ID
-      const recoveryToken = createRecoveryToken(postCheck.user.id);
+      const recoveryToken = createRecoveryToken(user.id);
 
       // Set secure HTTP-only recovery cookie with 15 minute expiry
       response.cookies.set("recovery_session", recoveryToken, {

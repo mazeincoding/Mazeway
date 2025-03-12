@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TGetDeviceSessionResponse } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import { getUser } from "@/utils/auth";
 
 /**
  * Returns the current device session for the authenticated user.
@@ -26,11 +27,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // First security layer: Validate auth token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) throw new Error("Unauthorized");
+    const { user, error } = await getUser(supabase);
+    if (error || !user) throw new Error("Unauthorized");
 
     // Get the current session ID from cookie
     const sessionId = request.cookies.get("device_session_id")?.value;

@@ -5,6 +5,7 @@ import {
   TGetTrustedDeviceSessionsResponse,
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import { getUser } from "@/utils/auth";
 
 /**
  * Returns all trusted device sessions for the authenticated user.
@@ -56,15 +57,11 @@ export async function GET(request: NextRequest) {
       "[AUTH] /api/auth/device-sessions/trusted - Getting user from auth"
     );
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    const { user, error } = await getUser(supabase);
 
-    if (userError) {
+    if (error) {
       console.error("[AUTH] /api/auth/device-sessions/trusted - User error", {
-        error: userError.message,
-        status: userError.status,
+        error,
       });
       throw new Error("Unauthorized");
     }
@@ -88,7 +85,7 @@ export async function GET(request: NextRequest) {
       "[AUTH] /api/auth/device-sessions/trusted - Fetching trusted device sessions"
     );
 
-    const { data, error } = await supabase
+    const { data, error: supabaseError } = await supabase
       .from("device_sessions")
       .select(
         `
@@ -100,15 +97,15 @@ export async function GET(request: NextRequest) {
       .eq("is_trusted", true)
       .order("created_at", { ascending: false });
 
-    if (error) {
+    if (supabaseError) {
       console.error(
         "[AUTH] /api/auth/device-sessions/trusted - Database error",
         {
-          error: error.message,
-          code: error.code,
+          error: supabaseError.message,
+          code: supabaseError.code,
         }
       );
-      throw error;
+      throw supabaseError;
     }
 
     console.log(

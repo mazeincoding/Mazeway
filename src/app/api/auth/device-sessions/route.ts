@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TGetDeviceSessionsResponse } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import { getUser } from "@/utils/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,14 +19,10 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const { user, error } = await getUser(supabase);
+    if (error || !user) throw new Error("Unauthorized");
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) throw new Error("Unauthorized");
-
-    const { data, error } = await supabase
+    const { data, error: supabaseError } = await supabase
       .from("device_sessions")
       .select(
         `
@@ -36,7 +33,7 @@ export async function GET(request: NextRequest) {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (supabaseError) throw supabaseError;
 
     return NextResponse.json({
       data,

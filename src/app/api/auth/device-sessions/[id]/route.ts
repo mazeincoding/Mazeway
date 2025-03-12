@@ -10,6 +10,7 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
   getUserVerificationMethods,
   hasGracePeriodExpired,
+  getUser,
 } from "@/utils/auth";
 import { revokeDeviceSessionSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
@@ -46,11 +47,13 @@ export async function DELETE(
 
   try {
     // First security layer: Validate auth token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) throw new Error("Unauthorized");
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
 
     // Get current device session ID from cookie
     const currentSessionId = request.cookies.get("device_session_id")?.value;

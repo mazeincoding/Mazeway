@@ -72,5 +72,15 @@ export interface TUserWithAuth extends TUser {
     twoFactorEnabled: boolean;
     enabled2faMethods: TTwoFactorMethod[];
     availableVerificationMethods: TVerificationMethod[];
+    identities?: {
+      id: string;
+      provider: string;
+      identity_data: Record<string, any>;
+      provider_id: string;
+      user_id: string;
+      created_at: string;
+      last_sign_in_at: string;
+      updated_at: string;
+    }[];
   };
 }

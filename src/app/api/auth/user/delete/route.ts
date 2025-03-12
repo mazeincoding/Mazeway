@@ -9,6 +9,7 @@ import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
   getUserVerificationMethods,
   hasGracePeriodExpired,
+  getUser,
 } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 
@@ -33,14 +34,8 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-
-    // First security layer: Validate auth token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

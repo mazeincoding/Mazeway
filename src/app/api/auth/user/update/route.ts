@@ -7,6 +7,7 @@ import {
   TUpdateUserRequest,
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
+import { getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,14 +24,8 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-
-    // Verify user authentication
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

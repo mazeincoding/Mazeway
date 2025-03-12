@@ -3,23 +3,29 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   TApiErrorResponse,
   TDisable2FARequest,
-TEmptySuccessResponse,
+  TEmptySuccessResponse,
 } from "@/types/api";
-import { authRateLimit, getClientIp } from "@/utils/rate-limit";
+import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
-import { getFactorForMethod } from "@/utils/auth";
+import { getFactorForMethod, getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    if (apiRateLimit) {
+      const ip = getClientIp(request);
+      const { success } = await apiRateLimit.limit(ip);
+
+      if (!success) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later." },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+    }
+
     const supabase = await createClient();
-
-    // 1. Verify user authentication
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -40,19 +46,7 @@ export async function POST(request: NextRequest) {
     const body: TDisable2FARequest = validation.data;
     const { method, code } = body;
 
-    // 3. Apply rate limits
-    const clientIp = getClientIp(request);
-    if (authRateLimit) {
-      const { success } = await authRateLimit.limit(clientIp);
-      if (!success) {
-        return NextResponse.json(
-          { error: "Too many requests. Please try again later." },
-          { status: 429 }
-        ) satisfies NextResponse<TApiErrorResponse>;
-      }
-    }
-
-    // 4. Get factor ID for the method
+    // 3. Get factor ID for the method
     const factor = await getFactorForMethod(supabase, method);
     if (!factor.success || !factor.factorId) {
       return NextResponse.json(
@@ -61,7 +55,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 5. Create challenge and verify code
+    // 4. Create challenge and verify code
     const { data: challengeData, error: challengeError } =
       await supabase.auth.mfa.challenge({ factorId: factor.factorId });
 
@@ -87,7 +81,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 6. Disable the method
+    // 5. Disable the method
     const { error: unenrollError } = await supabase.auth.mfa.unenroll({
       factorId: factor.factorId,
     });

@@ -4,19 +4,18 @@ import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { Resend } from "resend";
 import EmailVerificationTemplate from "@emails/templates/email-verification";
 import { AUTH_CONFIG } from "@/config/auth";
-import { authRateLimit, getClientIp } from "@/utils/rate-limit";
+import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { generateVerificationCode } from "@/utils/verification-codes";
+import { getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
-  if (authRateLimit) {
+  if (apiRateLimit) {
     const ip = getClientIp(request);
-    const { success } = await authRateLimit.limit(ip);
+    const { success } = await apiRateLimit.limit(ip);
 
     if (!success) {
       return NextResponse.json(
-        {
-          error: "Too many requests. Please try again later.",
-        },
+        { error: "Too many requests. Please try again later." },
         { status: 429 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
@@ -31,15 +30,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    const adminClient = await createClient({ useServiceRole: true });
-
-    // Verify user authentication
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -68,6 +60,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Store verification code
+    const adminClient = await createClient({ useServiceRole: true });
     const { error: insertError } = await adminClient
       .from("verification_codes")
       .insert({

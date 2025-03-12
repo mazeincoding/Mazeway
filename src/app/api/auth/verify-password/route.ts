@@ -6,18 +6,13 @@ import {
   TEmptySuccessResponse,
 } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
+import { getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-
-    // 1. Verify user authentication first
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }

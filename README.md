@@ -511,9 +511,33 @@ All the other password requirements are self-explanatory.
 
 ### Data Fetching Strategy: SWR + API Utility
 
+> [!WARNING]
+> Never use `supabase.auth.getUser()` directly. Instead:
+> - In client components: use the `useUser()` hook
+> - In server contexts (API routes, server components, middleware, etc): use `getUser()` from `@/utils/auth`
+>
+> This ensures you always get the complete user data (both auth and profile) in a consistent format.
+
 You might notice we use two different approaches for handling data and API calls. This isn't an accident - each serves a specific purpose:
 
-1. **SWR Hooks** (`/hooks/use-auth.ts`):
+1. **Getting User Data**:
+   - Client Components: Use the `useUser()` hook
+     ```typescript
+     const { user, isLoading } = useUser();
+     ```
+     - Automatically keeps user data in sync
+     - Handles caching and revalidation
+     - Returns complete user data (`TUserWithAuth` type)
+   
+   - Server Contexts: Use the `getUser()` utility
+     ```typescript
+     const { user, error } = await getUser(supabase);
+     ```
+     - Use in API routes, server components, utilities
+     - Returns complete user data consistently
+     - Combines auth data with profile data
+
+2. **SWR Hooks** (`/hooks/use-auth.ts`):
    - Think of these as "data subscribers"
    - Perfect for data that changes and needs to stay fresh (like user data)
    - Automatically revalidates when you:
@@ -523,7 +547,7 @@ You might notice we use two different approaches for handling data and API calls
    - Example: `useUser()` hook keeps the user's data in sync across the app
    - Only handles reading and subscribing to data, not mutations
 
-2. **API Utility** (`/utils/api.ts`):
+3. **API Utility** (`/utils/api.ts`):
    - Think of this as your "action caller"
    - Handles one-off actions like login, signup, or enabling 2FA
    - Provides consistent error handling (no more try-catch everywhere)

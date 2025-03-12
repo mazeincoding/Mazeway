@@ -6,6 +6,7 @@ import { TApiErrorResponse } from "@/types/api";
 import { TDeviceInfo } from "@/types/auth";
 import { createClient } from "@/utils/supabase/server";
 import { validateEmailAlert } from "@/utils/validation/auth-validation";
+import { getUser } from "@/utils/auth";
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -17,24 +18,6 @@ export async function POST(request: NextRequest) {
   console.log("Email alert request received");
 
   try {
-    // 1. Authenticate the user
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.log(`Auth failed: ${userError?.message || "No user"}`);
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    console.log(`User authenticated: ${user.id}`);
-
-    // 2. Apply rate limiting if enabled
     if (authRateLimit) {
       const ip = getClientIp(request);
       const { success } = await authRateLimit.limit(ip);
@@ -48,14 +31,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const supabase = await createClient();
+    const { user, error } = await getUser(supabase);
+    if (error || !user) {
+      console.log(`Auth failed: ${error || "No user"}`);
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    console.log(`User authenticated: ${user.id}`);
+
     // 3. Parse and validate request body
     const rawBody = await request.json();
-    const { isValid, error, data } = validateEmailAlert(rawBody);
+    const {
+      isValid,
+      error: validationError,
+      data,
+    } = validateEmailAlert(rawBody);
 
     if (!isValid || !data) {
-      console.log(`Invalid request: ${error || "Unknown error"}`);
+      console.log(`Invalid request: ${validationError || "Unknown error"}`);
       return NextResponse.json(
-        { error: error || "Invalid input" },
+        { error: validationError || "Invalid input" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }

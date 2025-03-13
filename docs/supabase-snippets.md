@@ -184,3 +184,29 @@ EXECUTE FUNCTION update_updated_at_column();
 -- Create index for faster lookups
 CREATE INDEX idx_backup_codes_user_id ON backup_codes(user_id);
 ```
+
+**Create account events table**
+```sql
+-- Create account_events table for activity tracking
+CREATE TABLE account_events (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+    device_session_id uuid REFERENCES device_sessions(id) ON DELETE SET NULL,
+    event_type text NOT NULL,
+    metadata jsonb DEFAULT '{}',
+    created_at timestamp with time zone DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE account_events ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+CREATE POLICY "Users can view their own events"
+ON account_events
+FOR SELECT
+USING (user_id = auth.uid());
+
+-- Create index for faster user event lookups
+CREATE INDEX idx_account_events_user_id_created_at 
+ON account_events(user_id, created_at DESC);
+```

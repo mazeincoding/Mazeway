@@ -84,11 +84,36 @@ export const AUTH_CONFIG = {
     codeLength: 6,
   },
 
-  // Email login alerts configuration
+  // Email alerts configuration
   emailAlerts: {
-    enabled: true, // Master switch to enable/disable all login email alerts
-    alertMode: "unknown_only" as "all" | "unknown_only", // "all" = send for every login, "unknown_only" = only for new/unknown devices
-    confidenceThreshold: 70, // Only send alerts for devices with confidence score below this threshold when in "unknown_only" mode
+    login: {
+      enabled: true, // Master switch to enable/disable all login email alerts
+      alertMode: "unknown_only" as "all" | "unknown_only", // "all" = send for every login, "unknown_only" = only for new/unknown devices
+      confidenceThreshold: 70, // Only send alerts for devices with confidence score below this threshold when in "unknown_only" mode
+    },
+    password: {
+      enabled: true, // Send alerts for password changes/resets
+      alertOnChange: true, // Alert when password is changed by logged-in user
+      alertOnReset: true, // Alert when password is reset via forgot-password flow
+    },
+    email: {
+      enabled: true, // Send alerts for email changes
+      alertOnInitiate: false, // Alert when email change is initiated (to old email)
+      alertOnComplete: true, // Alert when email is changed (to both old and new)
+    },
+    twoFactor: {
+      enabled: true, // Send alerts for 2FA changes
+      alertOnEnable: true, // Alert when 2FA method is enabled
+      alertOnDisable: true, // Alert when 2FA method is disabled
+    },
+    deviceSessions: {
+      enabled: true, // Send alerts for device session changes
+      alertOnRevoke: true, // Alert when a device session is revoked
+    },
+    accountDeletion: {
+      enabled: true, // Send alerts for account deletion
+      alertOnInitiate: false, // Alert when deletion is initiated (gives chance to recover if hacked)
+    },
   },
 
   // Email verification configuration

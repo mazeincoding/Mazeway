@@ -15,6 +15,8 @@ import {
 } from "@/utils/auth";
 import { revokeDeviceSessionSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
+import { UAParser } from "ua-parser-js";
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 /**
  * Deletes a device session. Security is enforced through multiple layers:
@@ -26,6 +28,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { origin } = new URL(request.url);
   // Even though TypeScript thinks "await" doesn't have an effect
   // It does. It's required in Next.js dynamic API routes
   const sessionId = (await params).id;
@@ -107,10 +110,18 @@ export async function DELETE(
       throw new Error("Current device session is invalid or expired");
     }
 
-    // Second security layer: Verify session ownership
+    // Second security layer: Verify session ownership and get device info for alert
     const { data: session, error: sessionError } = await supabase
       .from("device_sessions")
-      .select("id")
+      .select(
+        `
+        id,
+        device_name,
+        browser,
+        os,
+        ip_address
+      `
+      )
       .eq("id", sessionId)
       .eq("user_id", user.id)
       .single();
@@ -167,6 +178,26 @@ export async function DELETE(
       .eq("id", sessionId);
 
     if (deleteError) throw deleteError;
+
+    // Send alert for device revocation if enabled
+    if (
+      AUTH_CONFIG.emailAlerts.deviceSessions.enabled &&
+      AUTH_CONFIG.emailAlerts.deviceSessions.alertOnRevoke
+    ) {
+      await sendEmailAlert({
+        request,
+        origin,
+        user,
+        title: "Device access revoked",
+        message: `A device's access to your account was revoked. If this wasn't you, please secure your account immediately.`,
+        revokedDevice: {
+          device_name: session.device_name,
+          browser: session.browser,
+          os: session.os,
+          ip_address: session.ip_address,
+        },
+      });
+    }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {

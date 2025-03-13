@@ -10,6 +10,8 @@ import {
 } from "@/utils/auth";
 import { emailChangeSchema } from "@/utils/validation/auth-validation";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { AUTH_CONFIG } from "@/config/auth";
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
   // Update email in auth - this will trigger Supabase to send verification email
@@ -22,6 +24,8 @@ async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     if (authRateLimit) {
       const ip = getClientIp(request);
@@ -107,6 +111,23 @@ export async function POST(request: NextRequest) {
       const { has2FA, factors } = await getUserVerificationMethods(supabase);
 
       if (gracePeriodExpired && has2FA) {
+        // Send alert for email change initiation if enabled
+        if (
+          AUTH_CONFIG.emailAlerts.email.enabled &&
+          AUTH_CONFIG.emailAlerts.email.alertOnInitiate
+        ) {
+          await sendEmailAlert({
+            request,
+            origin,
+            user,
+            title: "Email change requested",
+            message:
+              "Someone has requested to change your account's email address. If this wasn't you, please secure your account immediately.",
+            oldEmail: user.email,
+            newEmail,
+          });
+        }
+
         return NextResponse.json({
           requiresTwoFactor: true,
           factorId: factors[0].factorId,
@@ -117,6 +138,37 @@ export async function POST(request: NextRequest) {
 
       // If no 2FA required or within grace period, update email directly
       await updateUserEmail(supabase, newEmail);
+
+      // Send alert for completed email change if enabled
+      if (
+        AUTH_CONFIG.emailAlerts.email.enabled &&
+        AUTH_CONFIG.emailAlerts.email.alertOnComplete
+      ) {
+        // Send to old email
+        await sendEmailAlert({
+          request,
+          origin,
+          user,
+          title: "Your email address was changed",
+          message:
+            "Your account's email address has been changed. If this wasn't you, please contact support immediately.",
+          oldEmail: user.email,
+          newEmail,
+        });
+
+        // Send to new email
+        await sendEmailAlert({
+          request,
+          origin,
+          user: { ...user, email: newEmail },
+          title: "Email address change confirmed",
+          message:
+            "Your account's email address has been changed to this address. If this wasn't you, please contact support immediately.",
+          oldEmail: user.email,
+          newEmail,
+        });
+      }
+
       return NextResponse.json({
         message: "Please check your new email for verification",
       });

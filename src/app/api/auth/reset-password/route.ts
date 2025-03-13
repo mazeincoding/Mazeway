@@ -23,8 +23,11 @@ import {
   getDeviceSessionId,
 } from "@/utils/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     // Regular client for 2FA checks
     const supabase = await createClient();
@@ -138,6 +141,30 @@ export async function POST(request: NextRequest) {
 
     if (flagError) {
       // Continue anyway - password was reset successfully
+    }
+
+    // Send alert for password reset if enabled
+    if (
+      AUTH_CONFIG.emailAlerts.password.enabled &&
+      AUTH_CONFIG.emailAlerts.password.alertOnReset
+    ) {
+      // Get user email since we only have ID
+      const { data: userData } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", userId)
+        .single();
+
+      if (userData?.email) {
+        await sendEmailAlert({
+          request,
+          origin,
+          user: { id: userId, email: userData.email },
+          title: "Your password has been reset",
+          message:
+            "Your account password has been reset through the forgot password flow. If this wasn't you, please secure your account immediately.",
+        });
+      }
     }
 
     // Create success response with login required flag

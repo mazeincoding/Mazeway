@@ -14,8 +14,11 @@ import {
   generateVerificationCodes,
 } from "@/utils/verification-codes";
 import { getDeviceSessionId, getUser } from "@/utils/auth";
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     const supabase = await createClient();
     const adminClient = await createClient({ useServiceRole: true });
@@ -204,6 +207,27 @@ export async function POST(request: NextRequest) {
 
         // Generate backup codes only during initial 2FA setup
         if (isInitialTwoFactorSetup) {
+          // Send alert for 2FA enable if enabled
+          if (
+            AUTH_CONFIG.emailAlerts.twoFactor.enabled &&
+            AUTH_CONFIG.emailAlerts.twoFactor.alertOnEnable &&
+            isInitialTwoFactorSetup
+          ) {
+            const methodConfig =
+              AUTH_CONFIG.verificationMethods.twoFactor[
+                method as keyof typeof AUTH_CONFIG.verificationMethods.twoFactor
+              ];
+
+            await sendEmailAlert({
+              request,
+              origin,
+              user,
+              title: "Two-factor authentication enabled",
+              message: `${methodConfig.title} two-factor authentication was enabled on your account. If this wasn't you, please secure your account immediately.`,
+              method,
+            });
+          }
+
           const { codes, hashedCodes } = await generateVerificationCodes({
             format: AUTH_CONFIG.backupCodes.format,
             count: AUTH_CONFIG.backupCodes.count,

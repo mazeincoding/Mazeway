@@ -1,4 +1,6 @@
-import { TDeviceInfo } from "@/types/auth";
+// Generic email alert template for security-related notifications.
+
+import { TSendEmailAlertRequest } from "@/types/api";
 import {
   Html,
   Head,
@@ -12,25 +14,22 @@ import {
 } from "@react-email/components";
 import { Header } from "../components/header";
 
-interface EmailAlertTemplateProps {
-  email: string;
-  device: TDeviceInfo;
-}
+type EmailAlertTemplateProps = TSendEmailAlertRequest;
 
 export default function EmailAlertTemplate({
   email = "test@test.com",
-  device = {
-    user_id: "test-user-id",
-    device_name: "Test Device",
-    browser: "Test Browser",
-    os: "Test OS",
-    ip_address: "123.123.123.123",
-  },
+  title = "Security Alert",
+  message = "A security-related change was made to your account.",
+  device,
+  oldEmail,
+  newEmail,
+  method,
+  revokedDevice,
 }: EmailAlertTemplateProps) {
   return (
     <Html>
       <Head />
-      <Preview>New Login Alert for your account</Preview>
+      <Preview>{title}</Preview>
       <Body
         style={{
           backgroundColor: "#ffffff",
@@ -51,7 +50,7 @@ export default function EmailAlertTemplate({
               margin: "30px 0 20px",
             }}
           >
-            New Login Alert
+            {title}
           </Heading>
 
           <Section style={{ marginBottom: "16px" }}>
@@ -63,43 +62,129 @@ export default function EmailAlertTemplate({
                 margin: "0 0 16px",
               }}
             >
-              A new login was detected on your account ({email}).
+              {message} ({email})
             </Text>
           </Section>
 
-          <Section
-            style={{
-              backgroundColor: "#ffffff",
-              padding: "20px",
-              borderRadius: "8px",
-              border: "1px solid #e0e0e0",
-            }}
-          >
-            <Heading
-              as="h2"
-              style={{ fontSize: "18px", color: "#202124", margin: "0 0 16px" }}
+          {/* Show email change details if provided */}
+          {oldEmail && newEmail && (
+            <Section
+              style={{
+                backgroundColor: "#ffffff",
+                padding: "20px",
+                borderRadius: "8px",
+                border: "1px solid #e0e0e0",
+                marginBottom: "16px",
+              }}
             >
-              Device Details:
-            </Heading>
-            <Text style={{ margin: "8px 0", color: "#5f6368" }}>
-              <strong>Device:</strong> {device.device_name}
-            </Text>
-            {device.browser && (
               <Text style={{ margin: "8px 0", color: "#5f6368" }}>
-                <strong>Browser:</strong> {device.browser}
+                <strong>Changed From:</strong> {oldEmail}
               </Text>
-            )}
-            {device.os && (
               <Text style={{ margin: "8px 0", color: "#5f6368" }}>
-                <strong>Operating System:</strong> {device.os}
+                <strong>Changed To:</strong> {newEmail}
               </Text>
-            )}
-            {device.ip_address && (
+            </Section>
+          )}
+
+          {/* Show 2FA method if provided */}
+          {method && (
+            <Section
+              style={{
+                backgroundColor: "#ffffff",
+                padding: "20px",
+                borderRadius: "8px",
+                border: "1px solid #e0e0e0",
+                marginBottom: "16px",
+              }}
+            >
               <Text style={{ margin: "8px 0", color: "#5f6368" }}>
-                <strong>IP Address:</strong> {device.ip_address}
+                <strong>Authentication Method:</strong> {method}
               </Text>
-            )}
-          </Section>
+            </Section>
+          )}
+
+          {/* Show revoked device details if provided */}
+          {revokedDevice && (
+            <Section
+              style={{
+                backgroundColor: "#ffffff",
+                padding: "20px",
+                borderRadius: "8px",
+                border: "1px solid #e0e0e0",
+                marginBottom: "16px",
+              }}
+            >
+              <Heading
+                as="h2"
+                style={{
+                  fontSize: "18px",
+                  color: "#202124",
+                  margin: "0 0 16px",
+                }}
+              >
+                Revoked Device Details:
+              </Heading>
+              <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                <strong>Device:</strong> {revokedDevice.device_name}
+              </Text>
+              {revokedDevice.browser && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>Browser:</strong> {revokedDevice.browser}
+                </Text>
+              )}
+              {revokedDevice.os && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>Operating System:</strong> {revokedDevice.os}
+                </Text>
+              )}
+              {revokedDevice.ip_address && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>IP Address:</strong> {revokedDevice.ip_address}
+                </Text>
+              )}
+            </Section>
+          )}
+
+          {/* Show current device details if provided */}
+          {device && (
+            <Section
+              style={{
+                backgroundColor: "#ffffff",
+                padding: "20px",
+                borderRadius: "8px",
+                border: "1px solid #e0e0e0",
+              }}
+            >
+              <Heading
+                as="h2"
+                style={{
+                  fontSize: "18px",
+                  color: "#202124",
+                  margin: "0 0 16px",
+                }}
+              >
+                {revokedDevice ? "Action Performed From:" : "Device Details:"}
+              </Heading>
+              <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                <strong>Device:</strong> {device.device_name}
+              </Text>
+              {device.browser && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>Browser:</strong> {device.browser}
+                </Text>
+              )}
+              {device.os && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>Operating System:</strong> {device.os}
+                </Text>
+              )}
+              {device.ip_address && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>IP Address:</strong> {device.ip_address}
+                </Text>
+              )}
+            </Section>
+          )}
 
           <Text
             style={{

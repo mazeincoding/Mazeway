@@ -13,6 +13,7 @@ import {
   getDeviceSessionId,
 } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 /**
  * Deletes a user account. This is a sensitive operation that requires:
@@ -21,6 +22,8 @@ import { AUTH_CONFIG } from "@/config/auth";
  * 3. Proper cleanup of all user data
  */
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     if (authRateLimit) {
       const ip = getClientIp(request);
@@ -62,6 +65,21 @@ export async function POST(request: NextRequest) {
       const { has2FA, factors, methods } =
         await getUserVerificationMethods(supabase);
 
+      // Send alert for deletion initiation if enabled
+      if (
+        AUTH_CONFIG.emailAlerts.accountDeletion.enabled &&
+        AUTH_CONFIG.emailAlerts.accountDeletion.alertOnInitiate
+      ) {
+        await sendEmailAlert({
+          request,
+          origin,
+          user,
+          title: "Account deletion requested",
+          message:
+            "Someone has requested to delete your account. If this wasn't you, please secure your account immediately.",
+        });
+      }
+
       // Return available methods for verification
       if (has2FA) {
         return NextResponse.json({
@@ -92,6 +110,21 @@ export async function POST(request: NextRequest) {
 
     // User is verified within grace period, proceed with deletion
     const adminClient = await createClient({ useServiceRole: true });
+
+    // Send final deletion alert if enabled
+    if (
+      AUTH_CONFIG.emailAlerts.accountDeletion.enabled &&
+      AUTH_CONFIG.emailAlerts.accountDeletion.alertOnInitiate
+    ) {
+      await sendEmailAlert({
+        request,
+        origin,
+        user,
+        title: "Account deletion in progress",
+        message:
+          "Your account deletion has started. This process cannot be undone. All your data will be permanently deleted.",
+      });
+    }
 
     // 1. Delete backup codes first (they reference auth.users without CASCADE)
     const { error: deleteBackupCodesError } = await adminClient
@@ -172,7 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Sign out the user using our existing logout route
-    await fetch(`${request.nextUrl.origin}/api/auth/logout`, {
+    await fetch(`${origin}/api/auth/logout`, {
       method: "POST",
       headers: {
         Cookie: request.headers.get("cookie") || "",

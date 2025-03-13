@@ -28,8 +28,12 @@ import {
   getDeviceSessionId,
 } from "@/utils/auth";
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
+import { AUTH_CONFIG } from "@/config/auth";
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     // Rate limiting
     if (authRateLimit) {
@@ -154,6 +158,21 @@ export async function POST(request: NextRequest) {
     if (flagError) {
       console.error("Failed to update has_password flag:", flagError);
       // Don't throw - password was updated successfully
+    }
+
+    // Send email alert for password change
+    if (
+      AUTH_CONFIG.emailAlerts.password.enabled &&
+      AUTH_CONFIG.emailAlerts.password.alertOnChange
+    ) {
+      await sendEmailAlert({
+        request,
+        origin,
+        user,
+        title: "Your password was changed",
+        message:
+          "Your account password was just changed. If this wasn't you, please secure your account immediately.",
+      });
     }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;

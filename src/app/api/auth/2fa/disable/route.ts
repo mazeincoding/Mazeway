@@ -8,8 +8,12 @@ import {
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
 import { getFactorForMethod, getUser } from "@/utils/auth";
+import { AUTH_CONFIG } from "@/config/auth";
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     if (authRateLimit) {
       const ip = getClientIp(request);
@@ -92,6 +96,26 @@ export async function POST(request: NextRequest) {
         { error: unenrollError.message },
         { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // Send alert for 2FA disable if enabled
+    if (
+      AUTH_CONFIG.emailAlerts.twoFactor.enabled &&
+      AUTH_CONFIG.emailAlerts.twoFactor.alertOnDisable
+    ) {
+      const methodConfig =
+        AUTH_CONFIG.verificationMethods.twoFactor[
+          method as keyof typeof AUTH_CONFIG.verificationMethods.twoFactor
+        ];
+
+      await sendEmailAlert({
+        request,
+        origin,
+        user,
+        title: "Two-factor authentication disabled",
+        message: `${methodConfig.title} two-factor authentication was disabled on your account. If this wasn't you, please secure your account immediately.`,
+        method,
+      });
     }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;

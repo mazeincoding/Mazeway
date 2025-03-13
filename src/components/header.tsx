@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "./ui/button";
 import { UserDropdown } from "./user-dropdown";
-import { FaGithub, FaTwitter } from "react-icons/fa";
 
 interface HeaderProps {
   isInitiallyLoggedIn: boolean;

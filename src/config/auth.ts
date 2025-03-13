@@ -91,6 +91,9 @@ export const AUTH_CONFIG = {
       alertMode: "unknown_only" as "all" | "unknown_only", // "all" = send for every login, "unknown_only" = only for new/unknown devices
       confidenceThreshold: 70, // Only send alerts for devices with confidence score below this threshold when in "unknown_only" mode
     },
+    passwordChange: {
+      enabled: true, // Send alerts when password is changed
+    },
   },
 
   // Email verification configuration

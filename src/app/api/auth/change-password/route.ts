@@ -19,6 +19,7 @@ import {
   TApiErrorResponse,
   TEmptySuccessResponse,
   TPasswordChangeResponse,
+  TSendEmailAlertRequest,
 } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
@@ -28,9 +29,16 @@ import {
   getDeviceSessionId,
 } from "@/utils/auth";
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const { origin } = new URL(request.url);
+
+    console.log("I have a feeling this won't work");
+    console.log("So I'm gonna log the origin here:", origin);
+    console.log("If the origin is working, remove these logs");
+
     // Rate limiting
     if (authRateLimit) {
       const ip = getClientIp(request);
@@ -154,6 +162,47 @@ export async function POST(request: NextRequest) {
     if (flagError) {
       console.error("Failed to update has_password flag:", flagError);
       // Don't throw - password was updated successfully
+    }
+
+    // Send email alert for password change
+    if (AUTH_CONFIG.emailAlerts.passwordChange.enabled) {
+      try {
+        const body: TSendEmailAlertRequest = {
+          email: user.email!,
+          title: "Your password was changed",
+          message:
+            "Your account password was just changed. If this wasn't you, please secure your account immediately.",
+          device: {
+            user_id: user.id,
+            device_name: deviceSessionId,
+            browser: request.headers.get("user-agent") || "Unknown Browser",
+            os: "Unknown OS", // We'd need to parse the UA string to get this
+            ip_address: request.headers.get("x-forwarded-for") || "::1",
+          },
+        };
+
+        const emailAlertResponse = await fetch(
+          `${origin}/api/auth/send-email-alert`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Cookie: request.headers.get("cookie") || "",
+            },
+            body: JSON.stringify(body),
+          }
+        );
+
+        if (!emailAlertResponse.ok) {
+          console.error("Failed to send password change alert", {
+            status: emailAlertResponse.status,
+            statusText: emailAlertResponse.statusText,
+          });
+        }
+      } catch (error) {
+        console.error("Error sending password change alert:", error);
+        // Don't throw - password was updated successfully
+      }
     }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;

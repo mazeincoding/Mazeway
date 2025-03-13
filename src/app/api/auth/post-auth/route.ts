@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const claimedProvider = (searchParams.get("provider") ||
     "browser") as TDeviceSessionProvider;
   const next = searchParams.get("next") || "/dashboard";
-  const origin = process.env.NEXT_PUBLIC_SITE_URL;
+  const { origin } = new URL(request.url);
   const isLocalEnv = process.env.NODE_ENV === "development";
 
   console.log("Parameters", {

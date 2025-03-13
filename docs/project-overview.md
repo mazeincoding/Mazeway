@@ -43,142 +43,76 @@ The open-source auth foundation that lives in your project, not a node_modules f
 * Upstash Redis
 * Resend
 
-## Project structure (overview)
-- docs/
-- emails/ (react-email)
-  - components/
-  - templates/
-- scripts/
-- src/
-  - app/
-    - account/
-      - page.tsx
-      - layout.tsx
-      - security/
-        - page.tsx
-    - api/
-      - auth/
-      - user/
-    - auth/ (auth-related pages like login, forgot password, verify device, etc)
-    - dashboard/
-      - page.tsx
-    - favicon.ico
-    - global.css
-    - layout.tsx
-    - page.tsx
-  - components/
-    - ui/ (shadcn)
-    - 2fa-methods.tsx
-    - 2fa-setup-dialog.tsx
-    - auth-confirm.tsx
-    - auth-form.tsx
-    - back-button.tsx
-    - delete-account.tsx
-    - device-sessions-list.tsx
-    - header.tsx
-    - setting-card.tsx
-    - user-dropdown.tsx
-    - user-provider.tsx
-    - verify-form.tsx
-  - config/
-    - auth.ts
-  - hooks/
-    - use-auth.ts
-    - use-device-sessions.ts
-    - use-mobile.ts
-    - use-toast.ts
-  - lib/
-    - utils.ts
-  - types/
-    - api.ts
-    - auth.ts
-  - utils/
-    - auth/recovery-token.ts
-    - device-sessions/server.ts
-    - supabase/
-      - client.ts
-      - middleware.ts
-      - server.ts
-    - validation/
-      - auth-validation.tsx
-    - api.ts (centralized utility for API calls, used by components)
-    - auth.ts (auth utilities)
-    - rate-limit.ts
-    - verification-codes.ts
-  - middleware.ts
+## Key Utilities & Types
 
-## Email templates
+### Auth (`src/utils/auth.ts`)
+- `getDeviceSessionId(request?)`: Get current device session ID from cookies
+- `calculateDeviceConfidence(...)`: Calculate trust score for a device
+- `getConfidenceLevel(score)`: Convert trust score to "high" | "medium" | "low"
+- `getConfigured2FAMethods()`: Get available 2FA methods from config
+- `getDefaultVerificationMethod(...)`: Get default verification method for user
+- `getDefault2FAMethod(...)`: Get default 2FA method for user
+- `isLocalIP(ip)`: Check if IP is local/development
 
-Email templates in the Supabase dashboard:
-- Confirm sign up
-- Invite user
-- Magic Link
-- Change Email Address
-- Reset Password
-- Reauthentication
+### Rate Limiting (`src/utils/rate-limit.ts`)
+- `getClientIp(request)`: Extract client IP from request
+- Rate limit instances:
+  - `authRateLimit`: Auth endpoints (login, signup)
+  - `apiRateLimit`: General API endpoints
+  - `basicRateLimit`: Basic operations
+  - `smsRateLimit`: SMS-specific operations
 
-Custom email templates (that Supabase doesn't offer) live in this project in `/emails`:
-- Verify device (`/emails/templates/device-verification.tsx`)
-- Login alert (`/emails/templates/email-alert.tsx`)
-- Verify email (`/emails/templates/email-verification.tsx`)
-- Header component (`/emails/components/header.tsx`)
+### Validation (`src/utils/validation/auth-validation.ts`)
+- Zod schemas for all auth operations
+- Key validation functions:
+  - `validatePassword(password)`
+  - `validateEmail(email)`
+  - `validatePhoneNumber(phone)`
+  - `validateTwoFactorCode(code)`
+  - `getPasswordRequirements(password)`
 
-## Auth configuration
+### Types (`src/types/`)
+- `auth.ts`:
+  - `TUser`: Base user type
+  - `TUserWithAuth`: User with auth details
+  - `TDeviceSession`: Device session info
+  - `TAAL`: Auth assurance levels
+  - `TVerificationMethod`: All verification methods
+  - `TTwoFactorMethod`: 2FA methods subset
+- `api.ts`:
+  - Request/response types for all API endpoints
+  - All verification requirements interfaces
 
-The project has an auth config at `/src/config/auth.ts`
+### Recovery (`src/utils/auth/recovery-token.ts`)
+- `createRecoveryToken(userId)`: Create recovery token
+- `verifyRecoveryToken(token)`: Verify and extract userId
 
-### Overview
+## Project structure
+- `app/`: Next.js app router structure
+  - `account/`: User settings & security
+  - `api/`: Backend endpoints
+  - `auth/`: Auth-related pages
+  - `dashboard/`: Main app pages
+- `components/`: React components
+  - `ui/`: shadcn components
+  - Auth-specific components (2FA, verification, etc)
+- `emails/`: Email templates (react-email)
+- `utils/`: Core utilities
+  - `auth/`: Auth utilities
+  - `device-sessions/`: Device tracking
+  - `supabase/`: Database clients
+  - `validation/`: Zod schemas & validators
 
-- **Social Providers**
-  - Google
-  - GitHub
-- **Verification Methods**
-  - Email
-  - Password
-  - Two-Factor
-    - Authenticator
-    - SMS
-    - Backup Codes
-- **Backup Codes**
-  - Format
-  - Count
-  - Word count
-  - Alphanumeric length
-- **Device Sessions**
-  - Max age
-- **Security**
-  - Sensitive action grace period
-  - Require Fresh Verification
-    - Revoke devices
-    - Delete account
-- **Device Verification**
-  - Code expiration time
-  - Code length
-- **Email Alerts**
-  - Enabled
-  - Alert mode
-  - Confidence threshold
-- **Email Verification**
-  - Code expiration time
-  - Code length
-- **Password Reset**
-  - Require relogin after reset
-- **API Rate Limiting**
-  - Enabled
-- **Password Requirements**
-  - Minimum length
-  - Maximum length
-  - Require lowercase
-  - Require uppercase
-  - Require numbers
-  - Require symbols
+## Configuration
 
-View the full file at `/src/config/auth.ts`
+Auth config lives in `src/config/auth.ts` - controls:
+- Social providers
+- Verification methods
+- Backup codes settings
+- Device session settings
+- Security settings
+- Rate limiting
+- Password requirements
 
-## Types
-
-Types and interfaces are defined at `src/types`. You'll find:
-- `api.ts` (API request/response types)
-- `auth.ts` (auth-related types, user, 2FA, etc)
-
-We prefix types/interfaces with a `T` to avoid conflicting types with React components.
+## Database Schema
+See `docs/supabase-snippets.md` for database schema details

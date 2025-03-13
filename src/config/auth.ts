@@ -101,6 +101,11 @@ export const AUTH_CONFIG = {
       alertOnInitiate: false, // Alert when email change is initiated (to old email)
       alertOnComplete: true, // Alert when email is changed (to both old and new)
     },
+    twoFactor: {
+      enabled: true, // Send alerts for 2FA changes
+      alertOnEnable: true, // Alert when 2FA method is enabled
+      alertOnDisable: true, // Alert when 2FA method is disabled
+    },
   },
 
   // Email verification configuration

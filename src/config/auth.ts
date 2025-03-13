@@ -110,6 +110,10 @@ export const AUTH_CONFIG = {
       enabled: true, // Send alerts for device session changes
       alertOnRevoke: true, // Alert when a device session is revoked
     },
+    accountDeletion: {
+      enabled: true, // Send alerts for account deletion
+      alertOnInitiate: false, // Alert when deletion is initiated (gives chance to recover if hacked)
+    },
   },
 
   // Email verification configuration

@@ -4,6 +4,7 @@ import {
   TApiErrorResponse,
   TDeleteAccountResponse,
   TEmptySuccessResponse,
+  TSendEmailAlertRequest,
 } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
@@ -13,6 +14,57 @@ import {
   getDeviceSessionId,
 } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
+import { UAParser } from "ua-parser-js";
+
+async function sendEmailAlert(
+  request: NextRequest,
+  origin: string,
+  user: { id: string; email: string },
+  title: string,
+  message: string
+) {
+  try {
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    const deviceName = parser.getDevice().model || "Unknown Device";
+    const browser = parser.getBrowser().name || "Unknown Browser";
+    const os = parser.getOS().name || "Unknown OS";
+
+    const body: TSendEmailAlertRequest = {
+      email: user.email,
+      title,
+      message,
+      device: {
+        user_id: user.id,
+        device_name: deviceName,
+        browser,
+        os,
+        ip_address: request.headers.get("x-forwarded-for") || "::1",
+      },
+    };
+
+    const emailAlertResponse = await fetch(
+      `${origin}/api/auth/send-email-alert`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: request.headers.get("cookie") || "",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!emailAlertResponse.ok) {
+      console.error("Failed to send account deletion alert", {
+        status: emailAlertResponse.status,
+        statusText: emailAlertResponse.statusText,
+      });
+    }
+  } catch (error) {
+    console.error("Error sending account deletion alert:", error);
+    // Don't throw - deletion will proceed
+  }
+}
 
 /**
  * Deletes a user account. This is a sensitive operation that requires:
@@ -21,6 +73,8 @@ import { AUTH_CONFIG } from "@/config/auth";
  * 3. Proper cleanup of all user data
  */
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     if (authRateLimit) {
       const ip = getClientIp(request);
@@ -62,6 +116,20 @@ export async function POST(request: NextRequest) {
       const { has2FA, factors, methods } =
         await getUserVerificationMethods(supabase);
 
+      // Send alert for deletion initiation if enabled
+      if (
+        AUTH_CONFIG.emailAlerts.accountDeletion.enabled &&
+        AUTH_CONFIG.emailAlerts.accountDeletion.alertOnInitiate
+      ) {
+        await sendEmailAlert(
+          request,
+          origin,
+          user,
+          "Account deletion requested",
+          "Someone has requested to delete your account. If this wasn't you, please secure your account immediately."
+        );
+      }
+
       // Return available methods for verification
       if (has2FA) {
         return NextResponse.json({
@@ -92,6 +160,20 @@ export async function POST(request: NextRequest) {
 
     // User is verified within grace period, proceed with deletion
     const adminClient = await createClient({ useServiceRole: true });
+
+    // Send final deletion alert if enabled
+    if (
+      AUTH_CONFIG.emailAlerts.accountDeletion.enabled &&
+      AUTH_CONFIG.emailAlerts.accountDeletion.alertOnInitiate
+    ) {
+      await sendEmailAlert(
+        request,
+        origin,
+        user,
+        "Account deletion in progress",
+        "Your account deletion has started. This process cannot be undone. All your data will be permanently deleted."
+      );
+    }
 
     // 1. Delete backup codes first (they reference auth.users without CASCADE)
     const { error: deleteBackupCodesError } = await adminClient
@@ -172,7 +254,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Sign out the user using our existing logout route
-    await fetch(`${request.nextUrl.origin}/api/auth/logout`, {
+    await fetch(`${origin}/api/auth/logout`, {
       method: "POST",
       headers: {
         Cookie: request.headers.get("cookie") || "",

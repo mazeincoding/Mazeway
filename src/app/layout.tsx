@@ -6,7 +6,6 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { UserProvider } from "@/components/user-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { PerformanceNotice } from "@/components/performance-notice";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -37,7 +36,6 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TooltipProvider>
             <UserProvider>
-              <PerformanceNotice />
               {children}
               <Analytics />
               <Toaster />

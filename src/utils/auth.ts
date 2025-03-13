@@ -426,31 +426,28 @@ export async function getAuthenticatorAssuranceLevel(
  */
 export async function getUser(supabase: SupabaseClient) {
   try {
-    // Get authenticated user
+    // Get auth user first since we need the ID
     const {
       data: { user: authUser },
       error: userError,
     } = await supabase.auth.getUser();
+
     if (userError || !authUser) {
       return { user: null, error: "Unauthorized" };
     }
 
-    // Get user profile from database
-    const { data: userData, error: profileError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", authUser.id)
-      .single();
+    // Run remaining queries in parallel
+    const [{ data: mfaData }, { data: userData, error: profileError }] =
+      await Promise.all([
+        supabase.auth.mfa.listFactors(),
+        supabase.from("users").select("*").eq("id", authUser.id).single(),
+      ]);
 
     if (profileError) {
-      console.error("Failed to fetch user profile:", profileError);
       return { user: null, error: "Failed to fetch user profile" };
     }
 
-    // Get MFA factors
-    const { data: mfaData } = await supabase.auth.mfa.listFactors();
-
-    // Get enabled 2FA methods
+    // Process MFA data
     const enabled2faMethods =
       mfaData?.all
         ?.filter((factor) => factor.status === "verified")
@@ -458,11 +455,15 @@ export async function getUser(supabase: SupabaseClient) {
           factor.factor_type === "totp" ? "authenticator" : "sms"
         ) || [];
 
-    // Get available verification methods
-    const { methods: availableVerificationMethods } =
-      await getUserVerificationMethods(supabase);
+    // Build verification methods
+    const methods: string[] = [];
+    if (enabled2faMethods.length > 0) {
+      methods.push(...enabled2faMethods);
+    } else {
+      if (userData.has_password) methods.push("password");
+      if (authUser.email_confirmed_at) methods.push("email");
+    }
 
-    // Combine user data
     const userWithAuth: TUserWithAuth = {
       ...userData,
       auth: {
@@ -470,14 +471,13 @@ export async function getUser(supabase: SupabaseClient) {
         lastSignInAt: authUser.last_sign_in_at,
         twoFactorEnabled: enabled2faMethods.length > 0,
         enabled2faMethods,
-        availableVerificationMethods,
+        availableVerificationMethods: methods,
         identities: authUser.identities,
       },
     };
 
     return { user: userWithAuth };
   } catch (error) {
-    console.error("Error in getUser:", error);
     return { user: null, error: "Failed to get user data" };
   }
 }

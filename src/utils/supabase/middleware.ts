@@ -35,7 +35,7 @@ async function handleInvalidDeviceSession(request: NextRequest) {
 }
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
+  let response = NextResponse.next({
     request,
   });
 
@@ -48,15 +48,9 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
           });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
         },
       },
     }
@@ -132,7 +126,7 @@ export async function updateSession(request: NextRequest) {
         request.nextUrl.pathname === "/api/auth/post-auth" ||
         request.nextUrl.pathname.startsWith("/auth/error")
       ) {
-        return supabaseResponse;
+        return response;
       }
 
       const deviceSessionId = request.cookies.get("device_session_id");
@@ -176,7 +170,7 @@ export async function updateSession(request: NextRequest) {
             return NextResponse.redirect(url);
           }
           // Allow access to public routes
-          return supabaseResponse;
+          return response;
         }
       }
 
@@ -192,7 +186,7 @@ export async function updateSession(request: NextRequest) {
 
         // Allow verification paths even without device session
         if (isVerificationPath) {
-          return supabaseResponse;
+          return response;
         }
 
         // For all other protected routes, require valid device session
@@ -263,5 +257,5 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  return supabaseResponse;
+  return response;
 }

@@ -32,6 +32,31 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    // Get device session ID from cookie
+    const deviceSessionId = request.cookies.get("device_session_id")?.value;
+    if (!deviceSessionId) {
+      return NextResponse.json(
+        { error: "No device session found" },
+        { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // Verify device session is valid and belongs to user
+    const { data: deviceSession, error: sessionError } = await supabase
+      .from("device_sessions")
+      .select("id")
+      .eq("id", deviceSessionId)
+      .eq("user_id", user.id)
+      .gt("expires_at", new Date().toISOString())
+      .single();
+
+    if (sessionError || !deviceSession) {
+      return NextResponse.json(
+        { error: "Invalid or expired device session" },
+        { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     // Validate request body
     const body = await request.json();
     const validation = profileUpdateSchema.safeParse(body) as {

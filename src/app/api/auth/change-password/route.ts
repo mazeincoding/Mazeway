@@ -30,6 +30,7 @@ import {
 } from "@/utils/auth";
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
+import { UAParser } from "ua-parser-js";
 
 export async function POST(request: NextRequest) {
   try {
@@ -165,8 +166,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email alert for password change
-    if (AUTH_CONFIG.emailAlerts.passwordChange.enabled) {
+    if (
+      AUTH_CONFIG.emailAlerts.password.enabled &&
+      AUTH_CONFIG.emailAlerts.password.alertOnChange
+    ) {
       try {
+        const parser = new UAParser(request.headers.get("user-agent") || "");
+        const deviceName = parser.getDevice().model || "Unknown Device";
+        const browser = parser.getBrowser().name || "Unknown Browser";
+        const os = parser.getOS().name || "Unknown OS";
+
         const body: TSendEmailAlertRequest = {
           email: user.email!,
           title: "Your password was changed",
@@ -174,9 +183,9 @@ export async function POST(request: NextRequest) {
             "Your account password was just changed. If this wasn't you, please secure your account immediately.",
           device: {
             user_id: user.id,
-            device_name: deviceSessionId,
-            browser: request.headers.get("user-agent") || "Unknown Browser",
-            os: "Unknown OS", // We'd need to parse the UA string to get this
+            device_name: deviceName,
+            browser,
+            os,
             ip_address: request.headers.get("x-forwarded-for") || "::1",
           },
         };

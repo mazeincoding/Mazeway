@@ -91,8 +91,10 @@ export const AUTH_CONFIG = {
       alertMode: "unknown_only" as "all" | "unknown_only", // "all" = send for every login, "unknown_only" = only for new/unknown devices
       confidenceThreshold: 70, // Only send alerts for devices with confidence score below this threshold when in "unknown_only" mode
     },
-    passwordChange: {
-      enabled: true, // Send alerts when password is changed
+    password: {
+      enabled: true, // Send alerts for password changes/resets
+      alertOnChange: true, // Alert when password is changed by logged-in user
+      alertOnReset: true, // Alert when password is reset via forgot-password flow
     },
   },
 

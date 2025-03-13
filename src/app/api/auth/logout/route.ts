@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { basicRateLimit, getClientIp } from "@/utils/rate-limit";
 import { TApiErrorResponse } from "@/types/api";
+import { getDeviceSessionId } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,11 +21,8 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const adminClient = await createClient({ useServiceRole: true });
 
-    // Get device session ID from cookie
-    const cookieStore = request.headers.get("cookie");
-    const deviceSessionId = cookieStore?.match(
-      /device_session_id=([^;]+)/
-    )?.[1];
+    // Get device session ID using our utility
+    const deviceSessionId = getDeviceSessionId(request);
 
     // Clear Supabase session
     await supabase.auth.signOut();

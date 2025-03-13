@@ -11,6 +11,7 @@ import {
   getUserVerificationMethods,
   hasGracePeriodExpired,
   getUser,
+  getDeviceSessionId,
 } from "@/utils/auth";
 import { revokeDeviceSessionSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
@@ -56,7 +57,7 @@ export async function DELETE(
     }
 
     // Get current device session ID from cookie
-    const currentSessionId = request.cookies.get("device_session_id")?.value;
+    const currentSessionId = getDeviceSessionId(request);
     if (!currentSessionId) throw new Error("No device session found");
 
     // Parse and validate request body

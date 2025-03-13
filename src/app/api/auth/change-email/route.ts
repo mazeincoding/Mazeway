@@ -6,6 +6,7 @@ import {
   getUserVerificationMethods,
   hasGracePeriodExpired,
   getUser,
+  getDeviceSessionId,
 } from "@/utils/auth";
 import { emailChangeSchema } from "@/utils/validation/auth-validation";
 import { SupabaseClient } from "@supabase/supabase-js";
@@ -89,8 +90,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID from cookie
-    const deviceSessionId = request.cookies.get("device_session_id");
-    if (!deviceSessionId?.value) {
+    const deviceSessionId = getDeviceSessionId(request);
+    if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },
         { status: 400 }
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
     try {
       const gracePeriodExpired = await hasGracePeriodExpired(
         supabase,
-        deviceSessionId.value
+        deviceSessionId
       );
       const { has2FA, factors } = await getUserVerificationMethods(supabase);
 

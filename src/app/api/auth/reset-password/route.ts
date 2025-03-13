@@ -20,6 +20,7 @@ import {
   getUserVerificationMethods,
   getAuthenticatorAssuranceLevel,
   getUser,
+  getDeviceSessionId,
 } from "@/utils/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
 
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Check if 2FA is required - only if we're not requiring relogin
     if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
-      const currentSessionId = request.cookies.get("device_session_id")?.value;
+      const currentSessionId = getDeviceSessionId(request);
       if (!currentSessionId) {
         throw new Error("No device session found");
       }

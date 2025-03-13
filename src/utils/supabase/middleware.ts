@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getDeviceSessionId } from "../auth";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -51,7 +52,7 @@ export async function updateSession(request: NextRequest) {
     // Real security lives in API routes for sensitive actions
     // We don't need to do a full DB check here
     if (isProtectedPath) {
-      const deviceSessionId = request.cookies.get("device_session_id");
+      const deviceSessionId = getDeviceSessionId(request);
       if (!deviceSessionId) {
         if (isApiPath) {
           return NextResponse.json(

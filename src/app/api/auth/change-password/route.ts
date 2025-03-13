@@ -25,6 +25,7 @@ import {
   hasGracePeriodExpired,
   getUserVerificationMethods,
   getUser,
+  getDeviceSessionId,
 } from "@/utils/auth";
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
 
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID from cookie
-    const deviceSessionId = request.cookies.get("device_session_id")?.value;
+    const deviceSessionId = getDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },

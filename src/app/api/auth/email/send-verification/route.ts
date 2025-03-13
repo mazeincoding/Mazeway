@@ -6,7 +6,7 @@ import EmailVerificationTemplate from "@emails/templates/email-verification";
 import { AUTH_CONFIG } from "@/config/auth";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { generateVerificationCode } from "@/utils/verification-codes";
-import { getUser } from "@/utils/auth";
+import { getDeviceSessionId, getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   if (authRateLimit) {
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID from cookie
-    const deviceSessionId = request.cookies.get("device_session_id");
-    if (!deviceSessionId?.value) {
+    const deviceSessionId = getDeviceSessionId(request);
+    if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },
         { status: 400 }
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     const { error: insertError } = await adminClient
       .from("verification_codes")
       .insert({
-        device_session_id: deviceSessionId.value,
+        device_session_id: deviceSessionId,
         code_hash: hash,
         salt,
         expires_at: expiresAt.toISOString(),

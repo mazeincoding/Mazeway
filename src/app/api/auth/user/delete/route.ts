@@ -10,6 +10,7 @@ import {
   getUserVerificationMethods,
   hasGracePeriodExpired,
   getUser,
+  getDeviceSessionId,
 } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID
-    const deviceSessionId = request.cookies.get("device_session_id")?.value;
+    const deviceSessionId = getDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },

@@ -6,7 +6,7 @@ import { TApiErrorResponse } from "@/types/api";
 import { TDeviceInfo } from "@/types/auth";
 import { createClient } from "@/utils/supabase/server";
 import { validateEmailAlert } from "@/utils/validation/auth-validation";
-import { getUser } from "@/utils/auth";
+import { getDeviceSessionId, getUser } from "@/utils/auth";
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     console.log(`Device: ${deviceInfo.device_name} (${deviceInfo.browser})`);
 
     // 6. Get the current device session
-    const deviceSessionId = request.cookies.get("device_session_id")?.value;
+    const deviceSessionId = getDeviceSessionId(request);
 
     if (deviceSessionId) {
       // Get the device session and associated device

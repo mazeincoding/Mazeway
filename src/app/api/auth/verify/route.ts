@@ -13,7 +13,7 @@ import {
   verifyVerificationCode,
   generateVerificationCodes,
 } from "@/utils/verification-codes";
-import { getUser } from "@/utils/auth";
+import { getDeviceSessionId, getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
     const { factorId, code, method } = body;
 
     // Get device session ID early since we'll need it for all methods
-    const deviceSessionId = request.cookies.get("device_session_id");
-    if (!deviceSessionId?.value) {
+    const deviceSessionId = getDeviceSessionId(request);
+    if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },
         { status: 400 }
@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
         const { data: verificationCode, error: fetchError } = await adminClient
           .from("verification_codes")
           .select("*")
-          .eq("device_session_id", deviceSessionId.value)
+          .eq("device_session_id", deviceSessionId)
           .gt("expires_at", new Date().toISOString())
           .order("created_at", { ascending: false })
           .limit(1)
@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
       const { data: currentSession } = await adminClient
         .from("device_sessions")
         .select("aal")
-        .eq("id", deviceSessionId.value)
+        .eq("id", deviceSessionId)
         .eq("user_id", user.id)
         .single();
 
@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
       const { error: updateError } = await adminClient
         .from("device_sessions")
         .update(updateData)
-        .eq("id", deviceSessionId.value)
+        .eq("id", deviceSessionId)
         .eq("user_id", user.id)
         .select()
         .single();

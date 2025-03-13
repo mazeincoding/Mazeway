@@ -53,6 +53,12 @@ export interface TSendEmailAlertRequest {
   oldEmail?: string;
   newEmail?: string;
   method?: string;
+  revokedDevice?: {
+    device_name: string;
+    browser?: string;
+    os?: string;
+    ip_address?: string;
+  };
 }
 
 // /api/auth/verify-device/send-code

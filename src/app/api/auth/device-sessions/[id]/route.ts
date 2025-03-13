@@ -5,6 +5,7 @@ import {
   TEmptySuccessResponse,
   TRevokeDeviceSessionResponse,
   TRevokeDeviceSessionRequest,
+  TSendEmailAlertRequest,
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
@@ -15,6 +16,64 @@ import {
 } from "@/utils/auth";
 import { revokeDeviceSessionSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
+import { UAParser } from "ua-parser-js";
+
+async function sendEmailAlert(
+  request: NextRequest,
+  origin: string,
+  user: { id: string; email: string },
+  title: string,
+  message: string,
+  revokedDevice: {
+    device_name: string;
+    browser?: string;
+    os?: string;
+    ip_address?: string;
+  }
+) {
+  try {
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    const deviceName = parser.getDevice().model || "Unknown Device";
+    const browser = parser.getBrowser().name || "Unknown Browser";
+    const os = parser.getOS().name || "Unknown OS";
+
+    const body: TSendEmailAlertRequest = {
+      email: user.email,
+      title,
+      message,
+      device: {
+        user_id: user.id,
+        device_name: deviceName,
+        browser,
+        os,
+        ip_address: request.headers.get("x-forwarded-for") || "::1",
+      },
+      revokedDevice,
+    };
+
+    const emailAlertResponse = await fetch(
+      `${origin}/api/auth/send-email-alert`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: request.headers.get("cookie") || "",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!emailAlertResponse.ok) {
+      console.error("Failed to send device revocation alert", {
+        status: emailAlertResponse.status,
+        statusText: emailAlertResponse.statusText,
+      });
+    }
+  } catch (error) {
+    console.error("Error sending device revocation alert:", error);
+    // Don't throw - device was revoked successfully
+  }
+}
 
 /**
  * Deletes a device session. Security is enforced through multiple layers:
@@ -26,6 +85,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { origin } = new URL(request.url);
   // Even though TypeScript thinks "await" doesn't have an effect
   // It does. It's required in Next.js dynamic API routes
   const sessionId = (await params).id;
@@ -107,10 +167,18 @@ export async function DELETE(
       throw new Error("Current device session is invalid or expired");
     }
 
-    // Second security layer: Verify session ownership
+    // Second security layer: Verify session ownership and get device info for alert
     const { data: session, error: sessionError } = await supabase
       .from("device_sessions")
-      .select("id")
+      .select(
+        `
+        id,
+        device_name,
+        browser,
+        os,
+        ip_address
+      `
+      )
       .eq("id", sessionId)
       .eq("user_id", user.id)
       .single();
@@ -167,6 +235,26 @@ export async function DELETE(
       .eq("id", sessionId);
 
     if (deleteError) throw deleteError;
+
+    // Send alert for device revocation if enabled
+    if (
+      AUTH_CONFIG.emailAlerts.deviceSessions.enabled &&
+      AUTH_CONFIG.emailAlerts.deviceSessions.alertOnRevoke
+    ) {
+      await sendEmailAlert(
+        request,
+        origin,
+        user,
+        "Device access revoked",
+        `A device's access to your account was revoked. If this wasn't you, please secure your account immediately.`,
+        {
+          device_name: session.device_name,
+          browser: session.browser,
+          os: session.os,
+          ip_address: session.ip_address,
+        }
+      );
+    }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {

@@ -24,6 +24,7 @@ export default function EmailAlertTemplate({
   oldEmail,
   newEmail,
   method,
+  revokedDevice,
 }: EmailAlertTemplateProps) {
   return (
     <Html>
@@ -102,7 +103,49 @@ export default function EmailAlertTemplate({
             </Section>
           )}
 
-          {/* Show device details if provided */}
+          {/* Show revoked device details if provided */}
+          {revokedDevice && (
+            <Section
+              style={{
+                backgroundColor: "#ffffff",
+                padding: "20px",
+                borderRadius: "8px",
+                border: "1px solid #e0e0e0",
+                marginBottom: "16px",
+              }}
+            >
+              <Heading
+                as="h2"
+                style={{
+                  fontSize: "18px",
+                  color: "#202124",
+                  margin: "0 0 16px",
+                }}
+              >
+                Revoked Device Details:
+              </Heading>
+              <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                <strong>Device:</strong> {revokedDevice.device_name}
+              </Text>
+              {revokedDevice.browser && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>Browser:</strong> {revokedDevice.browser}
+                </Text>
+              )}
+              {revokedDevice.os && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>Operating System:</strong> {revokedDevice.os}
+                </Text>
+              )}
+              {revokedDevice.ip_address && (
+                <Text style={{ margin: "8px 0", color: "#5f6368" }}>
+                  <strong>IP Address:</strong> {revokedDevice.ip_address}
+                </Text>
+              )}
+            </Section>
+          )}
+
+          {/* Show current device details if provided */}
           {device && (
             <Section
               style={{
@@ -120,7 +163,7 @@ export default function EmailAlertTemplate({
                   margin: "0 0 16px",
                 }}
               >
-                Device Details:
+                {revokedDevice ? "Action Performed From:" : "Device Details:"}
               </Heading>
               <Text style={{ margin: "8px 0", color: "#5f6368" }}>
                 <strong>Device:</strong> {device.device_name}

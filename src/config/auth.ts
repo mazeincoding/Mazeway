@@ -106,6 +106,10 @@ export const AUTH_CONFIG = {
       alertOnEnable: true, // Alert when 2FA method is enabled
       alertOnDisable: true, // Alert when 2FA method is disabled
     },
+    deviceSessions: {
+      enabled: true, // Send alerts for device session changes
+      alertOnRevoke: true, // Alert when a device session is revoked
+    },
   },
 
   // Email verification configuration

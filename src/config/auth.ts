@@ -96,6 +96,11 @@ export const AUTH_CONFIG = {
       alertOnChange: true, // Alert when password is changed by logged-in user
       alertOnReset: true, // Alert when password is reset via forgot-password flow
     },
+    email: {
+      enabled: true, // Send alerts for email changes
+      alertOnInitiate: false, // Alert when email change is initiated (to old email)
+      alertOnComplete: true, // Alert when email is changed (to both old and new)
+    },
   },
 
   // Email verification configuration

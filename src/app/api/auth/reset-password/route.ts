@@ -26,6 +26,56 @@ import {
 import { setupDeviceSession } from "@/utils/device-sessions/server";
 import { UAParser } from "ua-parser-js";
 
+async function sendEmailAlert(
+  request: NextRequest,
+  origin: string,
+  user: { id: string; email: string },
+  title: string,
+  message: string
+) {
+  try {
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    const deviceName = parser.getDevice().model || "Unknown Device";
+    const browser = parser.getBrowser().name || "Unknown Browser";
+    const os = parser.getOS().name || "Unknown OS";
+
+    const body: TSendEmailAlertRequest = {
+      email: user.email,
+      title,
+      message,
+      device: {
+        user_id: user.id,
+        device_name: deviceName,
+        browser,
+        os,
+        ip_address: request.headers.get("x-forwarded-for") || "::1",
+      },
+    };
+
+    const emailAlertResponse = await fetch(
+      `${origin}/api/auth/send-email-alert`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: request.headers.get("cookie") || "",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!emailAlertResponse.ok) {
+      console.error("Failed to send password reset alert", {
+        status: emailAlertResponse.status,
+        statusText: emailAlertResponse.statusText,
+      });
+    }
+  } catch (error) {
+    console.error("Error sending password reset alert:", error);
+    // Don't throw - password was reset successfully
+  }
+}
+
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
 
@@ -144,60 +194,26 @@ export async function POST(request: NextRequest) {
       // Continue anyway - password was reset successfully
     }
 
+    // Send alert for password reset if enabled
     if (
       AUTH_CONFIG.emailAlerts.password.enabled &&
       AUTH_CONFIG.emailAlerts.password.alertOnReset
     ) {
-      try {
-        // Get user email since we only have ID
-        const { data: userData } = await supabase
-          .from("users")
-          .select("email")
-          .eq("id", userId)
-          .single();
+      // Get user email since we only have ID
+      const { data: userData } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", userId)
+        .single();
 
-        if (userData?.email) {
-          const parser = new UAParser(request.headers.get("user-agent") || "");
-          const deviceName = parser.getDevice().model || "Unknown Device";
-          const browser = parser.getBrowser().name || "Unknown Browser";
-          const os = parser.getOS().name || "Unknown OS";
-
-          const body: TSendEmailAlertRequest = {
-            email: userData.email,
-            title: "Your password has been reset",
-            message:
-              "Your account password has been reset through the forgot password flow. If this wasn't you, please secure your account immediately.",
-            device: {
-              user_id: userId,
-              device_name: deviceName,
-              browser,
-              os,
-              ip_address: request.headers.get("x-forwarded-for") || "::1",
-            },
-          };
-
-          const emailAlertResponse = await fetch(
-            `${origin}/api/auth/send-email-alert`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Cookie: request.headers.get("cookie") || "",
-              },
-              body: JSON.stringify(body),
-            }
-          );
-
-          if (!emailAlertResponse.ok) {
-            console.error("Failed to send password reset alert", {
-              status: emailAlertResponse.status,
-              statusText: emailAlertResponse.statusText,
-            });
-          }
-        }
-      } catch (error) {
-        console.error("Error sending password reset alert:", error);
-        // Don't throw - password was reset successfully
+      if (userData?.email) {
+        await sendEmailAlert(
+          request,
+          origin,
+          { id: userId, email: userData.email },
+          "Your password has been reset",
+          "Your account password has been reset through the forgot password flow. If this wasn't you, please secure your account immediately."
+        );
       }
     }
 

@@ -29,12 +29,12 @@ async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
 
 async function sendEmailAlert(
   request: NextRequest,
+  origin: string,
   user: { id: string; email: string },
   title: string,
   message: string,
   oldEmail?: string,
-  newEmail?: string,
-  origin?: string
+  newEmail?: string
 ) {
   try {
     const parser = new UAParser(request.headers.get("user-agent") || "");
@@ -175,12 +175,12 @@ export async function POST(request: NextRequest) {
         ) {
           await sendEmailAlert(
             request,
+            origin,
             user,
             "Email change requested",
             "Someone has requested to change your account's email address. If this wasn't you, please secure your account immediately.",
             user.email,
-            newEmail,
-            origin
+            newEmail
           );
         }
 
@@ -203,23 +203,23 @@ export async function POST(request: NextRequest) {
         // Send to old email
         await sendEmailAlert(
           request,
+          origin,
           user,
           "Your email address was changed",
           "Your account's email address has been changed. If this wasn't you, please contact support immediately.",
           user.email,
-          newEmail,
-          origin
+          newEmail
         );
 
         // Send to new email
         await sendEmailAlert(
           request,
+          origin,
           { ...user, email: newEmail },
           "Email address change confirmed",
           "Your account's email address has been changed to this address. If this wasn't you, please contact support immediately.",
           user.email,
-          newEmail,
-          origin
+          newEmail
         );
       }
 

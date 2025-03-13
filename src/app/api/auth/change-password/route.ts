@@ -32,14 +32,60 @@ import { passwordChangeSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import { UAParser } from "ua-parser-js";
 
-export async function POST(request: NextRequest) {
+async function sendEmailAlert(
+  request: NextRequest,
+  origin: string,
+  user: { id: string; email: string },
+  title: string,
+  message: string
+) {
   try {
-    const { origin } = new URL(request.url);
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    const deviceName = parser.getDevice().model || "Unknown Device";
+    const browser = parser.getBrowser().name || "Unknown Browser";
+    const os = parser.getOS().name || "Unknown OS";
 
-    console.log("I have a feeling this won't work");
-    console.log("So I'm gonna log the origin here:", origin);
-    console.log("If the origin is working, remove these logs");
+    const body: TSendEmailAlertRequest = {
+      email: user.email,
+      title,
+      message,
+      device: {
+        user_id: user.id,
+        device_name: deviceName,
+        browser,
+        os,
+        ip_address: request.headers.get("x-forwarded-for") || "::1",
+      },
+    };
 
+    const emailAlertResponse = await fetch(
+      `${origin}/api/auth/send-email-alert`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Cookie: request.headers.get("cookie") || "",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!emailAlertResponse.ok) {
+      console.error("Failed to send password change alert", {
+        status: emailAlertResponse.status,
+        statusText: emailAlertResponse.statusText,
+      });
+    }
+  } catch (error) {
+    console.error("Error sending password change alert:", error);
+    // Don't throw - password was updated successfully
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
+  try {
     // Rate limiting
     if (authRateLimit) {
       const ip = getClientIp(request);
@@ -170,48 +216,13 @@ export async function POST(request: NextRequest) {
       AUTH_CONFIG.emailAlerts.password.enabled &&
       AUTH_CONFIG.emailAlerts.password.alertOnChange
     ) {
-      try {
-        const parser = new UAParser(request.headers.get("user-agent") || "");
-        const deviceName = parser.getDevice().model || "Unknown Device";
-        const browser = parser.getBrowser().name || "Unknown Browser";
-        const os = parser.getOS().name || "Unknown OS";
-
-        const body: TSendEmailAlertRequest = {
-          email: user.email!,
-          title: "Your password was changed",
-          message:
-            "Your account password was just changed. If this wasn't you, please secure your account immediately.",
-          device: {
-            user_id: user.id,
-            device_name: deviceName,
-            browser,
-            os,
-            ip_address: request.headers.get("x-forwarded-for") || "::1",
-          },
-        };
-
-        const emailAlertResponse = await fetch(
-          `${origin}/api/auth/send-email-alert`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Cookie: request.headers.get("cookie") || "",
-            },
-            body: JSON.stringify(body),
-          }
-        );
-
-        if (!emailAlertResponse.ok) {
-          console.error("Failed to send password change alert", {
-            status: emailAlertResponse.status,
-            statusText: emailAlertResponse.statusText,
-          });
-        }
-      } catch (error) {
-        console.error("Error sending password change alert:", error);
-        // Don't throw - password was updated successfully
-      }
+      await sendEmailAlert(
+        request,
+        origin,
+        user,
+        "Your password was changed",
+        "Your account password was just changed. If this wasn't you, please secure your account immediately."
+      );
     }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;

@@ -612,7 +612,7 @@ Most templates will actually be in your Supabase dashboard. The ones you can fin
 
 All other email templates live in this project in `/emails/templates`. You'll find:
 - Verify device (`/emails/templates/device-verification.tsx`)
-- Login alert (`/emails/templates/email-alert.tsx`)
+- Email alert (`/emails/templates/email-alert.tsx`)
 - Verify email (`/emails/templates/email-verification.tsx`)
 
 Separating the email templates wasn't a design choice. It sucks a little because you have email templates in 2 different places. But how often do you change these? Probably never. Not a huge concern. Just wanted to make you aware of that.

@@ -16,6 +16,7 @@ import { TDeviceInfo, TDeviceSessionProvider } from "@/types/auth";
 import { setupDeviceSession } from "@/utils/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
 import { AuthApiError } from "@supabase/supabase-js";
+import { TSendEmailAlertRequest } from "@/types/api";
 
 export async function GET(request: Request) {
   console.log("Request received", {
@@ -362,19 +363,32 @@ export async function GET(request: Request) {
     console.log("Authentication successful, redirecting to", next);
 
     // Send email alert based on configuration
-    if (AUTH_CONFIG.emailAlerts.enabled) {
+    if (AUTH_CONFIG.emailAlerts.login.enabled) {
       try {
         // First check if Resend is configured
         if (!process.env.RESEND_API_KEY) {
           console.log("Skipping email alert because Resend is not configured");
         } else {
           const shouldSendAlert =
-            AUTH_CONFIG.emailAlerts.alertMode === "all" ||
-            (AUTH_CONFIG.emailAlerts.alertMode === "unknown_only" &&
-              score < AUTH_CONFIG.emailAlerts.confidenceThreshold);
+            AUTH_CONFIG.emailAlerts.login.alertMode === "all" ||
+            (AUTH_CONFIG.emailAlerts.login.alertMode === "unknown_only" &&
+              score < AUTH_CONFIG.emailAlerts.login.confidenceThreshold);
 
           if (shouldSendAlert) {
             // Send the email alert
+            const body: TSendEmailAlertRequest = {
+              email: user.email,
+              title: "New Login Detected",
+              message: `A new login was detected from ${deviceName} (${browser} on ${os})`,
+              device: {
+                user_id: user.id,
+                device_name: deviceName,
+                browser,
+                os,
+                ip_address: currentDevice.ip_address,
+              },
+            };
+
             const emailAlertResponse = await fetch(
               `${origin}/api/auth/send-email-alert`,
               {
@@ -383,15 +397,7 @@ export async function GET(request: Request) {
                   "Content-Type": "application/json",
                   Cookie: request.headers.get("cookie") || "",
                 },
-                body: JSON.stringify({
-                  email: user.email,
-                  device: {
-                    device_name: deviceName,
-                    browser,
-                    os,
-                    ip_address: currentDevice.ip_address,
-                  },
-                }),
+                body: JSON.stringify(body),
               }
             );
 
@@ -406,9 +412,9 @@ export async function GET(request: Request) {
             }
           } else {
             console.log("Skipping email alert based on configuration", {
-              alertMode: AUTH_CONFIG.emailAlerts.alertMode,
+              alertMode: AUTH_CONFIG.emailAlerts.login.alertMode,
               confidenceScore: score,
-              threshold: AUTH_CONFIG.emailAlerts.confidenceThreshold,
+              threshold: AUTH_CONFIG.emailAlerts.login.confidenceThreshold,
             });
           }
         }

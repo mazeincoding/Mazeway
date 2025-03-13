@@ -256,36 +256,36 @@ export const verificationSchema = z
 // Email alert validation schema - exactly matching TSendEmailAlertRequest
 export const emailAlertSchema = z.object({
   email: authSchema.shape.email,
-  device: z.union([
-    z.string().min(1, "Device information is required"),
-    z
-      .object({
-        user_id: z.string().min(1, "User ID is required"),
-        device_name: z.string().min(1, "Device name is required"),
-        browser: z.string().nullable(),
-        os: z.string().nullable(),
-        ip_address: z.string().optional(),
-      })
-      .refine((data) => true, { message: "Valid TDeviceInfo object required" }),
-  ]),
+  device: z
+    .object({
+      user_id: z.string(),
+      device_name: z.string(),
+      browser: z.string().nullable(),
+      os: z.string().nullable(),
+      ip_address: z.string().optional(),
+    })
+    .optional(),
+  title: z.string().optional(),
+  message: z.string().optional(),
+  oldEmail: z.string().email("Invalid email format").optional(),
+  newEmail: z.string().email("Invalid email format").optional(),
+  method: z.string().optional(),
 });
 
-// Ensure schema type matches the API type
-export type EmailAlertSchema = TSendEmailAlertRequest;
+export type EmailAlertSchema = z.infer<typeof emailAlertSchema>;
 
-// Type-safe validation function
 export const validateEmailAlert = (
   data: unknown
 ): {
   isValid: boolean;
   error?: string;
-  data: TSendEmailAlertRequest | null;
+  data: EmailAlertSchema | null;
 } => {
   const result = emailAlertSchema.safeParse(data);
   return {
     isValid: result.success,
     error: !result.success ? result.error.issues[0]?.message : undefined,
-    data: result.success ? (result.data as TSendEmailAlertRequest) : null,
+    data: result.success ? result.data : null,
   };
 };
 

@@ -119,7 +119,7 @@ Email templates in the Supabase dashboard:
 
 Custom email templates (that Supabase doesn't offer) live in this project in `/emails`:
 - Verify device (`/emails/templates/device-verification.tsx`)
-- Login alert (`/emails/templates/email-alert.tsx`)
+- Email alert (`/emails/templates/email-alert.tsx`)
 - Verify email (`/emails/templates/email-verification.tsx`)
 - Header component (`/emails/components/header.tsx`)
 

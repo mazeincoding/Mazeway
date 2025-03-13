@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { email, device } = data;
+    const { email, device, title, message, oldEmail, newEmail, method } = data;
     console.log(`Processing alert for: ${email}`);
 
     // 4. Verify the user has permission to send alerts to this email
@@ -81,71 +81,75 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Parse device info if it's a string
-    const deviceInfo: TDeviceInfo =
-      typeof device === "string" ? (JSON.parse(device) as TDeviceInfo) : device;
+    if (device) {
+      const deviceInfo: TDeviceInfo =
+        typeof device === "string"
+          ? (JSON.parse(device) as TDeviceInfo)
+          : device;
 
-    console.log(`Device: ${deviceInfo.device_name} (${deviceInfo.browser})`);
+      console.log(`Device: ${deviceInfo.device_name} (${deviceInfo.browser})`);
 
-    // 6. Get the current device session
-    const deviceSessionId = getDeviceSessionId(request);
+      // 6. Get the current device session
+      const deviceSessionId = getDeviceSessionId(request);
 
-    if (deviceSessionId) {
-      // Get the device session and associated device
-      const { data: deviceSession } = await supabase
-        .from("device_sessions")
-        .select("device_id")
-        .eq("id", deviceSessionId)
-        .eq("user_id", user.id)
-        .single();
+      if (deviceSessionId) {
+        // Get the device session and associated device
+        const { data: deviceSession } = await supabase
+          .from("device_sessions")
+          .select("device_id")
+          .eq("id", deviceSessionId)
+          .eq("user_id", user.id)
+          .single();
 
-      if (deviceSession?.device_id) {
-        console.log(`Updating device: ${deviceSession.device_id}`);
-        // Update the device with the latest info
-        await supabase
+        if (deviceSession?.device_id) {
+          console.log(`Updating device: ${deviceSession.device_id}`);
+          // Update the device with the latest info
+          await supabase
+            .from("devices")
+            .update({
+              device_name: deviceInfo.device_name,
+              browser: deviceInfo.browser,
+              os: deviceInfo.os,
+              ip_address: deviceInfo.ip_address,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", deviceSession.device_id);
+        }
+      } else {
+        // If no device session, check if this device exists
+        const { data: existingDevice } = await supabase
           .from("devices")
-          .update({
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("device_name", deviceInfo.device_name)
+          .eq("browser", deviceInfo.browser)
+          .eq("os", deviceInfo.os)
+          .maybeSingle();
+
+        if (existingDevice) {
+          console.log(`Updating existing device: ${existingDevice.id}`);
+          // Update the device with the latest IP address
+          await supabase
+            .from("devices")
+            .update({
+              ip_address: deviceInfo.ip_address,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingDevice.id);
+        } else {
+          console.log("Creating new device record");
+          // Create a new device record
+          const { error: deviceError } = await supabase.from("devices").insert({
+            user_id: user.id,
             device_name: deviceInfo.device_name,
             browser: deviceInfo.browser,
             os: deviceInfo.os,
             ip_address: deviceInfo.ip_address,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", deviceSession.device_id);
-      }
-    } else {
-      // If no device session, check if this device exists
-      const { data: existingDevice } = await supabase
-        .from("devices")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("device_name", deviceInfo.device_name)
-        .eq("browser", deviceInfo.browser)
-        .eq("os", deviceInfo.os)
-        .maybeSingle();
+          });
 
-      if (existingDevice) {
-        console.log(`Updating existing device: ${existingDevice.id}`);
-        // Update the device with the latest IP address
-        await supabase
-          .from("devices")
-          .update({
-            ip_address: deviceInfo.ip_address,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingDevice.id);
-      } else {
-        console.log("Creating new device record");
-        // Create a new device record
-        const { error: deviceError } = await supabase.from("devices").insert({
-          user_id: user.id,
-          device_name: deviceInfo.device_name,
-          browser: deviceInfo.browser,
-          os: deviceInfo.os,
-          ip_address: deviceInfo.ip_address,
-        });
-
-        if (deviceError) {
-          console.log(`Device creation error: ${deviceError.message}`);
+          if (deviceError) {
+            console.log(`Device creation error: ${deviceError.message}`);
+          }
         }
       }
     }
@@ -155,10 +159,20 @@ export async function POST(request: NextRequest) {
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: SENDER_EMAIL,
       to: email,
-      subject: "Security Alert: New Login Detected",
+      subject: title || "Security Alert",
       react: EmailAlertTemplate({
         email,
-        device: deviceInfo,
+        title: title || "Security Alert",
+        message:
+          message || "A security-related change was made to your account",
+        device: device
+          ? typeof device === "string"
+            ? JSON.parse(device)
+            : device
+          : undefined,
+        oldEmail,
+        newEmail,
+        method,
       }),
     });
 

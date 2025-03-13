@@ -47,7 +47,12 @@ export interface TResendConfirmationRequest {
 // /api/auth/send-email-alert
 export interface TSendEmailAlertRequest {
   email: string;
-  device: TDeviceInfo;
+  title: string;
+  message: string;
+  device?: TDeviceInfo;
+  oldEmail?: string;
+  newEmail?: string;
+  method?: string;
 }
 
 // /api/auth/verify-device/send-code

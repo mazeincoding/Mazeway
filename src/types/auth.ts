@@ -84,3 +84,93 @@ export interface TUserWithAuth extends TUser {
     }[];
   };
 }
+
+// Account event types
+export type TEventType =
+  // Security events
+  | "2FA_ENABLED"
+  | "2FA_DISABLED"
+  | "BACKUP_CODES_GENERATED"
+  | "BACKUP_CODE_USED"
+  | "PASSWORD_CHANGED"
+  | "EMAIL_CHANGED"
+  // Device events
+  | "NEW_DEVICE_LOGIN"
+  | "DEVICE_VERIFIED"
+  | "DEVICE_TRUSTED"
+  | "DEVICE_REVOKED"
+  | "SENSITIVE_ACTION_VERIFIED"
+  // Account events
+  | "ACCOUNT_CREATED"
+  | "ACCOUNT_DELETED"
+  | "PROFILE_UPDATED";
+
+// Base device info that's included in device-related events
+export type TEventDeviceInfo = {
+  device_name: string;
+  browser?: string | null;
+  os?: string | null;
+  ip_address?: string;
+};
+
+// Metadata for different event types
+export type TEventMetadata = {
+  // Security events
+  "2FA_ENABLED": {
+    method: TTwoFactorMethod;
+  };
+  "2FA_DISABLED": {
+    method: TTwoFactorMethod;
+  };
+  BACKUP_CODES_GENERATED: {
+    count: number;
+  };
+  BACKUP_CODE_USED: {
+    device?: TEventDeviceInfo;
+  };
+  PASSWORD_CHANGED: {
+    device?: TEventDeviceInfo;
+  };
+  EMAIL_CHANGED: {
+    oldEmail: string;
+    newEmail: string;
+    device?: TEventDeviceInfo;
+  };
+  // Device events
+  NEW_DEVICE_LOGIN: {
+    device: TEventDeviceInfo;
+  };
+  DEVICE_VERIFIED: {
+    device: TEventDeviceInfo;
+  };
+  DEVICE_TRUSTED: {
+    device: TEventDeviceInfo;
+  };
+  DEVICE_REVOKED: {
+    device: TEventDeviceInfo;
+  };
+  SENSITIVE_ACTION_VERIFIED: {
+    device: TEventDeviceInfo;
+    action: string;
+  };
+  // Account events
+  ACCOUNT_CREATED: {
+    device: TEventDeviceInfo;
+  };
+  ACCOUNT_DELETED: {
+    device: TEventDeviceInfo;
+  };
+  PROFILE_UPDATED: {
+    fields: string[];
+  };
+};
+
+// The actual event record
+export type TAccountEvent = {
+  id: string;
+  user_id: string;
+  device_session_id?: string;
+  event_type: TEventType;
+  metadata: TEventMetadata[TEventType];
+  created_at: string;
+};

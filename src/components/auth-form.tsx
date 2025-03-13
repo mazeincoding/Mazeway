@@ -1,6 +1,6 @@
 "use client";
 import { Suspense } from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -54,6 +54,14 @@ function AuthFormContent() {
       redirectUrl: nextUrl || "/dashboard",
       availableMethods: methods,
     };
+  }, [searchParams]);
+
+  // Show message from URL params
+  useEffect(() => {
+    const message = searchParams.get("message");
+    if (message) {
+      toast.info(message);
+    }
   }, [searchParams]);
 
   const [password, setPassword] = useState("");

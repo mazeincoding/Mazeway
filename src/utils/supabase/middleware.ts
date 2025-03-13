@@ -1,38 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import {
-  getUserVerificationMethods,
-  getAuthenticatorAssuranceLevel,
-} from "@/utils/auth";
-import { AUTH_CONFIG } from "@/config/auth";
-
-async function handleInvalidDeviceSession(request: NextRequest) {
-  // Call logout API to clean up all auth state
-  const logoutResponse = await fetch(
-    `${request.nextUrl.origin}/api/auth/logout`,
-    {
-      method: "POST",
-      headers: {
-        Cookie: request.headers.get("cookie") || "",
-      },
-    }
-  );
-
-  // Redirect to login with cookies from logout response
-  const url = request.nextUrl.clone();
-  url.pathname = "/auth/login";
-  const response = NextResponse.redirect(url);
-
-  // Forward the Set-Cookie headers from logout response
-  const setCookieHeader = logoutResponse.headers.get("Set-Cookie");
-  if (setCookieHeader) {
-    setCookieHeader.split(",").forEach((cookie) => {
-      response.headers.append("Set-Cookie", cookie.trim());
-    });
-  }
-
-  return response;
-}
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({
@@ -59,31 +26,16 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: Avoid writing any logic between createServerClient and
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const protectedPaths = [
-    "/dashboard",
-    "/account",
-    "/api/auth/send-email-alert",
-  ];
+  const protectedPaths = ["/dashboard", "/account"];
   const authPaths = [
     "/",
     "/auth/login",
     "/auth/signup",
-    "/auth/login-help",
     "/auth/reset-password",
-  ];
-  const passwordResetPaths = [
-    "/auth/reset-password",
-    "/api/auth/reset-password",
-  ];
-  const recoveryPaths = [
-    ...passwordResetPaths,
-    "/api/auth/callback",
-    "/auth/error",
   ];
 
   const isProtectedPath = protectedPaths.some((path) =>
@@ -92,169 +44,73 @@ export async function updateSession(request: NextRequest) {
   const isAuthPath = authPaths.some(
     (path) => request.nextUrl.pathname === path
   );
-  const isPasswordResetPath = passwordResetPaths.some(
-    (path) => request.nextUrl.pathname === path
-  );
-  const isRecoveryPath = recoveryPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
   const isApiPath = request.nextUrl.pathname.startsWith("/api/");
 
   // If there's a user session
   if (user) {
-    // Check if it's a recovery session
-    const isRecoverySession = user.aud === "recovery";
-
-    // Recovery sessions can only access recovery-related paths
-    if (isRecoverySession && !isRecoveryPath) {
-      if (isApiPath) {
-        return NextResponse.json(
-          { message: "Unauthorized access with recovery session" },
-          { status: 401 }
+    // Real security lives in API routes for sensitive actions
+    // We don't need to do a full DB check here
+    if (isProtectedPath) {
+      const deviceSessionId = request.cookies.get("device_session_id");
+      if (!deviceSessionId) {
+        if (isApiPath) {
+          return NextResponse.json(
+            { message: "No device session" },
+            { status: 401 }
+          );
+        }
+        // No device session, just logout
+        const logoutResponse = await fetch(
+          `${request.nextUrl.origin}/api/auth/logout`,
+          {
+            method: "POST",
+            headers: {
+              Cookie: request.headers.get("cookie") || "",
+            },
+          }
         );
-      }
-      // Redirect recovery sessions trying to access other paths to login
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth/login";
-      return NextResponse.redirect(url);
-    }
 
-    // Regular sessions need device verification
-    if (!isRecoverySession) {
-      // Allow post-auth and error routes to run without device session
-      if (
-        request.nextUrl.pathname === "/api/auth/post-auth" ||
-        request.nextUrl.pathname.startsWith("/auth/error")
-      ) {
+        // Redirect to login with cookies from logout response
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/login";
+        url.searchParams.set(
+          "message",
+          "Your session was invalid. Please log in again."
+        );
+        const response = NextResponse.redirect(url);
+
+        // Forward the Set-Cookie headers from logout response
+        const setCookieHeader = logoutResponse.headers.get("Set-Cookie");
+        if (setCookieHeader) {
+          setCookieHeader.split(",").forEach((cookie) => {
+            response.headers.append("Set-Cookie", cookie.trim());
+          });
+        }
+
         return response;
       }
-
-      const deviceSessionId = request.cookies.get("device_session_id");
-
-      // Run auth checks in parallel
-      const [verificationMethods, deviceSessionResult] = await Promise.all([
-        getUserVerificationMethods(supabase),
-        isProtectedPath && deviceSessionId
-          ? (supabase
-              .from("device_sessions")
-              .select("needs_verification, expires_at")
-              .eq("id", deviceSessionId.value)
-              .eq("user_id", user.id)
-              .gt("expires_at", new Date().toISOString())
-              .single() as unknown as Promise<{
-              data: { needs_verification: boolean; expires_at: string } | null;
-            }>)
-          : Promise.resolve({ data: null }),
-      ]);
-
-      // Handle 2FA check
-      if (verificationMethods.has2FA) {
-        const currentLevel = await getAuthenticatorAssuranceLevel(
-          supabase,
-          deviceSessionId?.value || ""
-        );
-
-        // If user needs AAL2 but doesn't have it, treat them as unauthenticated
-        if (currentLevel !== "aal2") {
-          // Block protected routes and APIs
-          if (isProtectedPath) {
-            if (isApiPath) {
-              return NextResponse.json(
-                { message: "Two-factor authentication required" },
-                { status: 401 }
-              );
-            }
-            // Redirect to login for protected routes
-            const url = request.nextUrl.clone();
-            url.pathname = "/auth/login";
-            return NextResponse.redirect(url);
-          }
-          // Allow access to public routes
-          return response;
-        }
-      }
-
-      // Handle device session check for protected routes
-      if (isProtectedPath) {
-        const verificationPaths = [
-          "/auth/verify-device",
-          "/api/auth/verify-device",
-        ];
-        const isVerificationPath = verificationPaths.some((path) =>
-          request.nextUrl.pathname.startsWith(path)
-        );
-
-        // Allow verification paths even without device session
-        if (isVerificationPath) {
-          return response;
-        }
-
-        // For all other protected routes, require valid device session
-        if (!deviceSessionId) {
-          if (isApiPath) {
-            return NextResponse.json(
-              { message: "Unauthorized - No device session" },
-              { status: 401 }
-            );
-          }
-          return handleInvalidDeviceSession(request);
-        }
-
-        const deviceSession = deviceSessionResult.data;
-
-        if (!deviceSession) {
-          if (isApiPath) {
-            return NextResponse.json(
-              { message: "Unauthorized - Invalid or expired device session" },
-              { status: 401 }
-            );
-          }
-          return handleInvalidDeviceSession(request);
-        }
-
-        if (deviceSession.needs_verification && !isVerificationPath) {
-          const url = request.nextUrl.clone();
-          url.pathname = "/auth/verify-device";
-          return NextResponse.redirect(url);
-        }
-      }
-
-      // Redirect authenticated regular sessions away from auth paths
-      if (isAuthPath) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
     }
+
+    // Redirect authenticated users away from auth paths
+    if (isAuthPath) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+    return response;
   }
 
   // Handle unauthenticated requests
-  if (!user) {
-    // Block access to protected routes
-    if (isProtectedPath) {
-      if (isApiPath) {
-        return NextResponse.json(
-          { message: "Unauthorized access" },
-          { status: 401 }
-        );
-      }
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth/login";
-      return NextResponse.redirect(url);
+  if (!user && isProtectedPath) {
+    if (isApiPath) {
+      return NextResponse.json(
+        { message: "Unauthorized access" },
+        { status: 401 }
+      );
     }
-
-    // Allow password reset paths if recovery cookie is present (when required)
-    if (isPasswordResetPath) {
-      // Only check for recovery cookie if relogin is required after reset
-      if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
-        const hasRecoveryCookie = request.cookies.has("recovery_session");
-        if (!hasRecoveryCookie) {
-          const url = request.nextUrl.clone();
-          url.pathname = "/auth/login";
-          return NextResponse.redirect(url);
-        }
-      }
-    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/login";
+    return NextResponse.redirect(url);
   }
 
   return response;

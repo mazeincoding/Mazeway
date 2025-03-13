@@ -5,7 +5,6 @@ import {
   TEmptySuccessResponse,
   TRevokeDeviceSessionResponse,
   TRevokeDeviceSessionRequest,
-  TSendEmailAlertRequest,
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
@@ -17,63 +16,7 @@ import {
 import { revokeDeviceSessionSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import { UAParser } from "ua-parser-js";
-
-async function sendEmailAlert(
-  request: NextRequest,
-  origin: string,
-  user: { id: string; email: string },
-  title: string,
-  message: string,
-  revokedDevice: {
-    device_name: string;
-    browser?: string;
-    os?: string;
-    ip_address?: string;
-  }
-) {
-  try {
-    const parser = new UAParser(request.headers.get("user-agent") || "");
-    const deviceName = parser.getDevice().model || "Unknown Device";
-    const browser = parser.getBrowser().name || "Unknown Browser";
-    const os = parser.getOS().name || "Unknown OS";
-
-    const body: TSendEmailAlertRequest = {
-      email: user.email,
-      title,
-      message,
-      device: {
-        user_id: user.id,
-        device_name: deviceName,
-        browser,
-        os,
-        ip_address: request.headers.get("x-forwarded-for") || "::1",
-      },
-      revokedDevice,
-    };
-
-    const emailAlertResponse = await fetch(
-      `${origin}/api/auth/send-email-alert`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Cookie: request.headers.get("cookie") || "",
-        },
-        body: JSON.stringify(body),
-      }
-    );
-
-    if (!emailAlertResponse.ok) {
-      console.error("Failed to send device revocation alert", {
-        status: emailAlertResponse.status,
-        statusText: emailAlertResponse.statusText,
-      });
-    }
-  } catch (error) {
-    console.error("Error sending device revocation alert:", error);
-    // Don't throw - device was revoked successfully
-  }
-}
+import { sendEmailAlert } from "@/utils/email-alerts";
 
 /**
  * Deletes a device session. Security is enforced through multiple layers:
@@ -241,19 +184,19 @@ export async function DELETE(
       AUTH_CONFIG.emailAlerts.deviceSessions.enabled &&
       AUTH_CONFIG.emailAlerts.deviceSessions.alertOnRevoke
     ) {
-      await sendEmailAlert(
+      await sendEmailAlert({
         request,
         origin,
         user,
-        "Device access revoked",
-        `A device's access to your account was revoked. If this wasn't you, please secure your account immediately.`,
-        {
+        title: "Device access revoked",
+        message: `A device's access to your account was revoked. If this wasn't you, please secure your account immediately.`,
+        revokedDevice: {
           device_name: session.device_name,
           browser: session.browser,
           os: session.os,
           ip_address: session.ip_address,
-        }
-      );
+        },
+      });
     }
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;

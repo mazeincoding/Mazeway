@@ -958,6 +958,22 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
     - Not super urgent - your database won't explode
     - But good to do if you expect lots of users or long-term use
     - Check this [guide](docs/cleanup-setup.md)
+10. Make allowed paths for image optimizations stricter
+    - Update your `next.config.ts`:
+    ```diff
+    images: {
+      remotePatterns: [
+    +   // Replace with whatever CDN you're using
+        {
+          protocol: "https",
+          hostname: "res.cloudinary.com",
+          port: "",
+    -     pathname: "/**",
+    +     pathname: "/dzjgehvid/image/upload/**", // prevents anyone from using your image optimizations for their own assets
+        },
+      ],
+    },
+    ```
 
 ## Pro tips + note for Supabase
 

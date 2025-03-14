@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { KeyRound, ShieldIcon } from "lucide-react";
+import { KeyRound, ShieldIcon, ScrollText } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
 import {
   passwordChangeSchema,
@@ -33,6 +33,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { VerifyForm } from "@/components/verify-form";
+import { EventLog } from "@/components/event-log";
 
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
@@ -390,6 +391,18 @@ export default function Security() {
         </SettingCard.Header>
         <SettingCard.Content>
           <DeviceSessionsList />
+        </SettingCard.Content>
+      </SettingCard>
+
+      <SettingCard icon={ScrollText}>
+        <SettingCard.Header>
+          <SettingCard.Title>Recent activity</SettingCard.Title>
+          <SettingCard.Description>
+            Review recent security events and changes to your account.
+          </SettingCard.Description>
+        </SettingCard.Header>
+        <SettingCard.Content>
+          <EventLog />
         </SettingCard.Content>
       </SettingCard>
 

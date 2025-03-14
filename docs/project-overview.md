@@ -64,6 +64,12 @@ The open-source auth foundation that lives in your project, not a node_modules f
   - `basicRateLimit`: Basic operations
   - `smsRateLimit`: SMS-specific operations
 
+### Device Info
+- Uses `ua-parser-js` for consistent device info extraction:
+  - Device name/model
+  - Browser info
+  - OS details
+
 ### Validation (`src/utils/validation/auth-validation.ts`)
 - Zod schemas for all auth operations
 - Key validation functions:

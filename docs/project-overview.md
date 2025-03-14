@@ -20,6 +20,9 @@ The open-source auth foundation that lives in your project, not a node_modules f
     - Authenticator App
     - SMS
     - Backup codes
+- Account activity tracking
+  - View activity history (logins, disable 2FA, etc)
+  - Get alerts for sensitive activity (unknown device login, etc)
 - Settings
   - Basic profile management
   - Change password

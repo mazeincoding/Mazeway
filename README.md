@@ -90,9 +90,9 @@ That's what this project gives you: a foundation that you can build on.
     - View active sessions
     - Revoke device access
     - Email alerts for new logins
-  - ~~Account activity tracking~~ (later)
-    - ~~View activity history (logins, disable 2FA, etc)~~
-    - ~~Get alerts for sensitive activity (unknown device login, etc)~~
+  - Account activity tracking
+    - View activity history (logins, disable 2FA, etc)
+    - Get alerts for sensitive activity (unknown device login, etc)
   - Enable and disable 2FA (including individual methods)
 - Verification:
   - 2FA methods (Authenticator, SMS)

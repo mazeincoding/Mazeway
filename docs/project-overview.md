@@ -83,6 +83,27 @@ The open-source auth foundation that lives in your project, not a node_modules f
   - Request/response types for all API endpoints
   - All verification requirements interfaces
 
+### Supabase (`src/utils/supabase/`)
+- `server.ts`: Server-side Supabase client
+  - `createClient({ useServiceRole?: boolean })`: Create Supabase client
+    - Service role bypasses RLS and has full admin access
+    - Use ONLY for operations that need to:
+      - Create/modify data for other users
+      - Bypass RLS policies
+      - Access tables without policies
+      - Perform admin operations
+    - Examples where it's needed:
+      - Creating device sessions for users
+      - Managing user profiles
+      - Logging events for audit trails
+      - Handling backup codes
+    - NEVER use in client-side code or expose the key
+- `client.ts`: Browser-side Supabase client
+  - `createClient()`: Create browser-safe client
+  - Uses public anon key only
+  - Limited to operations allowed by RLS
+- `middleware.ts`: Auth middleware and session handling
+
 ### Recovery (`src/utils/auth/recovery-token.ts`)
 - `createRecoveryToken(userId)`: Create recovery token
 - `verifyRecoveryToken(token)`: Verify and extract userId

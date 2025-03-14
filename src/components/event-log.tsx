@@ -99,7 +99,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
 
   return (
     <div className={cn("flex flex-col", className)}>
-      <div className="flex items-center justify-end px-6 py-2 border-b">
+      <div className="flex items-center justify-end px-6 py-4 border-b">
         <button
           onClick={refresh}
           disabled={loading}

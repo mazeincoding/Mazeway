@@ -1,5 +1,7 @@
 # Mazeway
 
+> This document serves as a memory/overview of the codebase for LLMs. It helps them understand the project structure, key features, and important implementation details. The document is maintained automatically and should be updated whenever significant changes are made to the codebase.
+
 ## Introduction
 
 The open-source auth foundation that lives in your project, not a node_modules folder.

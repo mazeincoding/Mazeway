@@ -1,5 +1,7 @@
 # Mazeway
 
+> This document serves as a memory/overview of the codebase for LLMs. It helps them understand the project structure, key features, and important implementation details. The document is maintained automatically and should be updated whenever significant changes are made to the codebase.
+
 ## Introduction
 
 The open-source auth foundation that lives in your project, not a node_modules folder.
@@ -62,6 +64,12 @@ The open-source auth foundation that lives in your project, not a node_modules f
   - `basicRateLimit`: Basic operations
   - `smsRateLimit`: SMS-specific operations
 
+### Device Info
+- Uses `ua-parser-js` for consistent device info extraction:
+  - Device name/model
+  - Browser info
+  - OS details
+
 ### Validation (`src/utils/validation/auth-validation.ts`)
 - Zod schemas for all auth operations
 - Key validation functions:
@@ -82,6 +90,27 @@ The open-source auth foundation that lives in your project, not a node_modules f
 - `api.ts`:
   - Request/response types for all API endpoints
   - All verification requirements interfaces
+
+### Supabase (`src/utils/supabase/`)
+- `server.ts`: Server-side Supabase client
+  - `createClient({ useServiceRole?: boolean })`: Create Supabase client
+    - Service role bypasses RLS and has full admin access
+    - Use ONLY for operations that need to:
+      - Create/modify data for other users
+      - Bypass RLS policies
+      - Access tables without policies
+      - Perform admin operations
+    - Examples where it's needed:
+      - Creating device sessions for users
+      - Managing user profiles
+      - Logging events for audit trails
+      - Handling backup codes
+    - NEVER use in client-side code or expose the key
+- `client.ts`: Browser-side Supabase client
+  - `createClient()`: Create browser-safe client
+  - Uses public anon key only
+  - Limited to operations allowed by RLS
+- `middleware.ts`: Auth middleware and session handling
 
 ### Recovery (`src/utils/auth/recovery-token.ts`)
 - `createRecoveryToken(userId)`: Create recovery token

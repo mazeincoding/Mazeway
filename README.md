@@ -90,9 +90,9 @@ That's what this project gives you: a foundation that you can build on.
     - View active sessions
     - Revoke device access
     - Email alerts for new logins
-  - ~~Account activity tracking~~ (later)
-    - ~~View activity history (logins, disable 2FA, etc)~~
-    - ~~Get alerts for sensitive activity (unknown device login, etc)~~
+  - Account activity tracking
+    - View activity history (logins, disable 2FA, etc)
+    - Get alerts for sensitive activity (unknown device login, etc)
   - Enable and disable 2FA (including individual methods)
 - Verification:
   - 2FA methods (Authenticator, SMS)
@@ -124,7 +124,7 @@ npm install
 
 ### 2. Reset auth config
 
-We'll dive into this later.
+We'll dive into this config later.
 
 But it essentially allows you to tweak custom things.
 
@@ -478,7 +478,7 @@ What you need to know:
 - That means, when you try out the auth with SMS, use the phone number you verified with Twilio in the app
 - When going in production, there's a production checklist that got you covered.
 
-#### Requiring re-login after password reset
+### Requiring re-login after password reset
 
 This is **disabled by default** in the auth config. If you want to enable it, here's what you should do:
 

@@ -1,4 +1,4 @@
-## What matters right now
+## Mazeway roadmap
 
 - [x] Implement device sessions and verification for untrusted devices
 - [x] Create device verification email template
@@ -22,17 +22,17 @@
 - [x] Modify the security settings page to use new API endpoint (`/api/auth/change-password`)
 - [x] What if the user signed up with a different provider than email? They shouldn't be able to change password, we need to handle this in the app.
 - [x] Allow authenticated users to reset their password even if they forgot it (with email and/or whatever 2FA is enabled. Need to figure this out)
-- [ ] Implement 2FA:
+- [x] Implement 2FA:
     - [x] Allow users to enable 2FA in the `settings/security` page
     - [x] Show options: Authenticator App and SMS (based on the auth config)
-    - [ ] Authenticator app:
+    - [x] Authenticator app:
         - [x] Implement API endpoints:
             - [x] `/api/auth/2fa/enroll` (starts enrollment, returns QR code URI)
             - [x] `/api/auth/2fa/verify` (verifies the code, completes setup)
             - [x] `/api/auth/2fa/disable` (requires current password and 2FA)
         - [x] Show QR code when "Enable 2FA" is clicked
         - [x] Require user to enter code
-        - [ ] ~~Generate recovery codes, show them and allow easy copying~~
+        - [x] Generate recovery codes, show them and allow easy copying
         - [x] In the `settings/security` page, now show "Regenerate recovery codes" (will this require 2FA?) and "Disable 2FA" (needs 2FA)
     - [x] SMS
         - [x] Figure out if we need to set up any additional services or if Supabase is all we need (need Twilio)
@@ -70,30 +70,23 @@
             The previous points assumed we wouldn't even create the device session, which isn't true at all. We should create the device session, but mark it as trusted. Simple as that. If you still don't understand, let me break down why each point is stupid.
 
         - [x] Will they need to verify through 2FA on ALL logins? (yes)
-- [ ] Double check flow (just through the code) to ensure shit makes sense and it follows our initial plan.
-- [ ] Figure out what the fuck we're gonna do with dev/production in Supabase. We'll (probably) need to update the README to clarify things or even more steps. (please never finish the other things so we never get to this painful thing)
-- [ ] Set up landing and demo
-- [ ] Add a docs page for our site
-
-## In the future
-**Security Enhancements**
-
-- [ ] Recovery codes generation
+- [x] Double check flow (just through the code) to ensure shit makes sense and it follows our initial plan.
+- [x] Figure out what the fuck we're gonna do with dev/production in Supabase. We'll (probably) need to update the README to clarify things or even more steps. (please never finish the other things so we never get to this painful thing. UPDATE: I somehow did it)
+- [x] Set up landing and demo (though irrelevant for this auth starter)
+- [ ] ~~Add a docs page for our site~~ (forget about this, READMEs are cooler)
+- [x] Recovery codes generation
 - [x] Password complexity requirements
-- [ ] Password strength indicator
-- [ ] Password breach checking
+- [ ] Password breach checking (Supabase already has this but we could add it to our API routes? Not crucial)
 - [ ] CAPTCHA for login
-
-**Authentication Providers**
-- [ ] WebAuthn/FIDO2 support
-- [ ] Magic link authenticator
-- [ ] Additional providers (GitHub, Apple)
-- [ ] Advanced Security Features
-- [ ] Security event logging
-- [ ] Suspicious activity email notifications
-- [ ] Admin dashboard for security monitoring
-- [ ] Security questions as additional recovery option
-- [ ] Account deletion functionality
+- [ ] Support passwordless auth
+- [x] Additional providers (can't really check because you can always add more but good for now)
+- [x] Account security events
+- [x] Email alerts for security actions
+- [x] Account deletion functionality
+- [ ] Re-design settings UI to focus on simplicity
+- [ ] Maybe clean up all my GitHub issues I created and left there
+- [ ] User data exports (GDPR Compliance)
+- [ ] Provider management
 
 **CLI direction**
 - [ ] Create a CLI for adding auth to existing projects

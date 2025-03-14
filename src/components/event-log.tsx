@@ -98,18 +98,18 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
   }
 
   return (
-    <div className={cn("flex flex-col space-y-2", className)}>
-      <div className="font-mono text-sm">
-        <div className="flex items-center justify-end mb-4 pb-2 border-b">
-          <button
-            onClick={refresh}
-            disabled={loading}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </button>
-        </div>
-        <div className="space-y-1">
+    <div className={cn("flex flex-col", className)}>
+      <div className="flex items-center justify-end px-6 py-2 border-b">
+        <button
+          onClick={refresh}
+          disabled={loading}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} />
+        </button>
+      </div>
+      <div className="px-6 py-4">
+        <div className="font-mono text-sm space-y-3">
           {events.map((event, i) => (
             <div
               key={event.id}
@@ -148,7 +148,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
           {!loading && hasMore && (
             <button
               onClick={() => fetchEvents(cursor!)}
-              className="w-full text-center py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full text-center py-2 text-sm text-muted-foreground hover:text-foreground transition-colors border-t"
             >
               Load more
             </button>

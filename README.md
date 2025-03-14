@@ -124,7 +124,7 @@ npm install
 
 ### 2. Reset auth config
 
-We'll dive into this later.
+We'll dive into this config later.
 
 But it essentially allows you to tweak custom things.
 

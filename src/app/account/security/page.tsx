@@ -394,7 +394,7 @@ export default function Security() {
         </SettingCard.Content>
       </SettingCard>
 
-      <SettingCard icon={ScrollText}>
+      <SettingCard icon={ScrollText} className="!p-0">
         <SettingCard.Header>
           <SettingCard.Title>Recent activity</SettingCard.Title>
           <SettingCard.Description>

@@ -100,7 +100,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
   return (
     <div className={cn("flex flex-col space-y-2", className)}>
       <div className="font-mono text-sm">
-        <div className="flex items-center justify-end mb-4">
+        <div className="flex items-center justify-end mb-4 pb-2 border-b">
           <button
             onClick={refresh}
             disabled={loading}

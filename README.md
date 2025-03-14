@@ -273,6 +273,8 @@ You're not limited to these customization options (you own the auth) but it's ju
   - Two-Factor (enabled, alert on enable, alert on disable)
   - Device Sessions (enabled, alert on revoke)
   - Account Deletion (enabled, alert on initiate)
+- **Data exports**
+  - Enabled (true or false)
 - **Email Verification**
   - Code expiration time
   - Code length

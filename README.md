@@ -267,9 +267,12 @@ You're not limited to these customization options (you own the auth) but it's ju
   - Code expiration time
   - Code length
 - **Email Alerts**
-  - Enabled
-  - Alert mode
-  - Confidence threshold
+  - Login (enabled, alert mode, confidence threshold)
+  - Password (enabled, alert on change, alert on reset)
+  - Email (enabled, alert on initiate, alert on complete)
+  - Two-Factor (enabled, alert on enable, alert on disable)
+  - Device Sessions (enabled, alert on revoke)
+  - Account Deletion (enabled, alert on initiate)
 - **Email Verification**
   - Code expiration time
   - Code length

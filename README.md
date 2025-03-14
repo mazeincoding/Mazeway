@@ -496,7 +496,7 @@ This is **disabled by default** in the auth config. If you want to enable it, he
    + RECOVERY_TOKEN_SECRET=your-recovery-token-secret
    ```
 
-#### Password requirements
+### Password requirements
 
 - `minLength`: Minimum characters a password can be
   > [!NOTE]

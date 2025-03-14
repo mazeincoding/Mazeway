@@ -99,8 +99,8 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
 
   return (
     <div className={cn("flex flex-col space-y-2", className)}>
-      <div className="font-mono text-sm rounded-lg border bg-muted/50">
-        <div className="flex items-center justify-end px-4 py-2 border-b">
+      <div className="font-mono text-sm">
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={refresh}
             disabled={loading}
@@ -109,12 +109,12 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
             <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>
         </div>
-        <div className="p-4">
+        <div className="space-y-1">
           {events.map((event, i) => (
             <div
               key={event.id}
               className={cn(
-                "flex items-start space-x-2 py-1",
+                "flex items-start space-x-2 py-2",
                 i !== 0 && "border-t border-border/50"
               )}
             >

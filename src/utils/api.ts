@@ -32,6 +32,7 @@ import type {
   TGeolocationResponse,
   TUpdateUserRequest,
   TRevokeDeviceSessionRequest,
+  TGetEventsResponse,
 } from "@/types/api";
 import type { ProfileSchema } from "@/utils/validation/auth-validation";
 import { mutate } from "swr";
@@ -309,6 +310,13 @@ export const api = {
       await mutate("/api/user");
 
       return result;
+    },
+
+    getEvents: async (params?: URLSearchParams) => {
+      const response = await fetch(
+        `/api/user/events${params ? `?${params}` : ""}`
+      );
+      return handleResponse<TGetEventsResponse>(response);
     },
   },
 };

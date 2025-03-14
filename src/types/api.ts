@@ -5,6 +5,7 @@ import {
   TUserWithAuth,
   TVerificationMethod,
   TVerificationFactor,
+  TAccountEvent,
 } from "./auth";
 import type { ProfileSchema } from "@/utils/validation/auth-validation";
 
@@ -227,9 +228,15 @@ export interface TGithubSignInResponse {
   url: string;
 }
 
-// Generic success response
-export interface TEmptySuccessResponse {}
-
 export type TGetDeviceSessionResponse = {
   data: TDeviceSession;
 };
+
+export type TGetEventsResponse = {
+  events: TAccountEvent[];
+  hasMore: boolean;
+  total: number;
+};
+
+// Generic success response
+export interface TEmptySuccessResponse {}

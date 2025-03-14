@@ -30,6 +30,8 @@ import {
 import { passwordChangeSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
+import { logAccountEvent } from "@/utils/account-events/server";
+import { UAParser } from "ua-parser-js";
 
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
@@ -128,6 +130,23 @@ export async function POST(request: NextRequest) {
           newPassword,
         }) satisfies NextResponse<TPasswordChangeResponse>;
       }
+
+      // Log sensitive action verification
+      const parser = new UAParser(request.headers.get("user-agent") || "");
+      await logAccountEvent({
+        user_id: user.id,
+        event_type: "SENSITIVE_ACTION_VERIFIED",
+        device_session_id: deviceSessionId,
+        metadata: {
+          device: {
+            device_name: parser.getDevice().model || "Unknown Device",
+            browser: parser.getBrowser().name || null,
+            os: parser.getOS().name || null,
+            ip_address: getClientIp(request),
+          },
+          action: "change_password",
+        },
+      });
     }
 
     // If no 2FA required or within grace period, update password
@@ -159,6 +178,22 @@ export async function POST(request: NextRequest) {
       console.error("Failed to update has_password flag:", flagError);
       // Don't throw - password was updated successfully
     }
+
+    // Log the password change event
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "PASSWORD_CHANGED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        device: {
+          device_name: parser.getDevice().model || "Unknown Device",
+          browser: parser.getBrowser().name || null,
+          os: parser.getOS().name || null,
+          ip_address: getClientIp(request),
+        },
+      },
+    });
 
     // Send email alert for password change
     if (

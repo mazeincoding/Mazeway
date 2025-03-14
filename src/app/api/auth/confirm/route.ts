@@ -1,8 +1,11 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
 import { AuthApiError } from "@supabase/supabase-js";
+import { logAccountEvent } from "@/utils/account-events/server";
+import { getDeviceSessionId } from "@/utils/auth";
+import { UAParser } from "ua-parser-js";
+import { getClientIp } from "@/utils/rate-limit";
 
 export async function GET(request: NextRequest) {
   console.log("[AUTH] /api/auth/confirm - Request received", {
@@ -14,11 +17,13 @@ export async function GET(request: NextRequest) {
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next") ?? "/";
+  const oldEmail = searchParams.get("old_email");
 
   console.log("[AUTH] /api/auth/confirm - Parameters", {
     hasTokenHash: !!token_hash,
     type,
     next,
+    oldEmail,
   });
 
   if (!token_hash || !type) {
@@ -92,6 +97,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       `${origin}/auth/error?title=${encodeURIComponent("Verification failed")}&message=${encodeURIComponent("There was a problem with your account. Please try signing up again.")}&actions=${actions}&error=${errorCode}`
     );
+  }
+
+  // Log email change event if this was an email change verification
+  if (type === "email_change") {
+    const deviceSessionId = getDeviceSessionId(request);
+    if (deviceSessionId) {
+      const parser = new UAParser(request.headers.get("user-agent") || "");
+      await logAccountEvent({
+        user_id: user.id,
+        event_type: "EMAIL_CHANGED",
+        device_session_id: deviceSessionId,
+        metadata: {
+          device: {
+            device_name: parser.getDevice().model || "Unknown Device",
+            browser: parser.getBrowser().name || null,
+            os: parser.getOS().name || null,
+            ip_address: getClientIp(request),
+          },
+          oldEmail: oldEmail || "unknown",
+          newEmail: user.email || "unknown",
+        },
+      });
+    }
   }
 
   if (!user.email_confirmed_at) {

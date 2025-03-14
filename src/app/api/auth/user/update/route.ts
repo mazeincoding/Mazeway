@@ -8,6 +8,7 @@ import {
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { getDeviceSessionId, getUser } from "@/utils/auth";
+import { logAccountEvent } from "@/utils/account-events/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -99,6 +100,16 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    // Log which fields were updated
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "PROFILE_UPDATED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        fields: Object.keys(updateData),
+      },
+    });
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {

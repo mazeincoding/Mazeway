@@ -15,8 +15,8 @@ import {
 } from "@/utils/auth";
 import { revokeDeviceSessionSchema } from "@/utils/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
-import { UAParser } from "ua-parser-js";
 import { sendEmailAlert } from "@/utils/email-alerts";
+import { logAccountEvent } from "@/utils/account-events/server";
 
 /**
  * Deletes a device session. Security is enforced through multiple layers:
@@ -172,12 +172,44 @@ export async function DELETE(
 
     // If we reach here, user is verified within grace period
     const adminClient = await createClient({ useServiceRole: true });
+
+    // Log sensitive action verification
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "SENSITIVE_ACTION_VERIFIED",
+      device_session_id: currentSessionId,
+      metadata: {
+        device: {
+          device_name: session.device_name,
+          browser: session.browser,
+          os: session.os,
+          ip_address: session.ip_address,
+        },
+        action: "revoke_device",
+      },
+    });
+
     const { error: deleteError } = await adminClient
       .from("device_sessions")
       .delete()
       .eq("id", sessionId);
 
     if (deleteError) throw deleteError;
+
+    // Log the device revocation event
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "DEVICE_REVOKED",
+      device_session_id: sessionId,
+      metadata: {
+        device: {
+          device_name: session.device_name,
+          browser: session.browser,
+          os: session.os,
+          ip_address: session.ip_address,
+        },
+      },
+    });
 
     // Send alert for device revocation if enabled
     if (

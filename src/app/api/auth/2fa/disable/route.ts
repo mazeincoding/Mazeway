@@ -7,9 +7,10 @@ import {
 } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { disable2FASchema } from "@/utils/validation/auth-validation";
-import { getFactorForMethod, getUser } from "@/utils/auth";
+import { getFactorForMethod, getUser, getDeviceSessionId } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
+import { logAccountEvent } from "@/utils/account-events/server";
 
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
@@ -97,6 +98,17 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    // Log the 2FA disable event
+    const deviceSessionId = getDeviceSessionId(request) || undefined;
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "2FA_DISABLED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        method,
+      },
+    });
 
     // Send alert for 2FA disable if enabled
     if (

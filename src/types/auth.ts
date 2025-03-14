@@ -98,6 +98,7 @@ export type TEventType =
   | "NEW_DEVICE_LOGIN"
   | "DEVICE_VERIFIED"
   | "DEVICE_TRUSTED"
+  | "DEVICE_TRUSTED_AUTO"
   | "DEVICE_REVOKED"
   | "SENSITIVE_ACTION_VERIFIED"
   // Account events
@@ -108,54 +109,63 @@ export type TEventType =
 // Device info in event context (without user_id since that's in the event record)
 export type TEventDeviceInfo = Omit<TDeviceInfo, "user_id">;
 
+// Base type for event metadata that includes error info
+type TBaseEventMetadata = {
+  error?: string;
+};
+
 // Metadata for different event types
 export type TEventMetadata = {
   // Security events
-  "2FA_ENABLED": {
+  "2FA_ENABLED": TBaseEventMetadata & {
     method: TTwoFactorMethod;
   };
-  "2FA_DISABLED": {
+  "2FA_DISABLED": TBaseEventMetadata & {
     method: TTwoFactorMethod;
   };
-  BACKUP_CODES_GENERATED: {
+  BACKUP_CODES_GENERATED: TBaseEventMetadata & {
     count: number;
   };
-  BACKUP_CODE_USED: {
+  BACKUP_CODE_USED: TBaseEventMetadata & {
     device?: TEventDeviceInfo;
   };
-  PASSWORD_CHANGED: {
+  PASSWORD_CHANGED: TBaseEventMetadata & {
     device?: TEventDeviceInfo;
   };
-  EMAIL_CHANGED: {
+  EMAIL_CHANGED: TBaseEventMetadata & {
     oldEmail: string;
     newEmail: string;
     device?: TEventDeviceInfo;
   };
   // Device events
-  NEW_DEVICE_LOGIN: {
+  NEW_DEVICE_LOGIN: TBaseEventMetadata & {
     device: TEventDeviceInfo;
   };
-  DEVICE_VERIFIED: {
+  DEVICE_VERIFIED: TBaseEventMetadata & {
     device: TEventDeviceInfo;
   };
-  DEVICE_TRUSTED: {
+  DEVICE_TRUSTED: TBaseEventMetadata & {
     device: TEventDeviceInfo;
   };
-  DEVICE_REVOKED: {
+  DEVICE_TRUSTED_AUTO: TBaseEventMetadata & {
+    device: TEventDeviceInfo;
+    reason: "new_account" | "oauth";
+  };
+  DEVICE_REVOKED: TBaseEventMetadata & {
     device: TEventDeviceInfo;
   };
-  SENSITIVE_ACTION_VERIFIED: {
+  SENSITIVE_ACTION_VERIFIED: TBaseEventMetadata & {
     device: TEventDeviceInfo;
     action: string;
   };
   // Account events
-  ACCOUNT_CREATED: {
+  ACCOUNT_CREATED: TBaseEventMetadata & {
     device: TEventDeviceInfo;
   };
-  ACCOUNT_DELETED: {
+  ACCOUNT_DELETED: TBaseEventMetadata & {
     device: TEventDeviceInfo;
   };
-  PROFILE_UPDATED: {
+  PROFILE_UPDATED: TBaseEventMetadata & {
     fields: string[];
   };
 };

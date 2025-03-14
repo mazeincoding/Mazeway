@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { verifyVerificationCode } from "@/utils/verification-codes";
+import { logAccountEvent } from "@/utils/account-events/server";
+import { UAParser } from "ua-parser-js";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,8 +29,21 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const supabase = await createClient();
     const adminClient = await createClient({ useServiceRole: true });
+
+    // Get device session first to get user_id
+    const { data: deviceSession, error: sessionError } = await adminClient
+      .from("device_sessions")
+      .select("user_id")
+      .eq("id", device_session_id)
+      .single();
+
+    if (sessionError || !deviceSession) {
+      return NextResponse.json(
+        { error: "Invalid device session" },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
 
     // Get the verification code
     const { data: verificationCode, error: codeError } = await adminClient
@@ -77,6 +92,22 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    // Log the device verification event
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    await logAccountEvent({
+      user_id: deviceSession.user_id,
+      event_type: "DEVICE_VERIFIED",
+      device_session_id,
+      metadata: {
+        device: {
+          device_name: parser.getDevice().model || "Unknown Device",
+          browser: parser.getBrowser().name || null,
+          os: parser.getOS().name || null,
+          ip_address: getClientIp(request),
+        },
+      },
+    });
 
     // Delete used verification code
     await adminClient

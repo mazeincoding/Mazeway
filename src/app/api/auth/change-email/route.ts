@@ -12,15 +12,23 @@ import { emailChangeSchema } from "@/utils/validation/auth-validation";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
+import { logAccountEvent } from "@/utils/account-events/server";
+import { UAParser } from "ua-parser-js";
 
 async function updateUserEmail(supabase: SupabaseClient, newEmail: string) {
-  // Update email in auth - this will trigger Supabase to send verification email
-  // We're not updating the user profile in the DB because the user needs to verify the new email first
-  const { error: updateError } = await supabase.auth.updateUser({
+  // Update email in auth
+  const { data, error: updateError } = await supabase.auth.updateUser({
     email: newEmail,
   });
 
   if (updateError) throw updateError;
+
+  // If data.user exists and email is updated, it means Supabase didn't require email ownership verification
+  // If data.user exists but email is not updated, it means Supabase sent a verification link
+  return {
+    needsEmailConfirmation: !data.user || data.user.email !== newEmail,
+    user: data.user,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -136,34 +144,96 @@ export async function POST(request: NextRequest) {
         }) satisfies NextResponse<TChangeEmailResponse>;
       }
 
-      // If no 2FA required or within grace period, update email directly
-      await updateUserEmail(supabase, newEmail);
+      // Log sensitive action verification
+      const parser = new UAParser(request.headers.get("user-agent") || "");
+      await logAccountEvent({
+        user_id: user.id,
+        event_type: "SENSITIVE_ACTION_VERIFIED",
+        device_session_id: deviceSessionId,
+        metadata: {
+          device: {
+            device_name: parser.getDevice().model || "Unknown Device",
+            browser: parser.getBrowser().name || null,
+            os: parser.getOS().name || null,
+            ip_address: getClientIp(request),
+          },
+          action: "change_email",
+        },
+      });
 
-      // Send alert for completed email change if enabled
+      // If no 2FA required or within grace period, update email directly
+      const { needsEmailConfirmation } = await updateUserEmail(
+        supabase,
+        newEmail
+      );
+
+      if (!needsEmailConfirmation) {
+        // Email was changed immediately, log the event
+        const parser = new UAParser(request.headers.get("user-agent") || "");
+        await logAccountEvent({
+          user_id: user.id,
+          event_type: "EMAIL_CHANGED",
+          device_session_id: deviceSessionId,
+          metadata: {
+            device: {
+              device_name: parser.getDevice().model || "Unknown Device",
+              browser: parser.getBrowser().name || null,
+              os: parser.getOS().name || null,
+              ip_address: getClientIp(request),
+            },
+            oldEmail: user.email,
+            newEmail,
+          },
+        });
+
+        // Send alert for completed email change if enabled
+        if (
+          AUTH_CONFIG.emailAlerts.email.enabled &&
+          AUTH_CONFIG.emailAlerts.email.alertOnComplete
+        ) {
+          // Send to old email
+          await sendEmailAlert({
+            request,
+            origin,
+            user,
+            title: "Your email address was changed",
+            message:
+              "Your account's email address has been changed. If this wasn't you, please contact support immediately.",
+            oldEmail: user.email,
+            newEmail,
+          });
+
+          // Send to new email
+          await sendEmailAlert({
+            request,
+            origin,
+            user: { ...user, email: newEmail },
+            title: "Email address change confirmed",
+            message:
+              "Your account's email address has been changed to this address. If this wasn't you, please contact support immediately.",
+            oldEmail: user.email,
+            newEmail,
+          });
+        }
+
+        return NextResponse.json({
+          message: "Email changed successfully",
+        });
+      }
+
+      // If we get here, verification is required
+      // Send alert for email change initiation if enabled
       if (
         AUTH_CONFIG.emailAlerts.email.enabled &&
-        AUTH_CONFIG.emailAlerts.email.alertOnComplete
+        AUTH_CONFIG.emailAlerts.email.alertOnInitiate
       ) {
-        // Send to old email
         await sendEmailAlert({
           request,
           origin,
           user,
-          title: "Your email address was changed",
+          title: "Email change requested",
           message:
-            "Your account's email address has been changed. If this wasn't you, please contact support immediately.",
-          oldEmail: user.email,
-          newEmail,
-        });
-
-        // Send to new email
-        await sendEmailAlert({
-          request,
-          origin,
-          user: { ...user, email: newEmail },
-          title: "Email address change confirmed",
-          message:
-            "Your account's email address has been changed to this address. If this wasn't you, please contact support immediately.",
+            "Someone has requested to change your account's email address. If this wasn't you, please secure your account immediately.",
           oldEmail: user.email,
           newEmail,
         });

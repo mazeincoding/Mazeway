@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { TDeviceInfo, TDeviceSessionOptions } from "@/types/auth";
 import { UAParser } from "ua-parser-js";
 import { AUTH_CONFIG } from "@/config/auth";
+import { logAccountEvent } from "@/utils/account-events/server";
 
 async function createDevice(device: TDeviceInfo) {
   if (typeof window !== "undefined") {
@@ -116,6 +117,20 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
   const adminClient = await createClient({ useServiceRole: true });
   const device_id = await createDevice(params.device);
 
+  // Log new device login event
+  await logAccountEvent({
+    user_id: params.user_id,
+    event_type: "NEW_DEVICE_LOGIN",
+    metadata: {
+      device: {
+        device_name: params.device.device_name,
+        browser: params.device.browser,
+        os: params.device.os,
+        ip_address: params.device.ip_address,
+      },
+    },
+  });
+
   // Calculate expiration date
   const expires_at = new Date();
   expires_at.setDate(expires_at.getDate() + AUTH_CONFIG.deviceSessions.maxAge);
@@ -135,6 +150,24 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
 
   if (sessionError) {
     throw sessionError;
+  }
+
+  // Log auto-trust event if device was trusted
+  if (params.is_trusted) {
+    await logAccountEvent({
+      user_id: params.user_id,
+      event_type: "DEVICE_TRUSTED_AUTO",
+      device_session_id: session.id,
+      metadata: {
+        device: {
+          device_name: params.device.device_name,
+          browser: params.device.browser,
+          os: params.device.os,
+          ip_address: params.device.ip_address,
+        },
+        reason: params.confidence_score === 100 ? "new_account" : "oauth",
+      },
+    });
   }
 
   return session.id;

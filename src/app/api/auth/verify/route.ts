@@ -15,6 +15,8 @@ import {
 } from "@/utils/verification-codes";
 import { getDeviceSessionId, getUser } from "@/utils/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
+import { logAccountEvent } from "@/utils/account-events/server";
+import { UAParser } from "ua-parser-js";
 
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
@@ -109,6 +111,23 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
               ) satisfies NextResponse<TApiErrorResponse>;
             }
+
+            const parser = new UAParser(
+              request.headers.get("user-agent") || ""
+            );
+            await logAccountEvent({
+              user_id: user.id,
+              event_type: "BACKUP_CODE_USED",
+              device_session_id: deviceSessionId,
+              metadata: {
+                device: {
+                  device_name: parser.getDevice().model || "Unknown Device",
+                  browser: parser.getBrowser().name || null,
+                  os: parser.getOS().name || null,
+                  ip_address: getClientIp(request),
+                },
+              },
+            });
 
             matchFound = true;
             break;
@@ -207,6 +226,16 @@ export async function POST(request: NextRequest) {
 
         // Generate backup codes only during initial 2FA setup
         if (isInitialTwoFactorSetup) {
+          // Log the 2FA enable event
+          await logAccountEvent({
+            user_id: user.id,
+            event_type: "2FA_ENABLED",
+            device_session_id: deviceSessionId,
+            metadata: {
+              method: method as TTwoFactorMethod, // We know it's either "authenticator" or "sms" in this block
+            },
+          });
+
           // Send alert for 2FA enable if enabled
           if (
             AUTH_CONFIG.emailAlerts.twoFactor.enabled &&
@@ -248,6 +277,15 @@ export async function POST(request: NextRequest) {
               throw error;
             }
           }
+
+          await logAccountEvent({
+            user_id: user.id,
+            event_type: "BACKUP_CODES_GENERATED",
+            device_session_id: deviceSessionId,
+            metadata: {
+              count: codes.length,
+            },
+          });
 
           backupCodes = codes;
         }

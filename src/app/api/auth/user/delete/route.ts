@@ -14,6 +14,9 @@ import {
 } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
+import { logAccountEvent } from "@/utils/account-events/server";
+import { UAParser } from "ua-parser-js";
+import { TUserWithAuth } from "@/types/auth";
 
 /**
  * Deletes a user account. This is a sensitive operation that requires:
@@ -23,6 +26,8 @@ import { sendEmailAlert } from "@/utils/email-alerts";
  */
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
+  let user: TUserWithAuth | null = null;
+  let deviceSessionId: string | null = null;
 
   try {
     if (authRateLimit) {
@@ -38,16 +43,17 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
-    if (error || !user) {
+    const { user: fetchedUser, error } = await getUser(supabase);
+    if (error || !fetchedUser) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+    user = fetchedUser;
 
     // Get device session ID
-    const deviceSessionId = getDeviceSessionId(request);
+    deviceSessionId = getDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },
@@ -107,6 +113,38 @@ export async function POST(request: NextRequest) {
         }) satisfies NextResponse<TDeleteAccountResponse>;
       }
     }
+
+    // Log sensitive action verification
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "SENSITIVE_ACTION_VERIFIED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        device: {
+          device_name: parser.getDevice().model || "Unknown Device",
+          browser: parser.getBrowser().name || null,
+          os: parser.getOS().name || null,
+          ip_address: getClientIp(request),
+        },
+        action: "delete_account",
+      },
+    });
+
+    // Log account deletion event
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "ACCOUNT_DELETED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        device: {
+          device_name: parser.getDevice().model || "Unknown Device",
+          browser: parser.getBrowser().name || null,
+          os: parser.getOS().name || null,
+          ip_address: getClientIp(request),
+        },
+      },
+    });
 
     // User is verified within grace period, proceed with deletion
     const adminClient = await createClient({ useServiceRole: true });
@@ -215,6 +253,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {
     console.error("Error deleting user account:", error);
+
+    if (user) {
+      // Log the failed deletion with error info
+      const parser = new UAParser(request.headers.get("user-agent") || "");
+      await logAccountEvent({
+        user_id: user.id,
+        event_type: "ACCOUNT_DELETED",
+        device_session_id: deviceSessionId || undefined,
+        metadata: {
+          device: {
+            device_name: parser.getDevice().model || "Unknown Device",
+            browser: parser.getBrowser().name || null,
+            os: parser.getOS().name || null,
+            ip_address: getClientIp(request),
+          },
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      });
+    }
+
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

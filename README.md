@@ -476,7 +476,7 @@ What you need to know:
 - That means, when you try out the auth with SMS, use the phone number you verified with Twilio in the app
 - When going in production, there's a production checklist that got you covered.
 
-#### Requiring re-login after password reset
+### Requiring re-login after password reset
 
 This is **disabled by default** in the auth config. If you want to enable it, here's what you should do:
 

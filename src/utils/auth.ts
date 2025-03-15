@@ -111,16 +111,16 @@ export async function getUserVerificationMethods(
 }> {
   try {
     // Get current user
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
-      throw error || new Error("No user found");
+    const { user, error: userError } = await getUser(supabase);
+    if (userError || !user) {
+      throw userError || new Error("No user found");
     }
 
     // Get user profile from database to check if they have a password
     const { data: profileData } = await supabase
       .from("users")
       .select("*")
-      .eq("id", data.user.id)
+      .eq("id", user.id)
       .single();
 
     const userData = profileData as TUser;
@@ -180,7 +180,7 @@ export async function getUserVerificationMethods(
 
       // Add email verification if enabled in config and user has verified email
       if (userData.email && AUTH_CONFIG.verificationMethods.email.enabled) {
-        if (data.user.email_confirmed_at) {
+        if (user.auth.emailVerified) {
           methods.push("email");
         }
       }

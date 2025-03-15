@@ -30,6 +30,11 @@ The open-source auth foundation that lives in your project, not a node_modules f
     - View active sessions
     - Revoke device access
     - Email alerts for new logins
+  - Data export
+    - Request account data export
+    - Secure download with one-time tokens
+    - Rate-limited requests
+    - Automatic file cleanup
 - Verification:
   - 2FA methods (Authenticator, SMS)
   - Backup codes (for 2FA-accounts)
@@ -119,6 +124,18 @@ The open-source auth foundation that lives in your project, not a node_modules f
 - `createRecoveryToken(userId)`: Create recovery token
 - `verifyRecoveryToken(token)`: Verify and extract userId
 
+### Data Export
+- Shared utilities (`src/utils/data-export/index.ts`):
+  - `getDataExportStoragePath(...)`: Get storage path for export files
+- Server-side utilities (`src/utils/data-export/server.ts`):
+  - Protected with `assertServer()` checks
+  - Functions:
+    - `createDataExportRequest(...)`: Create new export request
+    - `getDataExportStatus(...)`: Check export status
+    - `verifyDataExportToken(...)`: Verify download token
+    - `updateDataExportStatus(...)`: Update export status
+    - `cleanupDataExportFile(...)`: Clean up export file
+
 ## Project structure
 - `app/`: Next.js app router structure
   - `account/`: User settings & security
@@ -135,6 +152,11 @@ The open-source auth foundation that lives in your project, not a node_modules f
   - `supabase/`: Database clients
   - `validation/`: Zod schemas & validators
 
+## Path Aliases
+The project uses the following path aliases:
+- `@/` - Root directory (e.g. `@/utils/auth`)
+- `@emails` - Email templates directory (e.g. `@emails/templates/email-alert`)
+
 ## Configuration
 
 Auth config lives in `src/config/auth.ts` - controls:
@@ -143,6 +165,11 @@ Auth config lives in `src/config/auth.ts` - controls:
 - Backup codes settings
 - Device session settings
 - Security settings
+- Rate limiting
+- Password requirements
+
+## Database Schema
+See `docs/supabase-snippets.md` for database schema details
 - Rate limiting
 - Password requirements
 

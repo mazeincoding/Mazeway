@@ -54,7 +54,7 @@ export const api = {
       const result = await handleResponse<TVerifyResponse>(response);
 
       if (result.success) {
-        await mutate("/api/user");
+        await mutate("/api/auth/user");
       }
 
       return result;
@@ -291,7 +291,7 @@ export const api = {
 
   user: {
     get: async () => {
-      const response = await fetch("/api/user");
+      const response = await fetch("/api/auth/user");
       return handleResponse<TGetUserResponse>(response);
     },
 
@@ -307,14 +307,14 @@ export const api = {
       const result = await handleResponse<TEmptySuccessResponse>(response);
 
       // Refresh user data after successful update
-      await mutate("/api/user");
+      await mutate("/api/auth/user");
 
       return result;
     },
 
     getEvents: async (params?: URLSearchParams) => {
       const response = await fetch(
-        `/api/user/events${params ? `?${params}` : ""}`
+        `/api/auth/user/events${params ? `?${params}` : ""}`
       );
       return handleResponse<TGetEventsResponse>(response);
     },

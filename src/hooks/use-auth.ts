@@ -3,7 +3,7 @@ import useSWR from "swr";
 import type { TUserWithAuth } from "@/types/auth";
 
 export function useUser() {
-  const { data, error, mutate } = useSWR<{ user: TUserWithAuth }>("/api/user");
+  const { data, error, mutate } = useSWR<{ user: TUserWithAuth }>("/api/auth/user");
 
   return {
     user: data?.user,

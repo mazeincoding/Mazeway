@@ -194,7 +194,7 @@ export interface TRevokeDeviceSessionResponse extends TVerificationRequirement {
   sessionId: string;
 }
 
-// /api/user
+// /api/auth/user
 export interface TGetUserResponse {
   user: TUserWithAuth;
 }
@@ -228,15 +228,17 @@ export interface TGithubSignInResponse {
   url: string;
 }
 
-export type TGetDeviceSessionResponse = {
+// /api/auth/device-sessions/[id]
+export interface TGetDeviceSessionResponse {
   data: TDeviceSession;
-};
+}
 
-export type TGetEventsResponse = {
+// /api/auth/events
+export interface TGetEventsResponse {
   events: TAccountEvent[];
   hasMore: boolean;
   total: number;
-};
+}
 
 // Generic success response
 export interface TEmptySuccessResponse {}

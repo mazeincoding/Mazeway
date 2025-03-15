@@ -104,7 +104,8 @@ export type TEventType =
   // Account events
   | "ACCOUNT_CREATED"
   | "ACCOUNT_DELETED"
-  | "PROFILE_UPDATED";
+  | "PROFILE_UPDATED"
+  | "DATA_EXPORT_REQUESTED";
 
 // Device info in event context (without user_id since that's in the event record)
 export type TEventDeviceInfo = Omit<TDeviceInfo, "user_id">;
@@ -167,6 +168,9 @@ export type TEventMetadata = {
   };
   PROFILE_UPDATED: TBaseEventMetadata & {
     fields: string[];
+  };
+  DATA_EXPORT_REQUESTED: TBaseEventMetadata & {
+    device: TEventDeviceInfo;
   };
 };
 

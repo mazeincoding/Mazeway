@@ -11,6 +11,7 @@ async function confirmReset(): Promise<boolean> {
   console.log("\n🔒 This script will reset the following auth configuration:");
   console.log("- Google authentication provider (if enabled)");
   console.log("- SMS two-factor authentication (if enabled)");
+  console.log("- Data export functionality (if enabled)");
   console.log(
     "\nOther settings like email/password auth, authenticator app 2FA,"
   );
@@ -65,6 +66,11 @@ async function resetAuthConfig() {
       configContent,
       /(sms:\s*{[^}]+enabled:\s*)true/,
       "SMS two-factor authentication"
+    );
+    configContent = disableProvider(
+      configContent,
+      /(dataExport:\s*{\s*enabled:\s*)true/,
+      "Data export functionality"
     );
 
     // Write the modified config back

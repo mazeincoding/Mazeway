@@ -102,6 +102,7 @@ That's what this project gives you: a foundation that you can build on.
   - Password verification (no-2FA accounts with password)
   - Email verification (no-2FA accounts)
 - API rate limiting with Upstash Redis
+- User data exports (GDPR Compliance)
 - Bonus: a nice auth config in the project for devs to easily customize things (opens up more things than on this list)
 
 This is only the beginning.
@@ -159,6 +160,8 @@ npm run reset-config
 4. Create Supabase tables
    - Head over to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
    - Run these [code snippets](docs/supabase-snippets.md)
+   - It'll set up necessary functions, tables and storage buckets
+   - Pro tip: look at what you're actually copying/pasting so you know what you're working with
 
 5. Change email templates
    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
@@ -496,6 +499,119 @@ This is **disabled by default** in the auth config. If you want to enable it, he
    + RECOVERY_TOKEN_SECRET=your-recovery-token-secret
    ```
 
+### Setting up user data exports
+
+Quick thing:
+- If you're gonna have EU users, you'll need to do this (according to GDPR Compliance)
+- Only when you actually go in production though
+
+Super easy to do:
+
+1. Sign up for [Trigger.dev](https://trigger.dev)
+   - Free tier is generous af
+   - No credit card needed
+   - Takes like 2 minutes
+
+2. Get your API key
+   - After signing up, create a new project
+   - Name it whatever you want (your app name)
+   - Go to "API Keys" in the sidebar
+   - They already created keys for you! Just grab the `Dev` one (told you to not worry about production yet)
+
+3. Add the API key to your `.env.local`:
+   ```diff
+   - # TRIGGER_API_KEY=your-trigger-api-key
+   + TRIGGER_API_KEY=your-trigger-api-key
+   ```
+
+4. Enable data exports in the auth config (`src/config/auth.ts`):
+   ```diff
+   dataExport: {
+   - enabled: false, // it's false by default
+   + enabled: true, // it's false by default
+   }
+   ```
+
+5. That's it! The code will detect the environment variable and allow users to save their data.
+
+**What users will see:**
+- "Download data" button in Account Settings
+- Progress updates while their export is processing
+- Auto-download when ready
+- Files expire after 24 hours (for security)
+
+**Why we use Trigger.dev:**
+- Could we do this without it? Yes
+- Should we? Probably not because:
+  - Background jobs need proper infrastructure
+  - AWS is overkill for this
+  - Trigger.dev is:
+    - Made for Next.js
+    - Has retry logic built-in
+    - Handles failures gracefully
+    - Shows you what's happening
+    - Free tier is actually usable
+
+**"But I don't want another service!"**
+- I get it, but consider:
+  - It's optional (only if you allow EU users)
+  - Takes 2 minutes to set up
+  - Free tier is generous
+  - Better than:
+    - Writing your own job system
+    - Setting up AWS/GCP
+    - Dealing with Kubernetes
+    - Getting paged at 3 AM
+
+**Testing it out:**
+1. Make sure you've:
+   - Added the Trigger.dev API key to your environment variables
+   - Enabled data exports in the config
+2. Go to your account settings
+3. Click "Download My Data"
+4. Watch the magic happen in the [Trigger.dev dashboard](https://cloud.trigger.dev)
+
+**Adding your app's data:**
+This starter includes GDPR-compliant data exports for auth data, but you'll need to extend it with your app's data:
+
+- show how to do it with a real-world example of some user data an app might have. keep it simple and easy to understand
+- and make it clear that it's specifically user data
+- like if the app stores a user's "posts", the user should obv get that data
+- but anything the app stores that the user didn't enter, upload, or tell to add...
+- probably shouldn't be included
+- like the 2FA status of the account - it's not the user's data, it's the app's data
+
+This isn't a black box - it's YOUR auth code that you can (and should) extend!
+
+**"But what about scale?"**
+Let's do some math:
+- Average user exports once a year (being generous)
+- Maybe 5% of users ever click that button
+- Free tier: 10 concurrent jobs
+
+For this to be a "problem":
+```typescript
+dailyRequests = 2,880 // 120 per hour × 24 hours
+usersWhoExport = dailyRequests × (365 / 5%) // yearly users needed
+// = 21,024,000 users 
+```
+
+You would need 21 MILLION users to max out the free tier! And even then:
+- Users expect to wait (Instagram takes 24-48h)
+- They get an email when it's ready
+- The queue can be infinite
+- Nobody's sitting refreshing "export my data"
+- Most users export once and never again
+- Each export takes seconds often (not the 5 mins we calculated with)
+
+Reality check:
+- You probably don't have 21M users
+- If you do, you can afford the paid tier
+- You're still faster than Meta
+- Nobody has ever complained about waiting for their GDPR export
+
+TL;DR: The free tier is fine until you're literally Instagram-scale. And by then you can probably afford the paid tier
+
 ### Password requirements
 
 - `minLength`: Minimum characters a password can be
@@ -745,6 +861,12 @@ Here's how to do it:
 
 > In the auth config of this project (`src/config/auth.ts`) API rate limiting is already enabled by default. If you ever need (to test something for example), you can disable it in the config.
 
+### User data exports
+
+If you're gonna have EU users and you don't wanna get yourself in trouble, please set this up.
+
+The section "Auth configuration" will guide you
+
 ## Go in production
 
 This is gonna be an actionable, step-by-step guide to get your app in production.
@@ -979,6 +1101,9 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
       ],
     },
     ```
+11. Set up user data exports
+    - You only need this if you're gonna have EU users
+    - Guide is in the "Auth configuration" section
 
 ## Pro tips + note for Supabase
 

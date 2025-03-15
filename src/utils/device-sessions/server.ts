@@ -3,6 +3,7 @@ import { TDeviceInfo, TDeviceSessionOptions } from "@/types/auth";
 import { UAParser } from "ua-parser-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import { logAccountEvent } from "@/utils/account-events/server";
+import { getUser } from "@/utils/auth";
 
 async function createDevice(device: TDeviceInfo) {
   if (typeof window !== "undefined") {
@@ -12,7 +13,7 @@ async function createDevice(device: TDeviceInfo) {
   const supabase = await createClient();
 
   // Get user to check if they exist
-  const { data: user, error: userError } = await supabase.auth.getUser();
+  const { user, error: userError } = await getUser(supabase);
   if (userError || !user) {
     throw new Error("No user found");
   }

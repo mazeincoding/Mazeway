@@ -31,10 +31,11 @@ Me: "Just realized sessions should work differently..."
 
 Don't worry! Once the core auth is solid and decisions are final, there will be plenty of ways to contribute. For now, this helps avoid you working on code that might be completely different tomorrow.
 
-### What you can work on
-Anything that's not touching the core auth. You can always check the Issues tab too.
+✅ UPDATE
 
-This isn't just another auth project. We're building the Shadcn UI of authentication - fully customizable code that developers actually own and can build on. No more being locked into specific ways of doing things.
+The core auth is finally ready! You can ignore the above warning. It will go away March 20th.
+
+Contribute away!
 
 ### 3. Found a bug?
 Here's how to report it:
@@ -68,10 +69,10 @@ Keep these in mind:
 
 ## Need help?
 
-I'm Maze, and I love helping devs:
-- DM me on [X/Twitter](https://x.com/mazewinther1)
+You can either:
+- DM me directly on [X/Twitter](https://x.com/mazewinther1)
 - Open a GitHub issue
-- Email me at support@mazewinther.com
+- Email me at hi@mazewinther.com
 
 ## What this project is about
 

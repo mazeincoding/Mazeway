@@ -27,6 +27,7 @@ export async function GET(request: Request) {
   });
 
   const supabase = await createClient();
+  const supabaseAdmin = await createClient({ useServiceRole: true });
 
   if (code) {
     console.log("[AUTH] /api/auth/callback - Processing OAuth code exchange");
@@ -147,7 +148,7 @@ export async function GET(request: Request) {
     console.log("[AUTH] /api/auth/callback - OTP verification successful");
 
     // Get user data after successful verification
-    const { user, error: userError } = await getUser(supabase);
+    const { user, error: userError } = await getUser({ supabase });
     if (userError || !user) {
       const errorMessage = userError || "Invalid user session";
       console.error("[AUTH] /api/auth/callback - Failed to get user data", {
@@ -176,7 +177,10 @@ export async function GET(request: Request) {
     });
 
     // Check if user has 2FA enabled
-    const { has2FA, factors } = await getUserVerificationMethods(supabase);
+    const { has2FA, factors } = await getUserVerificationMethods({
+      supabase,
+      supabaseAdmin,
+    });
     console.log("[AUTH] /api/auth/callback - User verification methods", {
       has2FA,
       factorCount: factors.length,

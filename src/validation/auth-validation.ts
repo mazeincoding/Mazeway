@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AUTH_CONFIG } from "@/config/auth";
-import { isValidVerificationCodeFormat } from "@/utils/verification-codes";
+import { isValidVerificationCodeFormat } from "@/utils/auth/verification-codes";
 import { TSendEmailAlertRequest } from "@/types/api";
 
 export const authSchema = z.object({

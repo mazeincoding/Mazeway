@@ -61,6 +61,7 @@ export interface TUser {
   name: string;
   avatar_url: string;
   has_password: boolean;
+  has_backup_codes: boolean;
   created_at: string;
   updated_at: string;
 }

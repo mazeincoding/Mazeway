@@ -4,15 +4,16 @@ import { UAParser } from "ua-parser-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { getUser } from "@/utils/auth";
-import { assertServer } from "@/lib/utils";
 
-async function createDevice(device: TDeviceInfo) {
-  assertServer();
+async function createDevice({ device }: { device: TDeviceInfo }) {
+  if (typeof window !== "undefined") {
+    throw new Error("Creating a device can only be done on the server");
+  }
 
   const supabase = await createClient();
 
   // Get user to check if they exist
-  const { user, error: userError } = await getUser(supabase);
+  const { user, error: userError } = await getUser({ supabase });
   if (userError || !user) {
     throw new Error("No user found");
   }
@@ -46,11 +47,15 @@ export type TCreateDeviceSessionParams = {
  * @param options Configuration options for the session
  * @returns The created session ID
  */
-export async function setupDeviceSession(
-  request: Request,
-  user_id: string,
-  options: TDeviceSessionOptions
-): Promise<string> {
+export async function setupDeviceSession({
+  request,
+  user_id,
+  options,
+}: {
+  request: Request;
+  user_id: string;
+  options: TDeviceSessionOptions;
+}): Promise<string> {
   // Parse user agent for device info
   const parser = new UAParser(request.headers.get("user-agent") || "");
   const currentDevice: TDeviceInfo = {
@@ -110,10 +115,12 @@ export async function setupDeviceSession(
 
 // Only use this function on the server
 export async function createDeviceSession(params: TCreateDeviceSessionParams) {
-  assertServer();
+  if (typeof window !== "undefined") {
+    throw new Error("Creating a device session can only be done on the server");
+  }
 
   const adminClient = await createClient({ useServiceRole: true });
-  const device_id = await createDevice(params.device);
+  const device_id = await createDevice({ device: params.device });
 
   // Log new device login event
   await logAccountEvent({

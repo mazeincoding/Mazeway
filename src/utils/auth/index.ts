@@ -1,3 +1,5 @@
+// This is a utility for generic auth related functions
+
 import { SupabaseClient } from "@supabase/supabase-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import {
@@ -102,97 +104,208 @@ export function getConfigured2FAMethods() {
  *   - factors: Array of verification factors with their IDs (for 2FA methods)
  *   - has2FA: Whether the user has any 2FA methods enabled
  */
-export async function getUserVerificationMethods(
-  supabase: SupabaseClient
-): Promise<{
+export async function getUserVerificationMethods({
+  supabase,
+  supabaseAdmin,
+}: {
+  supabase: SupabaseClient;
+  supabaseAdmin?: SupabaseClient;
+}): Promise<{
   methods: TVerificationMethod[];
   factors: TVerificationFactor[];
   has2FA: boolean;
 }> {
-  try {
-    // Get current user
-    const { user, error: userError } = await getUser(supabase);
-    if (userError || !user) {
-      throw userError || new Error("No user found");
-    }
-
-    // Get user profile from database to check if they have a password
-    const { data: profileData } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    const userData = profileData as TUser;
-
-    // Get all MFA factors from Supabase
-    const { data: factorsData, error: factorsError } =
-      await supabase.auth.mfa.listFactors();
-    if (factorsError) {
-      throw factorsError;
-    }
-
-    const methods: TVerificationMethod[] = [];
-    const factors: TVerificationFactor[] = [];
-
-    // Check for verified TOTP (authenticator) factors
-    const verifiedTOTP =
-      factorsData?.totp?.filter((factor) => factor.status === "verified") || [];
-    if (verifiedTOTP.length > 0) {
-      methods.push("authenticator");
-      factors.push({
-        type: "authenticator",
-        factorId: verifiedTOTP[0].id,
-      });
-    }
-
-    // Check for verified SMS factors
-    const verifiedSMS =
-      factorsData?.phone?.filter((factor) => factor.status === "verified") ||
-      [];
-    if (verifiedSMS.length > 0) {
-      methods.push("sms");
-      factors.push({
-        type: "sms",
-        factorId: verifiedSMS[0].id,
-      });
-    }
-
-    // Check if user has backup codes
-    const hasBackupCodes = await checkUserHasBackupCodes(supabase, userData.id);
-    if (hasBackupCodes) {
-      methods.push("backup_codes");
-      factors.push({
-        type: "backup_codes",
-        factorId: "backup", // Special identifier for backup codes
-      });
-    }
-
-    // Determine if user has any 2FA methods enabled
-    const has2FA = verifiedTOTP.length > 0 || verifiedSMS.length > 0;
-
-    // If no 2FA, add basic verification methods
-    if (!has2FA) {
-      // Add password verification if user has a password
-      if (userData.has_password) {
-        methods.push("password");
+  if (typeof window !== "undefined") {
+    // Code is running on the client
+    try {
+      // Get current user
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        throw authError || new Error("No user found");
       }
 
-      // Add email verification if enabled in config and user has verified email
-      if (userData.email && AUTH_CONFIG.verificationMethods.email.enabled) {
-        if (user.auth.emailVerified) {
-          methods.push("email");
+      // Get user profile from database to check if they have a password and backup codes
+      const { data: profileData } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", authUser.id)
+        .single();
+
+      const userData = profileData as TUser;
+
+      // Get all MFA factors from Supabase
+      const { data: factorsData, error: factorsError } =
+        await supabase.auth.mfa.listFactors();
+      if (factorsError) {
+        throw factorsError;
+      }
+
+      const methods: TVerificationMethod[] = [];
+      const factors: TVerificationFactor[] = [];
+
+      // Check for verified TOTP (authenticator) factors
+      const verifiedTOTP =
+        factorsData?.totp?.filter((factor) => factor.status === "verified") ||
+        [];
+      if (verifiedTOTP.length > 0) {
+        methods.push("authenticator");
+        factors.push({
+          type: "authenticator",
+          factorId: verifiedTOTP[0].id,
+        });
+      }
+
+      // Check for verified SMS factors
+      const verifiedSMS =
+        factorsData?.phone?.filter((factor) => factor.status === "verified") ||
+        [];
+      if (verifiedSMS.length > 0) {
+        methods.push("sms");
+        factors.push({
+          type: "sms",
+          factorId: verifiedSMS[0].id,
+        });
+      }
+
+      // On client, we rely on the has_backup_codes column in users table
+      // Note: This is only for UI purposes as mentioned in the README
+      if (userData.has_backup_codes) {
+        methods.push("backup_codes");
+        factors.push({
+          type: "backup_codes",
+          factorId: "backup", // Special identifier for backup codes
+        });
+      }
+
+      // Determine if user has any 2FA methods enabled
+      const has2FA = verifiedTOTP.length > 0 || verifiedSMS.length > 0;
+
+      // If no 2FA, add basic verification methods
+      if (!has2FA) {
+        // Add password verification if user has a password
+        if (userData.has_password) {
+          methods.push("password");
+        }
+
+        // Add email verification if enabled in config and user has verified email
+        if (userData.email && AUTH_CONFIG.verificationMethods.email.enabled) {
+          if (authUser.email_confirmed_at) {
+            methods.push("email");
+          }
         }
       }
-    }
 
-    return {
-      methods,
-      factors,
-      has2FA,
-    };
-  } catch (error) {
-    throw error;
+      return {
+        methods,
+        factors,
+        has2FA,
+      };
+    } catch (error) {
+      console.error("Error getting user verification methods:", error);
+      return {
+        methods: [],
+        factors: [],
+        has2FA: false,
+      };
+    }
+  } else {
+    // Code is running on the server
+    try {
+      // Get current user
+      const { user, error: userError } = await getUser({ supabase });
+      if (userError || !user) {
+        throw userError || new Error("No user found");
+      }
+
+      // Get user profile from database to check if they have a password
+      const { data: profileData } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      const userData = profileData as TUser;
+
+      // Get all MFA factors from Supabase
+      const { data: factorsData, error: factorsError } =
+        await supabase.auth.mfa.listFactors();
+      if (factorsError) {
+        throw factorsError;
+      }
+
+      const methods: TVerificationMethod[] = [];
+      const factors: TVerificationFactor[] = [];
+
+      // Check for verified TOTP (authenticator) factors
+      const verifiedTOTP =
+        factorsData?.totp?.filter((factor) => factor.status === "verified") ||
+        [];
+      if (verifiedTOTP.length > 0) {
+        methods.push("authenticator");
+        factors.push({
+          type: "authenticator",
+          factorId: verifiedTOTP[0].id,
+        });
+      }
+
+      // Check for verified SMS factors
+      const verifiedSMS =
+        factorsData?.phone?.filter((factor) => factor.status === "verified") ||
+        [];
+      if (verifiedSMS.length > 0) {
+        methods.push("sms");
+        factors.push({
+          type: "sms",
+          factorId: verifiedSMS[0].id,
+        });
+      }
+
+      if (!supabaseAdmin) {
+        throw new Error("Supabase admin client is required on the server");
+      }
+
+      // Check if user has backup codes
+      const hasBackupCodes = await checkUserHasBackupCodes({
+        supabaseAdmin,
+        userId: userData.id,
+      });
+      if (hasBackupCodes) {
+        methods.push("backup_codes");
+        factors.push({
+          type: "backup_codes",
+          factorId: "backup", // Special identifier for backup codes
+        });
+      }
+
+      // Determine if user has any 2FA methods enabled
+      const has2FA = verifiedTOTP.length > 0 || verifiedSMS.length > 0;
+
+      // If no 2FA, add basic verification methods
+      if (!has2FA) {
+        // Add password verification if user has a password
+        if (userData.has_password) {
+          methods.push("password");
+        }
+
+        // Add email verification if enabled in config and user has verified email
+        if (userData.email && AUTH_CONFIG.verificationMethods.email.enabled) {
+          if (user.auth.emailVerified) {
+            methods.push("email");
+          }
+        }
+      }
+
+      return {
+        methods,
+        factors,
+        has2FA,
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 }
 
@@ -202,15 +315,18 @@ export async function getUserVerificationMethods(
  * @param userId The ID of the user to check backup codes for
  * @returns boolean indicating if the user has unused backup codes
  */
-async function checkUserHasBackupCodes(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<boolean> {
+async function checkUserHasBackupCodes({
+  supabaseAdmin,
+  userId,
+}: {
+  supabaseAdmin: SupabaseClient;
+  userId: string;
+}): Promise<boolean> {
   if (!userId) {
     return false;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("backup_codes")
     .select("id")
     .eq("user_id", userId)
@@ -230,10 +346,13 @@ async function checkUserHasBackupCodes(
  * 1. They've never verified (no timestamp)
  * 2. Their last verification is older than the grace period
  */
-export async function hasGracePeriodExpired(
-  supabase: SupabaseClient,
-  deviceSessionId: string
-): Promise<boolean> {
+export async function hasGracePeriodExpired({
+  supabase,
+  deviceSessionId,
+}: {
+  supabase: SupabaseClient;
+  deviceSessionId: string;
+}): Promise<boolean> {
   const { data: session } = await supabase
     .from("device_sessions")
     .select("last_sensitive_verification_at")
@@ -258,11 +377,15 @@ export async function hasGracePeriodExpired(
  * @param factorId The ID of the factor to verify
  * @param code The verification code
  */
-export async function verifyTwoFactorCode(
-  supabase: SupabaseClient,
-  factorId: string,
-  code: string
-): Promise<void> {
+export async function verifyTwoFactorCode({
+  supabase,
+  factorId,
+  code,
+}: {
+  supabase: SupabaseClient;
+  factorId: string;
+  code: string;
+}): Promise<void> {
   // Create challenge
   const { data: challengeData, error: challengeError } =
     await supabase.auth.mfa.challenge({ factorId });
@@ -287,10 +410,13 @@ export async function verifyTwoFactorCode(
  * @param method The 2FA method to get the factor ID for
  * @returns Object containing success status and factor ID or error message
  */
-export async function getFactorForMethod(
-  supabase: SupabaseClient,
-  method: TTwoFactorMethod
-): Promise<{ success: boolean; factorId?: string; error?: string }> {
+export async function getFactorForMethod({
+  supabase,
+  method,
+}: {
+  supabase: SupabaseClient;
+  method: TTwoFactorMethod;
+}): Promise<{ success: boolean; factorId?: string; error?: string }> {
   try {
     const { data: factors } = await supabase.auth.mfa.listFactors();
     const factor = factors?.all?.find(
@@ -315,16 +441,6 @@ export async function getFactorForMethod(
 }
 
 /**
- * Checks if an IP address is a local/development IP
- * @param ip IP address to check
- * @returns boolean indicating if the IP is local
- */
-export function isLocalIP(ip: string): boolean {
-  const LOCAL_IPS = new Set(["127.0.0.1", "::1", "localhost"]);
-  return LOCAL_IPS.has(ip);
-}
-
-/**
  * Gets the most secure enabled verification method for the user
  * Security precedence:
  * 1. 2FA Methods (if enabled)
@@ -346,7 +462,7 @@ export function getDefaultVerificationMethod(
   const securityPreference: TVerificationMethod[] = [
     "authenticator", // Most secure 2FA
     "sms", // Less secure 2FA
-    // "backup_codes", // TODO: Will be implemented later
+    "backup_codes", // Backup codes
     "password", // Most secure basic
     "email", // Least secure basic
   ];
@@ -373,7 +489,7 @@ export function getDefault2FAMethod(
   const securityPreference: TTwoFactorMethod[] = [
     "authenticator", // Most secure
     "sms", // Less secure
-    // "backup_codes", // TODO: Will be implemented later
+    "backup_codes", // Backup codes
   ];
 
   // Find the most secure method that is enabled
@@ -424,7 +540,11 @@ export async function getAuthenticatorAssuranceLevel(
  * @param supabase Supabase client instance
  * @returns Object containing user data or error
  */
-export async function getUser(supabase: SupabaseClient) {
+export async function getUser({
+  supabase,
+}: {
+  supabase: SupabaseClient;
+}): Promise<{ user: TUserWithAuth | null; error: string | null }> {
   try {
     // Get auth user first since we need the ID
     const {
@@ -476,7 +596,7 @@ export async function getUser(supabase: SupabaseClient) {
       },
     };
 
-    return { user: userWithAuth };
+    return { user: userWithAuth, error: null };
   } catch (error) {
     return { user: null, error: "Failed to get user data" };
   }

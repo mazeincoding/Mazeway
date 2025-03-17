@@ -6,7 +6,7 @@ import {
   markTokenAsUsed,
 } from "@/utils/data-export/server";
 import { getDataExportStoragePath } from "@/utils/data-export/index";
-import { validateDataExportToken } from "@/utils/validation/auth-validation";
+import { validateDataExportToken } from "@/validation/auth-validation";
 import { TApiErrorResponse } from "@/types/api";
 import { AUTH_CONFIG } from "@/config/auth";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";

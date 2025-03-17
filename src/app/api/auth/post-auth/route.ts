@@ -13,7 +13,7 @@ import {
   getUser,
 } from "@/utils/auth";
 import { TDeviceInfo, TDeviceSessionProvider } from "@/types/auth";
-import { setupDeviceSession } from "@/utils/device-sessions/server";
+import { setupDeviceSession } from "@/utils/auth/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
 import { AuthApiError } from "@supabase/supabase-js";
 import { TSendEmailAlertRequest } from "@/types/api";
@@ -70,7 +70,9 @@ export async function GET(request: Request) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const supabaseAdmin = await createClient({ useServiceRole: true });
+
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       console.error("Failed to get user", {
         error,
@@ -231,7 +233,10 @@ export async function GET(request: Request) {
       confidenceLevel,
     });
 
-    const { has2FA, factors } = await getUserVerificationMethods(supabase);
+    const { has2FA, factors } = await getUserVerificationMethods({
+      supabase,
+      supabaseAdmin,
+    });
     console.log("User verification methods", {
       has2FA,
       factorCount: factors.length,
@@ -245,11 +250,15 @@ export async function GET(request: Request) {
       isNewUser,
     });
 
-    const session_id = await setupDeviceSession(request, user.id, {
-      trustLevel: isOAuthProvider ? "oauth" : "normal",
-      skipVerification: has2FA, // Skip device verification if 2FA is required
-      provider,
-      isNewUser,
+    const session_id = await setupDeviceSession({
+      request,
+      user_id: user.id,
+      options: {
+        trustLevel: isOAuthProvider ? "oauth" : "normal",
+        skipVerification: has2FA, // Skip device verification if 2FA is required
+        provider,
+        isNewUser,
+      },
     });
 
     console.log("Device session created", {

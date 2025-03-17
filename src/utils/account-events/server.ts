@@ -1,6 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
 import { TEventType, TEventMetadata } from "@/types/auth";
-import { assertServer } from "@/lib/utils";
 
 type TLogEventOptions<T extends TEventType> = {
   user_id: string;
@@ -16,7 +15,9 @@ type TLogEventOptions<T extends TEventType> = {
 export async function logAccountEvent<T extends TEventType>(
   options: TLogEventOptions<T>
 ) {
-  assertServer();
+  if (typeof window !== "undefined") {
+    throw new Error("Logging account events can only be done on the server");
+  }
 
   const adminClient = await createClient({ useServiceRole: true });
 

@@ -31,7 +31,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { authSchema } from "@/utils/validation/auth-validation";
+import { authSchema } from "@/validation/auth-validation";
 import { toast } from "sonner";
 
 // Schema for reset password form

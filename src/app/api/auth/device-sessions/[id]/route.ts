@@ -13,7 +13,7 @@ import {
   getUser,
   getDeviceSessionId,
 } from "@/utils/auth";
-import { revokeDeviceSessionSchema } from "@/utils/validation/auth-validation";
+import { revokeDeviceSessionSchema } from "@/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { logAccountEvent } from "@/utils/account-events/server";
@@ -48,10 +48,10 @@ export async function DELETE(
   }
 
   const supabase = await createClient();
-
+  const supabaseAdmin = await createClient({ useServiceRole: true });
   try {
     // First security layer: Validate auth token
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -133,12 +133,17 @@ export async function DELETE(
     // Check if verification is needed based on config and grace period
     const needsVerification =
       AUTH_CONFIG.requireFreshVerification.revokeDevices &&
-      (await hasGracePeriodExpired(supabase, currentSessionId));
+      (await hasGracePeriodExpired({
+        deviceSessionId: currentSessionId,
+        supabase,
+      }));
 
     if (needsVerification) {
       // Get available verification methods
-      const { has2FA, factors, methods } =
-        await getUserVerificationMethods(supabase);
+      const { has2FA, factors, methods } = await getUserVerificationMethods({
+        supabase,
+        supabaseAdmin,
+      });
 
       // Return available methods for verification
       if (has2FA) {

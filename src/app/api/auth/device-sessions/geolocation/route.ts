@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TGeolocationResponse } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
-import { isLocalIP } from "@/utils/auth";
+import { isLocalIP } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   // Get request IP for rate limiting

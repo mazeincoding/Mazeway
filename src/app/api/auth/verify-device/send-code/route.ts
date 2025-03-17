@@ -6,7 +6,7 @@ import DeviceVerificationEmail from "@emails/templates/device-verification";
 import type { TDeviceSession, TUser } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-import { generateVerificationCode } from "@/utils/verification-codes";
+import { generateVerificationCode } from "@/utils/auth/verification-codes";
 
 export async function POST(request: NextRequest) {
   if (authRateLimit) {

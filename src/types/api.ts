@@ -9,7 +9,7 @@ import {
   TDataExportStatus,
   TDataExportRequest,
 } from "./auth";
-import type { ProfileSchema } from "@/utils/validation/auth-validation";
+import type { ProfileSchema } from "@/validation/auth-validation";
 
 // Shared interface for responses that might require verification
 export interface TVerificationRequirement {

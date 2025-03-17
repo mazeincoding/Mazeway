@@ -27,7 +27,7 @@ import {
   getUser,
   getDeviceSessionId,
 } from "@/utils/auth";
-import { passwordChangeSchema } from "@/utils/validation/auth-validation";
+import { passwordChangeSchema } from "@/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { logAccountEvent } from "@/utils/account-events/server";
@@ -53,8 +53,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const supabaseAdmin = await createClient({ useServiceRole: true });
 
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -115,13 +116,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if verification is needed
-    const gracePeriodExpired = await hasGracePeriodExpired(
+    const gracePeriodExpired = await hasGracePeriodExpired({
       supabase,
-      deviceSessionId
-    );
+      deviceSessionId,
+    });
     if (gracePeriodExpired) {
       // Check if user has 2FA enabled
-      const { has2FA, factors } = await getUserVerificationMethods(supabase);
+      const { has2FA, factors } = await getUserVerificationMethods({
+        supabase,
+        supabaseAdmin,
+      });
       if (has2FA) {
         return NextResponse.json({
           requiresTwoFactor: true,

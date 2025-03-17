@@ -8,7 +8,7 @@ import {
   getUser,
   getDeviceSessionId,
 } from "@/utils/auth";
-import { emailChangeSchema } from "@/utils/validation/auth-validation";
+import { emailChangeSchema } from "@/validation/auth-validation";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
@@ -50,7 +50,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const supabaseAdmin = await createClient({ useServiceRole: true });
+
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -112,11 +114,14 @@ export async function POST(request: NextRequest) {
 
     // Check if verification is needed
     try {
-      const gracePeriodExpired = await hasGracePeriodExpired(
+      const gracePeriodExpired = await hasGracePeriodExpired({
+        deviceSessionId,
         supabase,
-        deviceSessionId
-      );
-      const { has2FA, factors } = await getUserVerificationMethods(supabase);
+      });
+      const { has2FA, factors } = await getUserVerificationMethods({
+        supabase,
+        supabaseAdmin,
+      });
 
       if (gracePeriodExpired && has2FA) {
         // Send alert for email change initiation if enabled

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse } from "@/types/api";
 import { TDeviceInfo } from "@/types/auth";
 import { createClient } from "@/utils/supabase/server";
-import { validateEmailAlert } from "@/utils/validation/auth-validation";
+import { validateEmailAlert } from "@/validation/auth-validation";
 import { getDeviceSessionId, getUser } from "@/utils/auth";
 
 // Initialize Resend with API key if available
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       console.log(`Auth failed: ${error || "No user"}`);
       return NextResponse.json(

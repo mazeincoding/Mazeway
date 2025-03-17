@@ -7,7 +7,7 @@ import {
   TEmailLoginResponse,
 } from "@/types/api";
 import { getUserVerificationMethods } from "@/utils/auth";
-import { authSchema } from "@/utils/validation/auth-validation";
+import { authSchema } from "@/validation/auth-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
     const body: TEmailLoginRequest = validation.data;
 
     const supabase = await createClient();
+    const supabaseAdmin = await createClient({ useServiceRole: true });
+
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: body.email,
       password: body.password,
@@ -55,8 +57,10 @@ export async function POST(request: NextRequest) {
 
     try {
       // Check if user has 2FA enabled
-      const { has2FA, methods, factors } =
-        await getUserVerificationMethods(supabase);
+      const { has2FA, methods, factors } = await getUserVerificationMethods({
+        supabase,
+        supabaseAdmin,
+      });
 
       if (has2FA) {
         // Get first available 2FA method and its factor

@@ -22,6 +22,7 @@ CREATE TABLE users (
   name text NOT NULL,
   avatar_url text,
   has_password boolean DEFAULT false,
+  has_backup_codes boolean DEFAULT,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now()
 );

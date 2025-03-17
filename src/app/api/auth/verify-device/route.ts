@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { TApiErrorResponse, TEmptySuccessResponse } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-import { verifyVerificationCode } from "@/utils/verification-codes";
+import { verifyVerificationCode } from "@/utils/auth/verification-codes";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { UAParser } from "ua-parser-js";
 

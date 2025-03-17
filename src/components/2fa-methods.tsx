@@ -90,7 +90,9 @@ export function TwoFactorMethods({
       } else {
         // Get all available verification methods
         const { factors: userEnabledMethods } =
-          await getUserVerificationMethods(supabase);
+          await getUserVerificationMethods({
+            supabase,
+          });
 
         if (userEnabledMethods.length === 0) {
           toast.error("Error", {

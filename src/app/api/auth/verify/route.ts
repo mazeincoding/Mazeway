@@ -7,12 +7,12 @@ import {
 } from "@/types/api";
 import { TTwoFactorMethod, TAAL } from "@/types/auth";
 import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
-import { verificationSchema } from "@/utils/validation/auth-validation";
+import { verificationSchema } from "@/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import {
   verifyVerificationCode,
   generateVerificationCodes,
-} from "@/utils/verification-codes";
+} from "@/utils/auth/verification-codes";
 import { getDeviceSessionId, getUser } from "@/utils/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { logAccountEvent } from "@/utils/account-events/server";
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const adminClient = await createClient({ useServiceRole: true });
 
     // 1. Verify user authentication first
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },

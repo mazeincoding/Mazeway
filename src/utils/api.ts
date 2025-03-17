@@ -37,7 +37,7 @@ import type {
   TGetDataExportStatusResponse,
   TGetDataExportsResponse,
 } from "@/types/api";
-import type { ProfileSchema } from "@/utils/validation/auth-validation";
+import type { ProfileSchema } from "@/validation/auth-validation";
 import { mutate } from "swr";
 
 async function handleResponse<T>(response: Response): Promise<T> {

@@ -854,6 +854,44 @@ Example:
 const result = await api.auth.logout();
 ```
 
+**Checking if the user has backup codes**
+
+> [!WARNING]
+> Never trust the column "has_backup_codes" on the server as it can be manipulated.
+>
+> It's safe to use on the client for UI purposes since it's non-critical
+
+Here's how to check if the user has backup codes:
+
+   - In client components: use the `useUser()` hook
+   - In server contexts (API routes, server components, middleware, etc): use `getUser()` from `@/utils/auth`
+
+   This ensures you always get the complete user data (both auth and profile) in a consistent format.
+
+- On the client
+   ```typescript
+   import { getUserVerificationMethods } from "@/utils/auth"
+   import { createClient } from "@/utils/supabase"
+
+   const supabase = createClient();
+   
+   // This checks if the "has_backup_codes" column on the users table
+   const { methods } = await getUserVerificationMethods({ supabase });
+   ```
+
+- On the server
+   ```typescript
+   import { getUserVerificationMethods } from "@/utils/auth"
+   
+   const supabase = createClient();
+   const supabaseAdmin = createClient({ useServiceRole: true });
+
+   // This uses the service role key to check the "backup_codes" table
+   // It's reliable because the backup_codes table doesn't allow reading data at all
+   // Only the service role key can read the data because it bypasses RLS entirely
+   const { methods } = await getUserVerificationMethods({ supabase, supabaseAdmin });
+   ```
+
 ### Types: where they are and why the naming convention
 
 We define types here `src/types`. We have:

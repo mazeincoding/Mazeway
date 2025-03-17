@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // First security layer: Validate auth token
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) throw new Error("Unauthorized");
 
     // Get the current session ID from cookie

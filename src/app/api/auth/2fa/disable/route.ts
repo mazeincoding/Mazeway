@@ -6,7 +6,7 @@ import {
   TEmptySuccessResponse,
 } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-import { disable2FASchema } from "@/utils/validation/auth-validation";
+import { disable2FASchema } from "@/validation/auth-validation";
 import { getFactorForMethod, getUser, getDeviceSessionId } from "@/utils/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const { method, code } = body;
 
     // 3. Get factor ID for the method
-    const factor = await getFactorForMethod(supabase, method);
+    const factor = await getFactorForMethod({ supabase, method });
     if (!factor.success || !factor.factorId) {
       return NextResponse.json(
         { error: factor.error || "2FA method not found" },

@@ -14,9 +14,8 @@ import { render } from "@react-email/render";
 import { Resend } from "resend";
 import DataExportRequestedTemplate from "@emails/templates/data-export-requested";
 import { TDeviceInfo, TDataExportRequest } from "@/types/auth";
-import { hashVerificationCode } from "@/utils/verification-codes";
+import { hashVerificationCode } from "@/utils/auth/verification-codes";
 import { randomBytes } from "crypto";
-import { assertServer } from "@/lib/utils";
 import { configure, tasks } from "@trigger.dev/sdk/v3";
 import type { exportUserDataTask } from "@/trigger/user-data-exports";
 
@@ -39,8 +38,6 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<TCreateDataExportResponse | TApiErrorResponse>> {
   try {
-    assertServer();
-
     // Check if data exports are enabled
     if (!AUTH_CONFIG.dataExport.enabled) {
       return NextResponse.json(
@@ -64,7 +61,7 @@ export async function POST(
 
     // Get the user and device session
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
 
     if (error || !user) {
       return NextResponse.json(
@@ -194,7 +191,7 @@ export async function GET(): Promise<
 
     // Get the user
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
 
     if (error || !user) {
       return NextResponse.json(

@@ -6,7 +6,7 @@ import { SettingCard } from "@/components/setting-card";
 import {
   passwordChangeSchema,
   type PasswordChangeSchema,
-} from "@/utils/validation/auth-validation";
+} from "@/validation/auth-validation";
 import { toast } from "sonner";
 import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
 import { TwoFactorMethods } from "@/components/2fa-methods";

@@ -8,7 +8,7 @@ import { SettingCard } from "@/components/setting-card";
 import {
   profileSchema,
   type ProfileSchema,
-} from "@/utils/validation/auth-validation";
+} from "@/validation/auth-validation";
 import { toast } from "sonner";
 import {
   Dialog,

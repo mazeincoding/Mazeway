@@ -6,8 +6,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { getDataExportStoragePath } from "./index";
 import { TDataExportRequest, TDataExportStatus } from "@/types/auth";
-import { verifyVerificationCode } from "@/utils/verification-codes";
-import { assertServer } from "@/lib/utils";
+import { verifyVerificationCode } from "@/utils/auth/verification-codes";
 import { AUTH_CONFIG } from "@/config/auth";
 
 /**
@@ -17,7 +16,11 @@ export async function getDataExportStatus(
   userId: string,
   exportId: string
 ): Promise<TDataExportRequest | null> {
-  assertServer();
+  if (typeof window !== "undefined") {
+    throw new Error(
+      "Getting data export status can only be done on the server"
+    );
+  }
 
   const adminClient = await createClient({ useServiceRole: true });
 
@@ -49,7 +52,11 @@ export async function verifyDataExportToken(
   exportId: string,
   token: string
 ): Promise<TDataExportRequest | null> {
-  assertServer();
+  if (typeof window !== "undefined") {
+    throw new Error(
+      "Verifying data export token can only be done on the server"
+    );
+  }
 
   const adminClient = await createClient({ useServiceRole: true });
 
@@ -113,7 +120,9 @@ export async function verifyDataExportToken(
  * This prevents token reuse for security
  */
 export async function markTokenAsUsed(exportId: string): Promise<void> {
-  assertServer();
+  if (typeof window !== "undefined") {
+    throw new Error("Marking token as used can only be done on the server");
+  }
 
   const adminClient = await createClient({ useServiceRole: true });
 
@@ -137,7 +146,11 @@ export async function updateDataExportStatus(
   status: TDataExportStatus,
   error?: string
 ): Promise<void> {
-  assertServer();
+  if (typeof window !== "undefined") {
+    throw new Error(
+      "Updating data export status can only be done on the server"
+    );
+  }
 
   const adminClient = await createClient({ useServiceRole: true });
 
@@ -176,7 +189,11 @@ export async function cleanupDataExportFile(
   userId: string,
   exportId: string
 ): Promise<void> {
-  assertServer();
+  if (typeof window !== "undefined") {
+    throw new Error(
+      "Cleaning up data export file can only be done on the server"
+    );
+  }
 
   const adminClient = await createClient({ useServiceRole: true });
 

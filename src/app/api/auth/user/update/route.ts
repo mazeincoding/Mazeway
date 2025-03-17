@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { profileUpdateSchema } from "@/utils/validation/auth-validation";
+import { profileUpdateSchema } from "@/validation/auth-validation";
 import {
   TApiErrorResponse,
   TEmptySuccessResponse,
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },

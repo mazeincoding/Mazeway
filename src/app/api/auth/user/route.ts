@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
 
     if (error || !user) {
       return NextResponse.json(

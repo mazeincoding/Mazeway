@@ -1,6 +1,6 @@
 /**
  * Gets the status of an export request
-*/
+ */
 
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     // Get the user
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
 
     if (error || !user) {
       return NextResponse.json(

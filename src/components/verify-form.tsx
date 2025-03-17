@@ -22,7 +22,7 @@ import {
 import {
   verificationSchema,
   type VerificationSchema,
-} from "@/utils/validation/auth-validation";
+} from "@/validation/auth-validation";
 import { useUser } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { getDefaultVerificationMethod } from "@/utils/auth";

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       "[AUTH] /api/auth/device-sessions/trusted - Getting user from auth"
     );
 
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
 
     if (error) {
       console.error("[AUTH] /api/auth/device-sessions/trusted - User error", {

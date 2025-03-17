@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user: fetchedUser, error } = await getUser(supabase);
+    const supabaseAdmin = await createClient({ useServiceRole: true });
+
+    const { user: fetchedUser, error } = await getUser({ supabase });
     if (error || !fetchedUser) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -64,12 +66,17 @@ export async function POST(request: NextRequest) {
     // Check if verification is needed based on config and grace period
     const needsVerification =
       AUTH_CONFIG.requireFreshVerification.deleteAccount &&
-      (await hasGracePeriodExpired(supabase, deviceSessionId));
+      (await hasGracePeriodExpired({
+        deviceSessionId,
+        supabase,
+      }));
 
     if (needsVerification) {
       // Get available verification methods
-      const { has2FA, factors, methods } =
-        await getUserVerificationMethods(supabase);
+      const { has2FA, factors, methods } = await getUserVerificationMethods({
+        supabase,
+        supabaseAdmin,
+      });
 
       // Send alert for deletion initiation if enabled
       if (
@@ -147,8 +154,6 @@ export async function POST(request: NextRequest) {
     });
 
     // User is verified within grace period, proceed with deletion
-    const adminClient = await createClient({ useServiceRole: true });
-
     // Send final deletion alert if enabled
     if (
       AUTH_CONFIG.emailAlerts.accountDeletion.enabled &&
@@ -165,7 +170,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Delete backup codes first (they reference auth.users without CASCADE)
-    const { error: deleteBackupCodesError } = await adminClient
+    const { error: deleteBackupCodesError } = await supabaseAdmin
       .from("backup_codes")
       .delete()
       .eq("user_id", user.id);
@@ -175,7 +180,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Delete verification codes (they reference device_sessions with CASCADE)
-    const { data: existingData } = await adminClient
+    const { data: existingData } = await supabaseAdmin
       .from("users")
       .select(
         `
@@ -193,7 +198,7 @@ export async function POST(request: NextRequest) {
     const deviceSessionIds =
       existingData?.device_sessions?.map((s) => s.id) || [];
     if (deviceSessionIds.length > 0) {
-      const { error: deleteVerificationError } = await adminClient
+      const { error: deleteVerificationError } = await supabaseAdmin
         .from("verification_codes")
         .delete()
         .in("device_session_id", deviceSessionIds);
@@ -204,7 +209,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Delete device sessions (they reference devices and users with CASCADE)
-    const { error: deleteSessionsError } = await adminClient
+    const { error: deleteSessionsError } = await supabaseAdmin
       .from("device_sessions")
       .delete()
       .eq("user_id", user.id);
@@ -214,7 +219,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Delete devices (they reference auth.users without CASCADE)
-    const { error: deleteDevicesError } = await adminClient
+    const { error: deleteDevicesError } = await supabaseAdmin
       .from("devices")
       .delete()
       .eq("user_id", user.id);
@@ -224,7 +229,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Delete user data (no foreign keys)
-    const { error: deleteDataError } = await adminClient
+    const { error: deleteDataError } = await supabaseAdmin
       .from("users")
       .delete()
       .eq("id", user.id);
@@ -234,9 +239,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Finally delete the auth user
-    const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(
-      user.id
-    );
+    const { error: deleteAuthError } =
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
 
     if (deleteAuthError) {
       throw new Error(`Failed to delete auth user: ${deleteAuthError.message}`);

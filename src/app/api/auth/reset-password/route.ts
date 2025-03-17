@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { authSchema } from "@/utils/validation/auth-validation";
+import { authSchema } from "@/validation/auth-validation";
 import {
   TApiErrorResponse,
   TResetPasswordRequest,
@@ -22,7 +22,7 @@ import {
   getUser,
   getDeviceSessionId,
 } from "@/utils/auth";
-import { setupDeviceSession } from "@/utils/device-sessions/server";
+import { setupDeviceSession } from "@/utils/auth/device-sessions/server";
 import { sendEmailAlert } from "@/utils/email-alerts";
 
 export async function POST(request: NextRequest) {
@@ -31,8 +31,7 @@ export async function POST(request: NextRequest) {
   try {
     // Regular client for 2FA checks
     const supabase = await createClient();
-    // Service role client for admin operations
-    const adminClient = await createClient({ useServiceRole: true });
+    const supabaseAdmin = await createClient({ useServiceRole: true });
     let userId: string | null = null;
 
     // If re-login is required, verify recovery token
@@ -54,7 +53,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Otherwise verify current user through Supabase
-      const { user, error } = await getUser(supabase);
+      const { user, error } = await getUser({ supabase });
       if (error || !user) {
         return NextResponse.json(
           { error: "No authenticated user" },
@@ -97,7 +96,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if user has 2FA enabled
-      const { has2FA, factors } = await getUserVerificationMethods(supabase);
+      const { has2FA, factors } = await getUserVerificationMethods({
+        supabase,
+        supabaseAdmin,
+      });
 
       if (has2FA) {
         // For password reset, always require 2FA verification if enabled
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
     // Update password using appropriate method and client
     const { error: updateError } = AUTH_CONFIG.passwordReset
       .requireReloginAfterReset
-      ? await adminClient.auth.admin.updateUserById(userId, {
+      ? await supabaseAdmin.auth.admin.updateUserById(userId, {
           password: body.password,
         })
       : await supabase.auth.updateUser({ password: body.password });
@@ -184,10 +186,14 @@ export async function POST(request: NextRequest) {
 
     // Set up device session if not requiring relogin
     if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
-      const session_id = await setupDeviceSession(request, userId, {
-        trustLevel: "high",
-        skipVerification: true, // User proved ownership via email
-        provider: "browser",
+      const session_id = await setupDeviceSession({
+        request,
+        user_id: userId,
+        options: {
+          trustLevel: "high",
+          skipVerification: true, // User proved ownership via email
+          provider: "browser",
+        },
       });
 
       // Set device session cookie

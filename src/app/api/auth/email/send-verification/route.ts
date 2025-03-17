@@ -5,7 +5,7 @@ import { Resend } from "resend";
 import EmailVerificationTemplate from "@emails/templates/email-verification";
 import { AUTH_CONFIG } from "@/config/auth";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
-import { generateVerificationCode } from "@/utils/verification-codes";
+import { generateVerificationCode } from "@/utils/auth/verification-codes";
 import { getDeviceSessionId, getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },

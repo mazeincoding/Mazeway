@@ -27,6 +27,9 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: Avoid writing any logic between createServerClient and
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
+  
+  // This should probably be using our getUser utility
+  // But I'm too scared to break anything (as the above comments suggest)
   const {
     data: { user },
   } = await supabase.auth.getUser();

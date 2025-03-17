@@ -16,10 +16,7 @@ import { Button } from "@/components/ui/button";
 import { FaGoogle, FaGithub } from "react-icons/fa";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
-import {
-  validatePassword,
-  validateEmail,
-} from "@/utils/validation/auth-validation";
+import { validatePassword, validateEmail } from "@/validation/auth-validation";
 import { Confirm } from "./auth-confirm";
 import { VerifyForm } from "./verify-form";
 import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";

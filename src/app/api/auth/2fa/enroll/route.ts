@@ -12,7 +12,7 @@ import {
   apiRateLimit,
 } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
-import { twoFactorEnrollmentSchema } from "@/utils/validation/auth-validation";
+import { twoFactorEnrollmentSchema } from "@/validation/auth-validation";
 import { getUser } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const { user, error } = await getUser(supabase);
+    const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },

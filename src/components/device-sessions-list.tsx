@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { TDeviceSession, TVerificationFactor } from "@/types/auth";
 import { TGeolocationResponse } from "@/types/api";
-import { isLocalIP } from "@/utils/auth";
+import { isLocalIP } from "@/lib/utils";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { VerifyForm } from "./verify-form";
 import { api } from "@/utils/api";

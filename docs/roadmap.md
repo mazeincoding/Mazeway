@@ -85,7 +85,7 @@
 - [x] Account deletion functionality
 - [ ] Re-design settings UI to focus on simplicity
 - [ ] Maybe clean up all my GitHub issues I created and left there
-- [ ] User data exports (GDPR Compliance)
+- [x] User data exports (GDPR Compliance)
 - [ ] Provider management
 
 **CLI direction**

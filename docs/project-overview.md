@@ -124,7 +124,7 @@ The open-source auth foundation that lives in your project, not a node_modules f
 - `createRecoveryToken(userId)`: Create recovery token
 - `verifyRecoveryToken(token)`: Verify and extract userId
 
-### Data Export
+### Data Export (`src/utils/data-export/`)
 - Shared utilities (`src/utils/data-export/index.ts`):
   - `getDataExportStoragePath(...)`: Get storage path for export files
 - Server-side utilities (`src/utils/data-export/server.ts`):
@@ -135,6 +135,16 @@ The open-source auth foundation that lives in your project, not a node_modules f
     - `verifyDataExportToken(...)`: Verify download token
     - `updateDataExportStatus(...)`: Update export status
     - `cleanupDataExportFile(...)`: Clean up export file
+- API Routes:
+  - `POST /api/auth/data-exports`: Create export request
+  - `GET /api/auth/data-exports/[id]`: Check export status
+  - `GET /api/auth/data-exports/[id]/download`: Download export file
+- Security features:
+  - One-time use download tokens
+  - Token hashing with salt
+  - Rate limiting (3 requests per day)
+  - Auto file cleanup after download
+  - Service role for storage operations
 
 ## Project structure
 - `app/`: Next.js app router structure

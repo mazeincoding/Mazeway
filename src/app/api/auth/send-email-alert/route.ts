@@ -8,8 +8,10 @@ import { createClient } from "@/utils/supabase/server";
 import { validateEmailAlert } from "@/utils/validation/auth-validation";
 import { getDeviceSessionId, getUser } from "@/utils/auth";
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend with API key if available
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 // Get the sender email from environment variables or use a default
 const SENDER_EMAIL = process.env.SENDER_EMAIL || "Acme <onboarding@resend.dev>";
@@ -18,6 +20,14 @@ export async function POST(request: NextRequest) {
   console.log("Email alert request received");
 
   try {
+    // Check if Resend is configured
+    if (!process.env.RESEND_API_KEY || !resend) {
+      return NextResponse.json(
+        { error: "Resend is not configured" },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     if (authRateLimit) {
       const ip = getClientIp(request);
       const { success } = await authRateLimit.limit(ip);

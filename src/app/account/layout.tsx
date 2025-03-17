@@ -14,9 +14,10 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { KeyRound, User } from "lucide-react";
+import { KeyRound, User, DatabaseIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AUTH_CONFIG } from "@/config/auth";
 
 export default function AccountLayout({
   children,
@@ -57,6 +58,15 @@ function SettingsSidebar() {
       icon: KeyRound,
     },
   ];
+
+  // Only add data section if data exports are enabled
+  if (AUTH_CONFIG.dataExport.enabled) {
+    items.push({
+      title: "Data",
+      href: "/account/data",
+      icon: DatabaseIcon,
+    });
+  }
 
   const handleLinkClick = () => {
     if (isMobile) {

@@ -33,6 +33,9 @@ import type {
   TUpdateUserRequest,
   TRevokeDeviceSessionRequest,
   TGetEventsResponse,
+  TCreateDataExportResponse,
+  TGetDataExportStatusResponse,
+  TGetDataExportsResponse,
 } from "@/types/api";
 import type { ProfileSchema } from "@/utils/validation/auth-validation";
 import { mutate } from "swr";
@@ -286,6 +289,26 @@ export const api = {
         headers: { "Content-Type": "application/json" },
       });
       return handleResponse<TEmptySuccessResponse>(response);
+    },
+
+    dataExport: {
+      create: async () => {
+        const response = await fetch("/api/auth/data-exports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        return handleResponse<TCreateDataExportResponse>(response);
+      },
+
+      getAll: async () => {
+        const response = await fetch("/api/auth/data-exports");
+        return handleResponse<TGetDataExportsResponse>(response);
+      },
+
+      getStatus: async (exportId: string) => {
+        const response = await fetch(`/api/auth/data-exports/${exportId}`);
+        return handleResponse<TGetDataExportStatusResponse>(response);
+      },
     },
   },
 

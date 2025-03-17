@@ -81,3 +81,13 @@ export const smsRateLimit = redis
       }),
     }
   : null;
+
+// Strict tier for data export operations (3 requests per day)
+export const dataExportRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(3, "24 h"),
+      analytics: true,
+      prefix: "@upstash/ratelimit/data-export",
+    })
+  : null;

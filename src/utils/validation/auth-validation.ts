@@ -299,3 +299,17 @@ export const revokeDeviceSessionSchema = z.object({
 export type RevokeDeviceSessionSchema = z.infer<
   typeof revokeDeviceSessionSchema
 >;
+
+export const dataExportTokenSchema = z.object({
+  token: z.string().min(1, "Token is required"),
+});
+
+export type DataExportTokenSchema = z.infer<typeof dataExportTokenSchema>;
+
+export const validateDataExportToken = (token: string) => {
+  const result = dataExportTokenSchema.shape.token.safeParse(token);
+  return {
+    isValid: result.success,
+    error: result.success ? null : result.error.errors[0].message,
+  };
+};

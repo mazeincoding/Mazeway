@@ -6,7 +6,7 @@ Authentication should live in your project, not a node_modules folder.
 
 Think Clerk, but you own the code.
 
-This is a complete, production-ready auth starter **for** anyone, including enterprise.
+This is a complete, production-ready auth starter for anyone, including enterprise.
 
 ### The philosophy
 
@@ -47,13 +47,14 @@ Thanks for letting me roast my competitors. Seriously though, Clerk isn't bad at
 
 ### Tech stack
 
-The project uses modern tech:
+The project uses modern tech (note that not all are required to setup at all):
 - Next.js 15
 - Tailwind CSS
 - Shadcn UI
 - Supabase
 - Resend
 - Upstash Redis
+- Trigger.dev
 
 I see a lot of new apps having only 5% of authentication. Including:
 - Missing login page
@@ -68,13 +69,18 @@ These are the kind of things that should be implemented by default.
 
 That's what this project gives you: a foundation that you can build on.
 
+But just know:
+- This project doesn't guarantee 100% security
+- Nothing is bulletproof
+- Though it does give you a very good foundation
+
 ### What's included
 
 - Sign-in options:
   - `Email/password`
   - `Google`
   - `GitHub` (new)
-  - More soon!
+  - More soon! (planned SSO, passwordless, etc)
 - Complete authentication flow:
   - Login/signup pages
   - Password reset
@@ -112,8 +118,9 @@ This is only the beginning.
 Before we get started, understand:
 - Do not at ANY point during this setup think about production
 - We will do it LATER. Some examples:
-- "Should I use a professional email here..."
-- "I also need to buy a custom domain"
+    - "Should I use a professional email here..."
+    - "I also need to buy a custom domain"
+    - "What about production API keys?"
 - Don't think about these things at all.
 
 ### 1. Install dependencies
@@ -123,15 +130,13 @@ In the terminal, run this:
 npm install
 ```
 
-### 2. Reset auth config
+### 2. Reset project
 
-We'll dive into this config later.
-
-But it essentially allows you to tweak custom things.
+This is to clean up any setup for the demo so you can start fresh.
 
 Reset it:
 ```bash
-npm run reset-config
+npm run reset-project
 ```
 
 ### 2. Set up Supabase
@@ -160,14 +165,14 @@ npm run reset-config
 4. Create Supabase tables
    - Head over to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
    - Run these [code snippets](docs/supabase-snippets.md)
-   - It'll set up necessary functions, tables and storage buckets
+   - It'll set up necessary functions and tables
    - Pro tip: look at what you're actually copying/pasting so you know what you're working with
 
 5. Change email templates
    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
    - Copy and paste these [email templates](docs/supabase-email-templates.md)
 
-7. Add the callback redirect URL in Supabase (ensures Supabase can redirect to `/api/auth/callback`)
+6. Add the callback redirect URL in Supabase (ensures Supabase can redirect to `/api/auth/callback`)
     > Good to know:
     >
     > The callback URL isn't just used for Google OAuth like you might think.
@@ -184,12 +189,12 @@ Supabase (as of now) gives you 2 free emails per hour but it's unreliable. Somet
 You can totally skip setting up Resend but be mindful that if auth doesn't work, setting up Resend will probably fix it.
 
 Aside from that, the project uses Resend for:
-- Email login alerts
+- Email alerts
 - Device verification
 - Email verification
 
 If you don't set up Resend:
-- Users won't get login alerts at all
+- Users won't get email alerts at all
 - Device verification will be disabled entirely
 - Email verification won't be enabled
 - All devices will be "trusted" by default
@@ -221,7 +226,7 @@ You won't even need to touch the Supabase dashboard to do it.
    - Select your Supabase project
    - Select the domain you just added
    - Configure custom SMTP (this sounds super complicated but it's not. It's already configured. Just change the `Sender name` and click `Configure SMTP integration`)
-   - Update your `.env.local` file to add these (this is because aside from Supabase, the project uses Resend too. Supabase won't use this, but the project will for custom things that Supabase doesn't offer out of the box, like login alerts):
+   - Update your `.env.local` file to add these (this is because aside from Supabase, the project uses Resend too. Supabase won't use this, but the project will for custom things that Supabase doesn't offer out of the box, like email alerts):
    ```diff
    - RESEND_API_KEY=your-resend-api-key
    - RESEND_FROM_EMAIL="Auth <auth@yourdomain.com>"
@@ -505,85 +510,249 @@ Quick thing:
 - If you're gonna have EU users, you'll need to do this (according to GDPR Compliance)
 - Only when you actually go in production though
 
+Reminder:
+- This is only gonna cover development
+- Don't worry about production yet
+- If you're really that curious, go to the "Go in production" section
+
+We're gonna use Trigger.dev because:
+- Built for what we're trying to do
+- Can run tasks for a long time and queue them
+- Free tier is really generous
+- Literally best DX you'll feel
+
 Super easy to do:
 
-1. Sign up for [Trigger.dev](https://trigger.dev)
-   - Free tier is generous af
-   - No credit card needed
-   - Takes like 2 minutes
+1. Create storage buckets
+    - Go to [Supabase Storage](https://supabase.com/dashboard/project/_/storage/buckets) 
+    - Create a bucket named "exports"
+    - Click "Save"
+    
+    > This is the bucket where user export files are stored
+    >
+    > The bucket should **not** be public!
+    >
+    > By making it private, only the service role key will have access
+    >
+    > Which is what we want.
 
-2. Get your API key
-   - After signing up, create a new project
-   - Name it whatever you want (your app name)
-   - Go to "API Keys" in the sidebar
-   - They already created keys for you! Just grab the `Dev` one (told you to not worry about production yet)
+2. Create data export requests table
 
-3. Add the API key to your `.env.local`:
+   - Go to the [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+   - Run this:
+   ```sql
+   -- Create data_export_requests table
+   CREATE TABLE data_export_requests (
+     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+     user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+     status text NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+     token_hash text NOT NULL,
+     salt text NOT NULL,
+     token_used boolean DEFAULT false,
+     error text,
+     created_at timestamp with time zone DEFAULT now(),
+     completed_at timestamp with time zone,
+     updated_at timestamp with time zone DEFAULT now()
+   );
+   
+   -- Enable RLS
+   ALTER TABLE data_export_requests ENABLE ROW LEVEL SECURITY;
+   
+   -- No RLS policies - all access through service role
+   
+   -- Create trigger for updated_at
+   CREATE TRIGGER update_data_export_requests_updated_at
+   BEFORE UPDATE ON data_export_requests
+   FOR EACH ROW
+   EXECUTE FUNCTION update_updated_at_column();
+   
+   -- Create index for faster user lookups
+   CREATE INDEX idx_data_export_requests_user_id 
+   ON data_export_requests(user_id);
+   
+   -- Create index for finding pending requests to process
+   CREATE INDEX idx_data_export_requests_status 
+   ON data_export_requests(status) 
+   WHERE status = 'pending';
+   ```
+
+   > This table is just used for tracking exports for accounts. It's not a queue
+
+3. Create a Trigger.dev project
+   - Sign up for [Trigger.dev](https://trigger.dev)
+   - Complete the onboarding
+   - Create an organization
+   - Choose the free plan
+   - Create a project
+
+4. Init Trigger.dev in the project
+   - Run this in the terminal:
+   ```bash
+   npx trigger.dev@latest init
+   ```
+   - Authenticate if needed
+   - Select your project
+   - Trigger.dev directory: default
+   - Choose an example to create: None
+
+5. Add the dev API key to your `.env.local`:
+   - Go to "API Keys" in the Trigger.dev dashboard
+   - They already created keys for you! Just grab the `Dev` one
    ```diff
    - # TRIGGER_API_KEY=your-trigger-api-key
    + TRIGGER_API_KEY=your-trigger-api-key
    ```
 
-4. Enable data exports in the auth config (`src/config/auth.ts`):
+6. Enable data exports in the auth config (`src/config/auth.ts`):
    ```diff
    dataExport: {
-   - enabled: false, // it's false by default
-   + enabled: true, // it's false by default
+   - enabled: false,
+   + enabled: true,
    }
    ```
 
-5. That's it! The code will detect the environment variable and allow users to save their data.
-
-**What users will see:**
-- "Download data" button in Account Settings
-- Progress updates while their export is processing
-- Auto-download when ready
-- Files expire after 24 hours (for security)
-
-**Why we use Trigger.dev:**
-- Could we do this without it? Yes
-- Should we? Probably not because:
-  - Background jobs need proper infrastructure
-  - AWS is overkill for this
-  - Trigger.dev is:
-    - Made for Next.js
-    - Has retry logic built-in
-    - Handles failures gracefully
-    - Shows you what's happening
-    - Free tier is actually usable
-
-**"But I don't want another service!"**
-- I get it, but consider:
-  - It's optional (only if you allow EU users)
-  - Takes 2 minutes to set up
-  - Free tier is generous
-  - Better than:
-    - Writing your own job system
-    - Setting up AWS/GCP
-    - Dealing with Kubernetes
-    - Getting paged at 3 AM
+7. That's it! You've successfully set up user data exports.
 
 **Testing it out:**
+
 1. Make sure you've:
    - Added the Trigger.dev API key to your environment variables
-   - Enabled data exports in the config
-2. Go to your account settings
-3. Click "Download My Data"
+   - Enabled data exports in the auth config
+2. Then run these commands in the terminal:
+
+   Start the Next.js server
+   ```bash
+   npm run dev
+   ```
+
+   Start the Trigger.dev server (need this during development)
+   ```bash
+   npx trigger.dev@latest dev
+   ```
+3. Go to `localhost:3000` account -> data
 4. Watch the magic happen in the [Trigger.dev dashboard](https://cloud.trigger.dev)
 
+**What about production?**
+I wasn't gonna write this section here at first.
+
+Didn't want you to worry about production yet.
+
+But they're kind of confusing with it so I'll make it extremely clear right away:
+- When you create a project, you get two API keys
+- One for dev, one for production
+- During development, you will have to run `npx trigger.dev@latest dev`
+- In production, you don't because the prod key just works
+
+Now, don't worry about production anymore. Just wanted to clear that uo.
+
+**What users will see:**
+- "Download data" button in Account -> Data
+- Progress of current and recent exports
+- Account security events about requesting an export
+- Request email like "You requested an export" (without a download link)
+- Download link through their email when processing is done
+
+**How it works**
+Here's how the data export process actually works:
+
+1. **User requests data export**
+   - User clicks "Export my data" in the UI
+   - Frontend calls `POST /api/data-exports`
+
+2. **Request processing**
+   - We create a record in the `data_export_requests` table with status "pending"
+   - This table isn't a queue - it's just for tracking requests and showing status in the UI
+   - We generate a secure one-time token, hash it, and store the hash in the database
+   - We send a confirmation email to the user without download link (security email)
+   - We create a task in Trigger.dev (implementation: `src/trigger/export-user-data.ts`)
+
+3. **Why use Trigger.dev?**
+   - We could just have a simple Next.js route to get data and send right?
+   - Well, API routes have execution limits (typically 10-30 seconds)
+   - Data exports can be large and time-consuming
+   - Trigger.dev handles the queue, retries, and long-running operations
+   - Tasks run asynchronously, so users don't have to wait
+
+4. **Background processing**
+   - When the task runs, it:
+     - Fetches the user's data (profile, events, basically any data the user owns)
+     - Formats everything into a JSON file
+     - Uploads the file to Supabase Storage in the `exports` bucket
+     - Updates the request status to "completed"
+     - Creates a download link with the one-time token we generated earlier
+     - Sends an email with the download link
+
+5. **Security measures**
+   - The exports bucket has RLS but no policies - which makes it completely private. Only the service role can access it
+   - Files are stored in user-specific folders (`exports/{userId}/{exportId}.json`)
+   - Download links contain a one-time token that expires
+   - Tokens are hashed in the database (never stored in plain text)
+   - Files are automatically deleted after download
+
+6. **Download process**
+   - User clicks the link in their email
+   - Link goes to `GET /api/data-exports/[id]/download?token=xxx`
+   - API verifies the token against the stored hash
+   - If valid, the file is streamed to the user
+   - After download, the file is deleted from storage
+
+That's it. Secure, works well, and keeps the EU regulators off your back.
+
 **Adding your app's data:**
-This starter includes GDPR-compliant data exports for auth data, but you'll need to extend it with your app's data:
+This starter includes GDPR-compliant data exports for auth data, but you'll need to extend it with your app's data.
 
-- show how to do it with a real-world example of some user data an app might have. keep it simple and easy to understand
-- and make it clear that it's specifically user data
-- like if the app stores a user's "posts", the user should obv get that data
-- but anything the app stores that the user didn't enter, upload, or tell to add...
-- probably shouldn't be included
-- like the 2FA status of the account - it's not the user's data, it's the app's data
+Here's a simple example. Let's say you have a notes app where users can create and save notes:
 
-This isn't a black box - it's YOUR auth code that you can (and should) extend!
+```typescript
+// In src/trigger/export-user-data.ts
+
+// Get user's notes
+// NOTE: Always use adminClient in this file!
+// This is because it doesn't create cookies
+// Which Trigger.dev doesn't like
+const { data: notes } = await adminClient
+  .from("notes")
+  .select("*")
+  .eq("user_id", userId);
+
+// Add them to the export data
+const exportData = {
+  // Keep the existing auth data
+  user: userData,
+  events: events || [],
+  devices: devices || [],
+  
+  // Add the user's notes
+  notes: notes || [],
+  
+  exported_at: new Date().toISOString(),
+};
+```
+
+**What data should you include?**
+Simple rule: If users created it or it's part of their personal activity, include it.
+
+✅ Include:
+- Content they created (posts, comments, etc)
+- Files they uploaded
+- Their profile info
+- Their activity (liked posts, saved items, playlists)
+- Purchase history
+- Preferences and settings they chose
+
+❌ Skip:
+- Internal flags
+- App settings (like 2FA status)
+- Other users' data
+- System-generated recommendations
+
+That's it! Just add whatever data your users create or interact with to the export. Keep it simple.
 
 **"But what about scale?"**
+Short answer: free tier is more than enough for this
+
+Long answer:
+
 Let's do some math:
 - Average user exports once a year (being generous)
 - Maybe 5% of users ever click that button
@@ -1004,6 +1173,7 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
 3. Add any Supabase storage buckets you might have (and upload any files you might need)
   - Go to [Supabase Storage](https://supabase.com/dashboard/project/_/storage/buckets)
   - Add anything you might need
+  - If you set up user data exports, you'll want to create the same "exports" bucket
 4. Connect your project to Resend
     > [!NOTE]
     > I'm gonna assume you already set up Resend.
@@ -1028,6 +1198,27 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
       $$ SELECT public.cleanup_expired_records(); $$
     );
     ```
+
+### User data exports
+
+If you didn't set up user data exports, just skip this.
+
+In case you did, you'll need to:
+1. Go to [Trigger.dev](https://cloud.trigger.dev/)
+2. In the sidebar, go to "API keys"
+3. Copy the "prod" key
+4. Replace your environment variables (`.env.production`):
+   ```diff
+   - TRIGGER_API_KEY=your-trigger-api-key
+   + TRIGGER_API_KEY=your-prod-trigger-api-key
+   ```
+5. Deploy Trigger.dev tasks
+   - Run this in the terminal:
+   ```bash
+   npx trigger.dev@latest deploy
+   ```
+
+   Without this, user data exports won't work as the task can't be executed.
 
 ### 3. Deploy to Vercel
 

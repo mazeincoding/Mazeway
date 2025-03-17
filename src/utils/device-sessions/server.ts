@@ -4,11 +4,10 @@ import { UAParser } from "ua-parser-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { getUser } from "@/utils/auth";
+import { assertServer } from "@/lib/utils";
 
 async function createDevice(device: TDeviceInfo) {
-  if (typeof window !== "undefined") {
-    throw new Error("Cannot create or find device on the client");
-  }
+  assertServer();
 
   const supabase = await createClient();
 
@@ -111,9 +110,7 @@ export async function setupDeviceSession(
 
 // Only use this function on the server
 export async function createDeviceSession(params: TCreateDeviceSessionParams) {
-  if (typeof window !== "undefined") {
-    throw new Error("Cannot create device session on the client");
-  }
+  assertServer();
 
   const adminClient = await createClient({ useServiceRole: true });
   const device_id = await createDevice(params.device);

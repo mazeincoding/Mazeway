@@ -118,9 +118,10 @@ export const AUTH_CONFIG = {
 
   // Requires setting up Trigger.dev
   // Recommended for production, optional for dev
-  // Set up instructions in README
+  // Set up instructions in README (auth configuration section)
   dataExport: {
     enabled: true,
+    downloadExpirationTime: 24, // hours
   },
 
   // Email verification configuration

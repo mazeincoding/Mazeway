@@ -6,6 +6,7 @@ import {
   TVerificationMethod,
   TVerificationFactor,
   TAccountEvent,
+  TDataExportStatus,
 } from "./auth";
 import type { ProfileSchema } from "@/utils/validation/auth-validation";
 
@@ -238,6 +239,20 @@ export interface TGetEventsResponse {
   events: TAccountEvent[];
   hasMore: boolean;
   total: number;
+}
+
+// /api/auth/data-exports
+export interface TCreateDataExportResponse {
+  id: string;
+  status: TDataExportStatus;
+}
+
+// /api/auth/data-exports/[id]
+export interface TGetDataExportStatusResponse {
+  id: string;
+  status: TDataExportStatus;
+  created_at: string;
+  completed_at?: string;
 }
 
 // Generic success response

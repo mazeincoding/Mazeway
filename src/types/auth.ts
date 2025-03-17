@@ -183,3 +183,31 @@ export type TAccountEvent = {
   metadata: TEventMetadata[TEventType];
   created_at: string;
 };
+
+// Data export status types
+export type TDataExportStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed";
+
+// Data export event payload type
+export interface TDataExportEventPayload {
+  userId: string;
+  exportId: string;
+  token: string;
+}
+
+// Data export request type
+export interface TDataExportRequest {
+  id: string;
+  user_id: string;
+  status: TDataExportStatus;
+  token_hash: string;
+  salt: string;
+  token_used?: boolean;
+  error?: string;
+  created_at: string;
+  completed_at?: string;
+  updated_at: string;
+}

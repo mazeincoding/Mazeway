@@ -1,27 +1,9 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { TAccountEvent } from "@/types/auth";
+import { TAccountEvent, TEventType } from "@/types/auth";
 import { api } from "@/utils/api";
 import { formatDistanceToNow } from "date-fns";
 import { Loader2, RotateCw } from "lucide-react";
-
-// Event type colors - we'll keep these in the component for now
-const EVENT_COLORS = {
-  "2FA_ENABLED": "text-emerald-500 dark:text-emerald-400",
-  "2FA_DISABLED": "text-red-500 dark:text-red-400",
-  BACKUP_CODES_GENERATED: "text-blue-500 dark:text-blue-400",
-  BACKUP_CODE_USED: "text-yellow-500 dark:text-yellow-400",
-  PASSWORD_CHANGED: "text-purple-500 dark:text-purple-400",
-  EMAIL_CHANGED: "text-orange-500 dark:text-orange-400",
-  NEW_DEVICE_LOGIN: "text-cyan-500 dark:text-cyan-400",
-  DEVICE_VERIFIED: "text-teal-500 dark:text-teal-400",
-  DEVICE_TRUSTED_AUTO: "text-green-500 dark:text-green-400",
-  DEVICE_REVOKED: "text-rose-500 dark:text-rose-400",
-  SENSITIVE_ACTION_VERIFIED: "text-indigo-500 dark:text-indigo-400",
-  ACCOUNT_CREATED: "text-lime-500 dark:text-lime-400",
-  ACCOUNT_DELETED: "text-red-500 dark:text-red-400",
-  PROFILE_UPDATED: "text-amber-500 dark:text-amber-400",
-} as const;
 
 type TEventLogProps = {
   className?: string;
@@ -71,21 +53,29 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
   const formatEventMessage = (event: TAccountEvent) => {
     const metadata = event.metadata as Record<string, any>;
 
+    // Handle device info first if present
+    if (metadata.device?.browser && metadata.device?.os) {
+      return `(${metadata.device.browser} on ${metadata.device.os})`;
+    }
+
     switch (event.event_type) {
       case "2FA_ENABLED":
         return `(${metadata.method})`;
       case "EMAIL_CHANGED":
         return `(${metadata.old_email} → ${metadata.new_email})`;
       case "NEW_DEVICE_LOGIN":
-        return `(${metadata.device_info})`;
+      case "DEVICE_VERIFIED":
+      case "DEVICE_TRUSTED":
+      case "DEVICE_TRUSTED_AUTO":
+      case "DEVICE_REVOKED":
+      case "DATA_EXPORT_REQUESTED":
+        return "";
       case "BACKUP_CODES_GENERATED":
         return `(${metadata.count} codes)`;
       case "PROFILE_UPDATED":
         return `(${metadata.updated_fields.join(", ")})`;
       default:
-        return metadata && Object.keys(metadata).length > 0
-          ? `(${JSON.stringify(metadata)})`
-          : "";
+        return "";
     }
   };
 
@@ -124,13 +114,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
                 })}
               </span>
               <span className="mx-2 text-muted-foreground">→</span>
-              <span
-                className={cn(
-                  "font-medium whitespace-nowrap",
-                  EVENT_COLORS[event.event_type as keyof typeof EVENT_COLORS] ||
-                    "text-foreground"
-                )}
-              >
+              <span className="font-medium whitespace-nowrap">
                 {event.event_type}
               </span>
               <span className="text-muted-foreground">

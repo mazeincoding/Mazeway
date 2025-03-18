@@ -87,6 +87,7 @@
 - [ ] Maybe clean up all my GitHub issues I created and left there
 - [x] User data exports (GDPR Compliance)
 - [ ] Provider management
+- [ ] role-based access control
 
 **CLI direction**
 - [ ] Create a CLI for adding auth to existing projects

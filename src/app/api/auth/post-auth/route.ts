@@ -19,19 +19,9 @@ import { TSendEmailAlertRequest } from "@/types/api";
 import { logAccountEvent } from "@/utils/account-events/server";
 
 export async function GET(request: Request) {
-  const startTime = Date.now();
-  const requestId = Math.random().toString(36).substring(7);
-
-  console.log(`[${requestId}] Post-auth flow started`, {
+  console.log("Request received", {
     url: request.url,
     timestamp: new Date().toISOString(),
-    method: request.method,
-    headers: {
-      "user-agent": request.headers.get("user-agent"),
-      "x-forwarded-for": request.headers.get("x-forwarded-for"),
-      referer: request.headers.get("referer"),
-      "cookie-present": !!request.headers.get("cookie"),
-    },
   });
 
   const { searchParams } = new URL(request.url);
@@ -79,30 +69,21 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(`[${requestId}] Creating Supabase clients`, {
-      timestamp: new Date().toISOString(),
-      elapsed: `${Date.now() - startTime}ms`,
-    });
-
     const supabase = await createClient();
     const supabaseAdmin = await createClient({ useServiceRole: true });
 
     const { user, error } = await getUser({ supabase, requireProfile: false });
     if (error || !user) {
-      console.error(`[${requestId}] Failed to get user`, {
+      console.error("Failed to get user", {
         error,
         hasUser: !!user,
-        elapsed: `${Date.now() - startTime}ms`,
       });
       throw new Error("No user found");
     }
 
-    console.log(`[${requestId}] User authenticated`, {
+    console.log("User authenticated", {
       userId: user.id,
       email: user.email,
-      elapsed: `${Date.now() - startTime}ms`,
-      authProvider: user.auth.identities?.[0]?.provider,
-      emailVerified: user.auth.emailVerified,
     });
 
     // Determine the actual provider based on user metadata
@@ -320,12 +301,7 @@ export async function GET(request: Request) {
       maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
     });
 
-    console.log(`[${requestId}] Set device_session_id cookie`, {
-      sessionId: session_id,
-      maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60,
-      secure: !isLocalEnv,
-      elapsed: `${Date.now() - startTime}ms`,
-    });
+    console.log("Set device_session_id cookie");
 
     const shouldRefresh = searchParams.get("should_refresh") === "true";
     if (shouldRefresh) {
@@ -422,16 +398,7 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log(`[${requestId}] Authentication successful`, {
-      userId: user.id,
-      redirectTo: next,
-      elapsed: `${Date.now() - startTime}ms`,
-      responseStatus: response.status,
-      responseHeaders: {
-        location: response.headers.get("location"),
-        "x-should-refresh-user": response.headers.get("x-should-refresh-user"),
-      },
-    });
+    console.log("Authentication successful, redirecting to", next);
 
     // Send email alert based on configuration
     if (!isNewUser && AUTH_CONFIG.emailAlerts.login.enabled) {
@@ -501,12 +468,9 @@ export async function GET(request: Request) {
     return response;
   } catch (error) {
     const err = error as Error;
-    console.error(`[${requestId}] Error in post-auth flow`, {
+    console.error("Error in post-auth flow", {
       error: err.message,
       stack: err.stack,
-      elapsed: `${Date.now() - startTime}ms`,
-      type: err instanceof AuthApiError ? "AuthApiError" : "UnknownError",
-      code: err instanceof AuthApiError ? err.code : undefined,
     });
 
     // Always logout on error
@@ -553,10 +517,5 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       `${origin}/auth/error?title=${encodeURIComponent(errorTitle)}&message=${encodeURIComponent(errorMessage)}&actions=${actions}&error=${encodeURIComponent(err instanceof AuthApiError ? err.code || err.message : err.message)}`
     );
-  } finally {
-    console.log(`[${requestId}] Post-auth flow completed`, {
-      timestamp: new Date().toISOString(),
-      totalTime: `${Date.now() - startTime}ms`,
-    });
   }
 }

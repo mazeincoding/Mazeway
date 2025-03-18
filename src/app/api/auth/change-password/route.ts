@@ -215,6 +215,7 @@ export async function POST(request: NextRequest) {
         "[Password Change] Failed to update has_password flag:",
         flagError
       );
+      console.log("User:", user);
       // Don't throw - password was updated successfully
     }
 

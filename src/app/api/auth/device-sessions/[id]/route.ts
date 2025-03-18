@@ -191,6 +191,8 @@ export async function DELETE(
           ip_address: session.ip_address,
         },
         action: "revoke_device",
+        category: "warning",
+        description: "Device revocation request verified",
       },
     });
 
@@ -213,6 +215,8 @@ export async function DELETE(
           os: session.os,
           ip_address: session.ip_address,
         },
+        category: "warning",
+        description: `Device revoked: ${session.browser || "Unknown browser"} on ${session.os || "Unknown OS"}`,
       },
     });
 

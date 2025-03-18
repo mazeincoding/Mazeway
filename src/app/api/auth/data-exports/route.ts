@@ -119,6 +119,8 @@ export async function POST(
           os: deviceInfo.os,
           ip_address: deviceInfo.ip_address,
         },
+        category: "info",
+        description: "Personal data export requested",
       },
     });
 

@@ -135,6 +135,8 @@ export async function POST(request: NextRequest) {
           ip_address: getClientIp(request),
         },
         action: "delete_account",
+        category: "warning",
+        description: "Account deletion request verified",
       },
     });
 
@@ -150,6 +152,8 @@ export async function POST(request: NextRequest) {
           os: parser.getOS().name || null,
           ip_address: getClientIp(request),
         },
+        category: "warning",
+        description: "Account permanently deleted",
       },
     });
 
@@ -273,6 +277,8 @@ export async function POST(request: NextRequest) {
             ip_address: getClientIp(request),
           },
           error: error instanceof Error ? error.message : "Unknown error",
+          category: "error",
+          description: "Failed to delete account",
         },
       });
     }

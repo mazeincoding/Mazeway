@@ -1,16 +1,16 @@
 import { createClient } from "@/utils/supabase/server";
 import { TEventType, TEventMetadata } from "@/types/auth";
 
-type TLogEventOptions<T extends TEventType> = {
+interface TLogEventOptions<T extends TEventType> {
   user_id: string;
   event_type: T;
   metadata: TEventMetadata[T];
   device_session_id?: string;
-};
+}
 
 /**
  * Logs an account event to the database. Server-side only.
- * @param options Event details including type and metadata
+ * @param options Event details including type, metadata, and category/description
  */
 export async function logAccountEvent<T extends TEventType>(
   options: TLogEventOptions<T>

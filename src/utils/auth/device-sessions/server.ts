@@ -59,6 +59,8 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
         os: params.device.os,
         ip_address: params.device.ip_address,
       },
+      category: "warning",
+      description: `New login detected from ${params.device.browser || "unknown browser"} on ${params.device.os || "unknown OS"}`,
     },
   });
 
@@ -97,6 +99,8 @@ export async function createDeviceSession(params: TCreateDeviceSessionParams) {
           ip_address: params.device.ip_address,
         },
         reason: params.confidence_score === 100 ? "new_account" : "oauth",
+        category: "success",
+        description: `Device automatically trusted (${params.confidence_score === 100 ? "new account" : "OAuth login"})`,
       },
     });
   }

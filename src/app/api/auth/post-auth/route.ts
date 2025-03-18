@@ -160,6 +160,8 @@ export async function GET(request: Request) {
             os: parser.getOS().name || null,
             ip_address: request.headers.get("x-forwarded-for") || "::1",
           },
+          category: "success",
+          description: `New account created via ${provider} provider`,
         },
       });
 

@@ -106,6 +106,8 @@ export async function POST(request: NextRequest) {
           os: parser.getOS().name || null,
           ip_address: getClientIp(request),
         },
+        category: "success",
+        description: `Device verified: ${parser.getBrowser().name || "Unknown browser"} on ${parser.getOS().name || "Unknown OS"}`,
       },
     });
 

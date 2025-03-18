@@ -126,6 +126,8 @@ export async function POST(request: NextRequest) {
                   os: parser.getOS().name || null,
                   ip_address: getClientIp(request),
                 },
+                category: "warning",
+                description: "Backup code used for account verification",
               },
             });
 
@@ -232,7 +234,9 @@ export async function POST(request: NextRequest) {
             event_type: "2FA_ENABLED",
             device_session_id: deviceSessionId,
             metadata: {
-              method: method as TTwoFactorMethod, // We know it's either "authenticator" or "sms" in this block
+              method: method as TTwoFactorMethod,
+              category: "success",
+              description: `Two-factor authentication enabled using ${method}`,
             },
           });
 
@@ -284,6 +288,8 @@ export async function POST(request: NextRequest) {
             device_session_id: deviceSessionId,
             metadata: {
               count: codes.length,
+              category: "success",
+              description: `Generated ${codes.length} new backup codes`,
             },
           });
 

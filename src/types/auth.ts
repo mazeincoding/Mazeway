@@ -111,9 +111,14 @@ export type TEventType =
 // Device info in event context (without user_id since that's in the event record)
 export type TEventDeviceInfo = Omit<TDeviceInfo, "user_id">;
 
-// Base type for event metadata that includes error info
+// Event category types
+export type TEventCategory = "success" | "error" | "warning" | "info";
+
+// Base type for event metadata that includes error info and category
 type TBaseEventMetadata = {
   error?: string;
+  category: TEventCategory;
+  description: string;
 };
 
 // Metadata for different event types

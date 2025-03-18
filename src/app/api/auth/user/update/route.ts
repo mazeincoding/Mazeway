@@ -108,6 +108,8 @@ export async function POST(request: NextRequest) {
       device_session_id: deviceSessionId,
       metadata: {
         fields: Object.keys(updateData),
+        category: "info",
+        description: `Profile updated: ${Object.keys(updateData).join(", ")}`,
       },
     });
 

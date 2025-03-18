@@ -117,6 +117,8 @@ export async function GET(request: NextRequest) {
           },
           oldEmail: oldEmail || "unknown",
           newEmail: user.email || "unknown",
+          category: "warning",
+          description: `Email address changed from ${oldEmail || "unknown"} to ${user.email || "unknown"} (verified)`,
         },
       });
     }

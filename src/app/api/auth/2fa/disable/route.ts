@@ -107,6 +107,8 @@ export async function POST(request: NextRequest) {
       device_session_id: deviceSessionId,
       metadata: {
         method,
+        category: "warning",
+        description: `Two-factor authentication disabled for ${method} method`,
       },
     });
 

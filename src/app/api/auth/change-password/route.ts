@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       const { success } = await authRateLimit.limit(ip);
 
       if (!success) {
+        console.warn(`[Password Change] Rate limit exceeded for IP: ${ip}`);
         return NextResponse.json(
           {
             error: "Too many requests. Please try again later.",
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
 
     const { user, error } = await getUser({ supabase });
     if (error || !user) {
+      console.error("[Password Change] Unauthorized access attempt:", error);
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -75,6 +77,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (dbError || !dbUser) {
+      console.error("[Password Change] Failed to fetch user data:", dbError);
       return NextResponse.json(
         { error: "Failed to get user data" },
         { status: 500 }
@@ -88,6 +91,10 @@ export async function POST(request: NextRequest) {
       dbUser.has_password ? passwordChangeSchema : addPasswordSchema
     ).safeParse(body);
     if (!validation.success) {
+      console.warn(
+        "[Password Change] Validation failed:",
+        validation.error.issues
+      );
       return NextResponse.json(
         { error: validation.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
@@ -103,6 +110,9 @@ export async function POST(request: NextRequest) {
     // For users with password auth, verify current password
     if (dbUser.has_password) {
       if (!currentPassword) {
+        console.warn(
+          "[Password Change] Current password missing for password change"
+        );
         return NextResponse.json(
           { error: "Current password is required" },
           { status: 400 }
@@ -126,23 +136,26 @@ export async function POST(request: NextRequest) {
     // Get device session ID from cookie
     const deviceSessionId = getDeviceSessionId(request);
     if (!deviceSessionId) {
+      console.error("[Password Change] No device session found in request");
       return NextResponse.json(
         { error: "No device session found" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if verification is needed
+    // Check if verification is needed;
     const gracePeriodExpired = await hasGracePeriodExpired({
       supabase,
       deviceSessionId,
     });
+
     if (gracePeriodExpired) {
       // Check if user has 2FA enabled
       const { has2FA, factors } = await getUserVerificationMethods({
         supabase,
         supabaseAdmin,
       });
+
       if (has2FA) {
         return NextResponse.json({
           requiresTwoFactor: true,
@@ -166,6 +179,8 @@ export async function POST(request: NextRequest) {
             ip_address: getClientIp(request),
           },
           action: "change_password",
+          category: "info",
+          description: "Password change request verified",
         },
       });
     }
@@ -196,7 +211,10 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id);
 
     if (flagError) {
-      console.error("Failed to update has_password flag:", flagError);
+      console.error(
+        "[Password Change] Failed to update has_password flag:",
+        flagError
+      );
       // Don't throw - password was updated successfully
     }
 
@@ -213,6 +231,8 @@ export async function POST(request: NextRequest) {
           os: parser.getOS().name || null,
           ip_address: getClientIp(request),
         },
+        category: "warning",
+        description: "Account password was changed",
       },
     });
 
@@ -233,7 +253,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {
-    console.error("Error changing password:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

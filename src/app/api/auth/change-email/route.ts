@@ -163,6 +163,8 @@ export async function POST(request: NextRequest) {
             ip_address: getClientIp(request),
           },
           action: "change_email",
+          category: "info",
+          description: "Email change request verified",
         },
       });
 
@@ -188,6 +190,8 @@ export async function POST(request: NextRequest) {
             },
             oldEmail: user.email,
             newEmail,
+            category: "warning",
+            description: `Email address changed from ${user.email} to ${newEmail}`,
           },
         });
 

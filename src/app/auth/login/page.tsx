@@ -1,22 +1,24 @@
 import { AuthForm } from "@/components/auth-form";
 
-export default function Login({
+export default async function Login({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const params = await searchParams;
+
   return (
     <main className="min-h-dvh flex items-center justify-center flex-col gap-5 px-8 py-10 relative">
       <AuthForm
-        requires2fa={searchParams.requires_2fa === "true"}
-        initialFactorId={searchParams.factor_id || null}
-        nextUrl={searchParams.next || "/dashboard"}
+        requires2fa={params.requires_2fa === "true"}
+        initialFactorId={params.factor_id?.toString() || null}
+        nextUrl={params.next?.toString() || "/dashboard"}
         initialMethods={
-          searchParams.available_methods
-            ? JSON.parse(searchParams.available_methods)
+          params.available_methods
+            ? JSON.parse(params.available_methods.toString())
             : []
         }
-        message={searchParams.message || null}
+        message={params.message?.toString() || null}
       />
     </main>
   );

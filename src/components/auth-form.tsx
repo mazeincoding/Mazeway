@@ -42,7 +42,17 @@ export function AuthForm({
 }: AuthFormProps) {
   const router = useRouter();
 
-  // Get initial state from props
+  // Show message from props
+  useEffect(() => {
+    if (message) {
+      // Small delay to ensure the toast is shown after hydration
+      const timer = setTimeout(() => {
+        toast.info(message);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   const initialTwoFactorState = useMemo(() => {
     return {
       requiresTwoFactor: requires2fa && !!initialFactorId,
@@ -51,13 +61,6 @@ export function AuthForm({
       availableMethods: initialMethods,
     };
   }, [requires2fa, initialFactorId, nextUrl, initialMethods]);
-
-  // Show message from props
-  useEffect(() => {
-    if (message) {
-      toast.info(message);
-    }
-  }, [message]);
 
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");

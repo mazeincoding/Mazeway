@@ -107,7 +107,12 @@ export const passwordChangeSchema = z.object({
   newPassword: authSchema.shape.password,
 });
 
+export const addPasswordSchema = z.object({
+  newPassword: authSchema.shape.password,
+});
+
 export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;
+export type AddPasswordSchema = z.infer<typeof addPasswordSchema>;
 
 export const twoFactorVerificationSchema = z.object({
   factorId: z.string().min(1, "Factor ID is required"),

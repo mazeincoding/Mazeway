@@ -27,7 +27,11 @@ import {
   getUser,
   getDeviceSessionId,
 } from "@/utils/auth";
-import { passwordChangeSchema } from "@/validation/auth-validation";
+import {
+  passwordChangeSchema,
+  addPasswordSchema,
+  type PasswordChangeSchema,
+} from "@/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { logAccountEvent } from "@/utils/account-events/server";
@@ -80,7 +84,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // If not a 2FA request, validate password change data
-    const validation = passwordChangeSchema.safeParse(body);
+    const validation = (
+      dbUser.has_password ? passwordChangeSchema : addPasswordSchema
+    ).safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { error: validation.error.issues[0]?.message || "Invalid input" },
@@ -88,10 +94,21 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { currentPassword, newPassword } = validation.data;
+    // Type-safe way to handle both schemas
+    const { newPassword } = validation.data;
+    const currentPassword = dbUser.has_password
+      ? (validation.data as PasswordChangeSchema).currentPassword
+      : undefined;
 
     // For users with password auth, verify current password
     if (dbUser.has_password) {
+      if (!currentPassword) {
+        return NextResponse.json(
+          { error: "Current password is required" },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
       // Verify current password
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email!,

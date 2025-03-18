@@ -5,7 +5,9 @@ import { KeyRound, ShieldIcon, ScrollText } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
 import {
   passwordChangeSchema,
+  addPasswordSchema,
   type PasswordChangeSchema,
+  type AddPasswordSchema,
 } from "@/validation/auth-validation";
 import { toast } from "sonner";
 import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
@@ -45,6 +47,7 @@ export default function Security() {
     currentPassword: false,
     newPassword: false,
   });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationFactorId, setVerificationFactorId] = useState<
     string | null
@@ -57,12 +60,18 @@ export default function Security() {
   const [factorId, setFactorId] = useState<string>("");
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
-  const form = useForm<PasswordChangeSchema>({
-    resolver: zodResolver(passwordChangeSchema),
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-    },
+  const form = useForm<PasswordChangeSchema | AddPasswordSchema>({
+    resolver: zodResolver(
+      hasPasswordAuth ? passwordChangeSchema : addPasswordSchema
+    ),
+    defaultValues: hasPasswordAuth
+      ? {
+          currentPassword: "",
+          newPassword: "",
+        }
+      : {
+          newPassword: "",
+        },
   });
 
   const handlePasswordVisibilityChange = (field: string, show: boolean) => {
@@ -73,14 +82,17 @@ export default function Security() {
   };
 
   const updatePassword = async (
-    values: PasswordChangeSchema,
+    values: PasswordChangeSchema | AddPasswordSchema,
     verificationCode?: string
   ) => {
+    console.log("updatePassword called with:", { values, verificationCode });
     setError(null);
+    setIsChangingPassword(true);
 
     try {
       // If we're in verification mode, verify first
       if (verificationCode && verificationFactorId && verificationMethods) {
+        console.log("Verifying 2FA code...");
         setIsVerifying(true);
         await api.auth.verify({
           factorId: verificationFactorId,
@@ -91,11 +103,15 @@ export default function Security() {
 
       // After verification (or if no verification needed), change password
       const params: TChangePasswordRequest = {
-        currentPassword: form.getValues("currentPassword"),
-        newPassword: form.getValues("newPassword"),
+        currentPassword: hasPasswordAuth
+          ? (values as PasswordChangeSchema).currentPassword
+          : undefined,
+        newPassword: values.newPassword,
       };
+      console.log("Sending password change request with params:", params);
 
       const data = await api.auth.changePassword(params);
+      console.log("Password change response:", data);
 
       // Check if 2FA is required
       if (data.requiresTwoFactor && data.factorId && data.availableMethods) {
@@ -156,11 +172,19 @@ export default function Security() {
       }
     } finally {
       setIsVerifying(false);
+      setIsChangingPassword(false);
     }
   };
 
   // Form submission handler
-  const onSubmit = (values: PasswordChangeSchema) => updatePassword(values);
+  const onSubmit = async (values: PasswordChangeSchema | AddPasswordSchema) => {
+    console.log("Form submitted with values:", values);
+    try {
+      await updatePassword(values);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+    }
+  };
 
   // 2FA verification handler
   const handleVerifyPasswordChange = (code: string) =>
@@ -297,7 +321,9 @@ export default function Security() {
           <Form {...form}>
             <form
               id="password-form"
-              onSubmit={form.handleSubmit(onSubmit)}
+              onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                console.log("Form validation errors:", errors);
+              })}
               className="flex flex-col gap-2"
               noValidate
             >
@@ -312,7 +338,7 @@ export default function Security() {
                         <FormControl>
                           <Input
                             type="password"
-                            disabled={isLoading}
+                            disabled={isLoading || isChangingPassword}
                             showPassword={showPasswords.currentPassword}
                             onShowPasswordChange={(show) =>
                               handlePasswordVisibilityChange(
@@ -337,7 +363,7 @@ export default function Security() {
                       <FormControl>
                         <Input
                           type="password"
-                          disabled={isLoading}
+                          disabled={isLoading || isChangingPassword}
                           showPassword={showPasswords.newPassword}
                           onShowPasswordChange={(show) =>
                             handlePasswordVisibilityChange("newPassword", show)
@@ -354,7 +380,11 @@ export default function Security() {
           </Form>
         </SettingCard.Content>
         <SettingCard.Footer>
-          <Button type="submit" form="password-form" disabled={isLoading}>
+          <Button
+            type="submit"
+            form="password-form"
+            disabled={isLoading || isChangingPassword}
+          >
             {hasPasswordAuth ? "Update password" : "Add password"}
           </Button>
         </SettingCard.Footer>

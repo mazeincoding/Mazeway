@@ -389,7 +389,7 @@ export async function GET(request: Request) {
     console.log("Authentication successful, redirecting to", next);
 
     // Send email alert based on configuration
-    if (AUTH_CONFIG.emailAlerts.login.enabled) {
+    if (!isNewUser && AUTH_CONFIG.emailAlerts.login.enabled) {
       try {
         // First check if Resend is configured
         if (!process.env.RESEND_API_KEY) {

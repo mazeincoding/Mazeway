@@ -1,7 +1,7 @@
 "use client";
 import { Suspense } from "react";
 import { useState, useMemo, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -25,41 +25,39 @@ import { BackButton } from "./back-button";
 import { api } from "@/utils/api";
 import Link from "next/link";
 
-export function AuthForm() {
+type AuthFormProps = {
+  requires2fa?: boolean;
+  initialFactorId?: string | null;
+  nextUrl?: string;
+  initialMethods?: Array<{ type: TTwoFactorMethod; factorId: string }>;
+  message?: string | null;
+};
+
+export function AuthForm({
+  requires2fa = false,
+  initialFactorId = null,
+  nextUrl = "/dashboard",
+  initialMethods = [],
+  message,
+}: AuthFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // Get initial state from URL params
+  // Get initial state from props
   const initialTwoFactorState = useMemo(() => {
-    const requires2fa = searchParams.get("requires_2fa") === "true";
-    const nextUrl = searchParams.get("next");
-    const factorIdParam = searchParams.get("factor_id");
-    const methodsParam = searchParams.get("available_methods");
-
-    let methods: Array<{ type: TTwoFactorMethod; factorId: string }> = [];
-    if (methodsParam) {
-      try {
-        methods = JSON.parse(methodsParam);
-      } catch (error) {
-        console.error("Failed to parse available methods:", error);
-      }
-    }
-
     return {
-      requiresTwoFactor: requires2fa && !!factorIdParam,
-      factorId: factorIdParam || null,
-      redirectUrl: nextUrl || "/dashboard",
-      availableMethods: methods,
+      requiresTwoFactor: requires2fa && !!initialFactorId,
+      factorId: initialFactorId || null,
+      redirectUrl: nextUrl,
+      availableMethods: initialMethods,
     };
-  }, [searchParams]);
+  }, [requires2fa, initialFactorId, nextUrl, initialMethods]);
 
-  // Show message from URL params
+  // Show message from props
   useEffect(() => {
-    const message = searchParams.get("message");
     if (message) {
       toast.info(message);
     }
-  }, [searchParams]);
+  }, [message]);
 
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");

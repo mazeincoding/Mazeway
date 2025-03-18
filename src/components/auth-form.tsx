@@ -25,7 +25,7 @@ import { BackButton } from "./back-button";
 import { api } from "@/utils/api";
 import Link from "next/link";
 
-function AuthFormContent() {
+export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -425,14 +425,6 @@ function AuthFormContent() {
         onClose={() => setShowConfirm(false)}
       />
     </>
-  );
-}
-
-export function AuthForm() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <AuthFormContent />
-    </Suspense>
   );
 }
 

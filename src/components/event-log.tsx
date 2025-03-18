@@ -145,7 +145,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
               <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} />
             </Button>
           </div>
-          <div className="space-y-4 p-6 pt-2">
+          <div className="space-y-4 p-6 pt-4">
             {events.map((event) => {
               const category =
                 event.metadata.category || getEventCategory(event);

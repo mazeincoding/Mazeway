@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { TAccountEvent, TEventCategory } from "@/types/auth";
 import { api } from "@/utils/api";
 import { formatDistanceToNow } from "date-fns";
-import { Loader2, RotateCw } from "lucide-react";
+import { RotateCw, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -15,14 +15,11 @@ type TEventLogProps = {
   limit?: number;
 };
 
-const EVENT_CATEGORY_STYLES: Record<
-  TEventCategory,
-  { bg: string; text: string }
-> = {
-  success: { bg: "bg-green-500/10", text: "text-green-600" },
-  error: { bg: "bg-red-500/10", text: "text-red-600" },
-  warning: { bg: "bg-yellow-500/10", text: "text-yellow-600" },
-  info: { bg: "bg-blue-500/10", text: "text-blue-600" },
+const EVENT_COLORS: Record<TEventCategory, { bg: string; text: string }> = {
+  success: { bg: "#22c55e", text: "#15803d" },
+  error: { bg: "#ef4444", text: "#b91c1c" },
+  warning: { bg: "#eab308", text: "#a16207" },
+  info: { bg: "#3b82f6", text: "#1d4ed8" },
 };
 
 const getEventCategory = (event: TAccountEvent): TEventCategory => {
@@ -192,16 +189,23 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
 
 function EventItem({ event }: { event: TAccountEvent }) {
   const category = event.metadata.category || getEventCategory(event);
-  const styles = EVENT_CATEGORY_STYLES[category];
+  const colors = EVENT_COLORS[category];
 
   return (
     <div className="rounded-lg border bg-card p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className={cn(styles.bg, styles.text)}>
+          <div className="flex items-center gap-1.5">
+            <Badge
+              variant="secondary"
+              style={{
+                backgroundColor: `${colors.bg}20`,
+                color: colors.text,
+              }}
+            >
               {event.event_type}
             </Badge>
+            <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
             <span className="text-xs text-muted-foreground capitalize">
               {category}
             </span>

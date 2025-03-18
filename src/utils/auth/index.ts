@@ -10,6 +10,7 @@ import {
   TUser,
   TVerificationFactor,
   TUserWithAuth,
+  TDeviceTrust,
 } from "@/types/auth";
 
 /**
@@ -17,71 +18,97 @@ import {
  */
 
 /**
- * Calculates confidence score for a device login by comparing with stored sessions
- * @param storedSessions Array of user's previous device sessions
- * @param current Current device information
- * @returns number Confidence score from 0-100
+ * Calculates how much we trust a device login attempt
+ * @param params All the info we need to make trust decisions
  */
-export function calculateDeviceConfidence(
-  storedSessions: TDeviceSession[] | null,
-  current: TDeviceInfo
-): number {
-  // If no stored sessions, calculate a baseline score
-  // Trust for first-time signups is handled explicitly in setupDeviceSession
-  if (!storedSessions?.length) {
-    // No device sessions to compare to
-    return 0;
+export function calculateDeviceTrust({
+  trustedSessions,
+  currentDevice,
+  isNewUser,
+  isOAuthLogin,
+  has2FA,
+}: {
+  trustedSessions: TDeviceSession[] | null;
+  currentDevice: TDeviceInfo;
+  isNewUser: boolean;
+  isOAuthLogin: boolean;
+  has2FA: boolean;
+}): TDeviceTrust {
+  // New users are fully trusted (it's their first device)
+  if (isNewUser) {
+    return {
+      score: 100,
+      level: "high",
+      needsVerification: false,
+      isTrusted: true,
+    };
   }
 
-  // Calculate confidence against each stored device and return highest score
-  const scores = storedSessions.map((session) => {
-    let score = 0;
-    const stored = session.device;
+  // OAuth logins get high base trust
+  if (isOAuthLogin) {
+    return {
+      score: 85,
+      level: "high",
+      needsVerification: false,
+      isTrusted: true,
+    };
+  }
 
-    // Device name match (30 points)
-    if (stored.device_name === current.device_name) {
-      score += 30;
-    }
+  // Calculate score by comparing against stored sessions
+  let score = 0;
+  if (trustedSessions?.length) {
+    const scores = trustedSessions.map((session) => {
+      let matchScore = 0;
+      const stored = session.device;
 
-    // Browser match (20 points)
-    if (stored.browser === current.browser) {
-      score += 20;
-    }
-
-    // OS match - base name only (20 points)
-    if (stored.os && current.os) {
-      const storedBase = stored.os.split(" ")[0];
-      const currentBase = current.os.split(" ")[0];
-      if (storedBase === currentBase) {
-        score += 20;
+      // Device name match (30 points)
+      if (stored.device_name === currentDevice.device_name) {
+        matchScore += 30;
       }
-    }
 
-    // IP range match (15 points)
-    if (stored.ip_address && current.ip_address) {
-      const storedIP = stored.ip_address.split(".").slice(0, 3).join(".");
-      const currentIP = current.ip_address.split(".").slice(0, 3).join(".");
-      if (storedIP === currentIP) {
-        score += 15;
+      // Browser match (20 points)
+      if (stored.browser === currentDevice.browser) {
+        matchScore += 20;
       }
-    }
 
-    return score;
-  });
+      // OS match - base name only (20 points)
+      if (stored.os && currentDevice.os) {
+        const storedBase = stored.os.split(" ")[0];
+        const currentBase = currentDevice.os.split(" ")[0];
+        if (storedBase === currentBase) {
+          matchScore += 20;
+        }
+      }
 
-  // Return the highest confidence score found
-  return Math.max(...scores);
-}
+      // IP range match (15 points)
+      if (stored.ip_address && currentDevice.ip_address) {
+        const storedIP = stored.ip_address.split(".").slice(0, 3).join(".");
+        const currentIP = currentDevice.ip_address
+          .split(".")
+          .slice(0, 3)
+          .join(".");
+        if (storedIP === currentIP) {
+          matchScore += 15;
+        }
+      }
 
-/**
- * Gets the confidence level based on a numeric score
- * @param score Numeric confidence score
- * @returns "high" | "medium" | "low" confidence level
- */
-export function getConfidenceLevel(score: number): "high" | "medium" | "low" {
-  if (score >= 70) return "high";
-  if (score >= 40) return "medium";
-  return "low";
+      return matchScore;
+    });
+
+    score = Math.max(...scores);
+  }
+
+  // Determine trust level and verification needs
+  const level = score >= 70 ? "high" : score >= 40 ? "medium" : "low";
+  const needsVerification = !has2FA && score < 70; // Skip verification if 2FA enabled
+  const isTrusted = score >= 70;
+
+  return {
+    score,
+    level,
+    needsVerification,
+    isTrusted,
+  };
 }
 
 /**

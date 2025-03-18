@@ -12,11 +12,11 @@ export interface TDeviceInfo {
   ip_address?: string;
 }
 
-export interface TDeviceSessionOptions {
-  trustLevel: "high" | "oauth" | "normal";
-  skipVerification?: boolean;
-  provider?: TDeviceSessionProvider;
-  isNewUser?: boolean; // Indicates if this is a first-time signup
+export interface TDeviceTrust {
+  score: number;
+  level: "high" | "medium" | "low";
+  needsVerification: boolean;
+  isTrusted: boolean;
 }
 
 // Base verification methods

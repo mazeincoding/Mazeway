@@ -22,8 +22,10 @@ import {
   getUser,
   getDeviceSessionId,
 } from "@/utils/auth";
-import { setupDeviceSession } from "@/utils/auth/device-sessions/server";
+import { createDeviceSession } from "@/utils/auth/device-sessions/server";
 import { sendEmailAlert } from "@/utils/email-alerts";
+import { UAParser } from "ua-parser-js";
+import { TDeviceInfo } from "@/types/auth";
 
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
@@ -186,14 +188,27 @@ export async function POST(request: NextRequest) {
 
     // Set up device session if not requiring relogin
     if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
-      const session_id = await setupDeviceSession({
-        request,
+      // Parse user agent for device info
+      const parser = new UAParser(request.headers.get("user-agent") || "");
+      const deviceName = parser.getDevice().model || "Unknown Device";
+      const browser = parser.getBrowser().name || "Unknown Browser";
+      const os = parser.getOS().name || "Unknown OS";
+
+      const currentDevice: TDeviceInfo = {
         user_id: userId,
-        options: {
-          trustLevel: "high",
-          skipVerification: true, // User proved ownership via email
-          provider: "browser",
-        },
+        device_name: deviceName,
+        browser,
+        os,
+        ip_address: request.headers.get("x-forwarded-for") || "::1",
+      };
+
+      // High trust because user proved ownership through password reset email
+      const session_id = await createDeviceSession({
+        user_id: userId,
+        device: currentDevice,
+        confidence_score: 100,
+        needs_verification: false,
+        is_trusted: true,
       });
 
       // Set device session cookie

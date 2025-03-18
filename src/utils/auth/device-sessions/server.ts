@@ -1,6 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { TDeviceInfo, TDeviceSessionOptions } from "@/types/auth";
-import { UAParser } from "ua-parser-js";
+import { TDeviceInfo } from "@/types/auth";
 import { AUTH_CONFIG } from "@/config/auth";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { getUser } from "@/utils/auth";
@@ -32,85 +31,12 @@ async function createDevice({ device }: { device: TDeviceInfo }) {
   return newDevice.id;
 }
 
-export type TCreateDeviceSessionParams = {
+export interface TCreateDeviceSessionParams {
   user_id: string;
   device: TDeviceInfo;
   confidence_score: number;
   needs_verification: boolean;
   is_trusted: boolean;
-};
-
-/**
- * Creates a device session with proper trust and verification settings based on the auth flow
- * @param request The incoming request object
- * @param user_id The ID of the user to create the session for
- * @param options Configuration options for the session
- * @returns The created session ID
- */
-export async function setupDeviceSession({
-  request,
-  user_id,
-  options,
-}: {
-  request: Request;
-  user_id: string;
-  options: TDeviceSessionOptions;
-}): Promise<string> {
-  // Parse user agent for device info
-  const parser = new UAParser(request.headers.get("user-agent") || "");
-  const currentDevice: TDeviceInfo = {
-    user_id,
-    device_name: parser.getDevice().model || "Unknown Device",
-    browser: parser.getBrowser().name || "Unknown Browser",
-    os: parser.getOS().name || "Unknown OS",
-    ip_address: request.headers.get("x-forwarded-for") || "::1",
-  };
-
-  // Calculate confidence and verification needs based on trust level
-  let confidence_score: number;
-  let needs_verification: boolean;
-  let is_trusted: boolean;
-
-  // First-time signup device should be trusted
-  if (options.isNewUser) {
-    // This is the device that created the account, so we trust it
-    confidence_score = 100;
-    needs_verification = false;
-    is_trusted = true;
-  } else {
-    // For existing users, use the standard trust levels
-    switch (options.trustLevel) {
-      case "high":
-        // High trust for password reset, email verification, etc.
-        confidence_score = 100;
-        needs_verification = false;
-        is_trusted = true;
-        break;
-      case "oauth":
-        // OAuth providers are generally trusted
-        confidence_score = 85;
-        needs_verification = false;
-        is_trusted = true;
-        break;
-      case "normal":
-        // Regular email/password login
-        confidence_score = 70;
-        needs_verification = !options.skipVerification;
-        is_trusted = false;
-        break;
-    }
-  }
-
-  // Create the session
-  const session_id = await createDeviceSession({
-    user_id,
-    device: currentDevice,
-    confidence_score,
-    needs_verification,
-    is_trusted,
-  });
-
-  return session_id;
 }
 
 // Only use this function on the server

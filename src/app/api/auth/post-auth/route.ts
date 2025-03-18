@@ -7,13 +7,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { UAParser } from "ua-parser-js";
 import {
-  calculateDeviceConfidence,
+  calculateDeviceTrust,
   getUserVerificationMethods,
-  getConfidenceLevel,
   getUser,
 } from "@/utils/auth";
 import { TDeviceInfo, TDeviceSessionProvider } from "@/types/auth";
-import { setupDeviceSession } from "@/utils/auth/device-sessions/server";
+import { createDeviceSession } from "@/utils/auth/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
 import { AuthApiError } from "@supabase/supabase-js";
 import { TSendEmailAlertRequest } from "@/types/api";
@@ -239,17 +238,6 @@ export async function GET(request: Request) {
       ip: currentDevice.ip_address,
     });
 
-    const score = calculateDeviceConfidence(
-      trustedSessions || null,
-      currentDevice
-    );
-
-    const confidenceLevel = getConfidenceLevel(score);
-    console.log("Device confidence", {
-      score,
-      confidenceLevel,
-    });
-
     const { has2FA, factors } = await getUserVerificationMethods({
       supabase,
       supabaseAdmin,
@@ -259,23 +247,41 @@ export async function GET(request: Request) {
       factorCount: factors.length,
     });
 
-    console.log("Setting up device session", {
-      userId: user.id,
-      trustLevel: isOAuthProvider ? "oauth" : "normal",
-      skipVerification: has2FA,
-      provider,
-      isNewUser,
+    // SECURITY: We use isNewUser to determine if this is the user's first device login,
+    // NOT the absence of device sessions. This is critical because:
+    // 1. No device sessions could mean: first login ever, logged out everywhere, sessions expired, or cleared sessions
+    // 2. An attacker could wait for a moment when no sessions exist to gain unwarranted trust
+    // 3. isNewUser specifically means "we just created this user's profile right now" which is reliable
+    const { score, level, needsVerification, isTrusted } = calculateDeviceTrust(
+      {
+        trustedSessions: trustedSessions || null,
+        currentDevice,
+        isNewUser,
+        isOAuthLogin: isOAuthProvider,
+        has2FA,
+      }
+    );
+
+    console.log("Device trust calculated", {
+      score,
+      level,
+      needsVerification,
+      isTrusted,
     });
 
-    const session_id = await setupDeviceSession({
-      request,
+    console.log("Setting up device session", {
+      userId: user.id,
+      provider,
+      isNewUser,
+      trust: { score, level, needsVerification, isTrusted },
+    });
+
+    const session_id = await createDeviceSession({
       user_id: user.id,
-      options: {
-        trustLevel: isOAuthProvider ? "oauth" : "normal",
-        skipVerification: has2FA, // Skip device verification if 2FA is required
-        provider,
-        isNewUser,
-      },
+      device: currentDevice,
+      confidence_score: score,
+      needs_verification: needsVerification,
+      is_trusted: isTrusted,
     });
 
     console.log("Device session created", {
@@ -303,7 +309,9 @@ export async function GET(request: Request) {
 
     // If 2FA is required and this is an OAuth login, show 2FA form before proceeding
     if (has2FA && isOAuthProvider) {
-      console.log("2FA required for OAuth login, redirecting to 2FA form");
+      console.log("2FA required for OAuth login, redirecting to 2FA form", {
+        trust: { score, level, needsVerification, isTrusted },
+      });
 
       const verifyUrl = new URL(`${origin}/auth/login`);
       verifyUrl.searchParams.set("requires_2fa", "true");
@@ -338,7 +346,9 @@ export async function GET(request: Request) {
     }
 
     if (session?.needs_verification) {
-      console.log("Device session needs verification");
+      console.log("Device session needs verification", {
+        trust: { score, level, needsVerification, isTrusted },
+      });
 
       try {
         console.log("Sending verification code");
@@ -441,6 +451,7 @@ export async function GET(request: Request) {
               alertMode: AUTH_CONFIG.emailAlerts.login.alertMode,
               confidenceScore: score,
               threshold: AUTH_CONFIG.emailAlerts.login.confidenceThreshold,
+              trust: { score, level, needsVerification, isTrusted },
             });
           }
         }

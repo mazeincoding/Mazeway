@@ -15,30 +15,55 @@ type TLogEventOptions<T extends TEventType> = {
 export async function logAccountEvent<T extends TEventType>(
   options: TLogEventOptions<T>
 ) {
+  console.log(
+    `[Account Event] Logging event type: ${options.event_type} for user: ${options.user_id}`
+  );
+
   if (typeof window !== "undefined") {
+    console.error("[Account Event] Attempted to log event from client side");
     throw new Error("Logging account events can only be done on the server");
   }
 
-  const adminClient = await createClient({ useServiceRole: true });
+  try {
+    console.log("[Account Event] Creating admin client for event logging");
+    const adminClient = await createClient({ useServiceRole: true });
 
-  const { data: event, error } = await adminClient
-    .from("account_events")
-    .insert({
-      user_id: options.user_id,
-      device_session_id: options.device_session_id,
+    console.log("[Account Event] Inserting event into database", {
       event_type: options.event_type,
-      metadata: options.metadata,
-    })
-    .select("id")
-    .single();
+      device_session_id: options.device_session_id || "none",
+      metadata_keys: Object.keys(options.metadata),
+    });
 
-  if (error) {
-    console.error("Failed to log account event:", {
-      type: options.event_type,
+    const { data: event, error } = await adminClient
+      .from("account_events")
+      .insert({
+        user_id: options.user_id,
+        device_session_id: options.device_session_id,
+        event_type: options.event_type,
+        metadata: options.metadata,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("[Account Event] Failed to log event:", {
+        type: options.event_type,
+        error_message: error.message,
+        error_code: error.code,
+        details: error.details,
+      });
+      throw error;
+    }
+
+    console.log(
+      `[Account Event] Successfully logged event with ID: ${event.id}`
+    );
+    return event.id;
+  } catch (error) {
+    console.error("[Account Event] Unexpected error while logging event:", {
+      event_type: options.event_type,
       error,
     });
     throw error;
   }
-
-  return event.id;
 }

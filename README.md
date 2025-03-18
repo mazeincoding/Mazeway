@@ -807,6 +807,9 @@ All the other password requirements are self-explanatory.
 > - In server contexts (API routes, server components, middleware, etc): use `getUser()` from `@/utils/auth`
 >
 > This ensures you always get the complete user data (both auth and profile) in a consistent format.
+>
+> Special cases:
+> - During post-auth flow where profile doesn't exist yet: use `getUser({ requireProfile: false })`
 
 You might notice we use two different approaches for handling data and API calls. This isn't an accident - each serves a specific purpose:
 

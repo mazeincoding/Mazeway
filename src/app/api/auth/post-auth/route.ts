@@ -73,7 +73,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const supabaseAdmin = await createClient({ useServiceRole: true });
 
-    const { user, error } = await getUser({ supabase });
+    const { user, error } = await getUser({ supabase, requireProfile: false });
     if (error || !user) {
       console.error("Failed to get user", {
         error,

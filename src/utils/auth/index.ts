@@ -538,12 +538,16 @@ export async function getAuthenticatorAssuranceLevel(
  * Use this in server contexts (API routes, server components, utilities)
  *
  * @param supabase Supabase client instance
+ * @param requireProfile Whether to require and fetch the user's profile data. Set to false ONLY in
+ *                      special cases like post-auth where the profile doesn't exist yet.
  * @returns Object containing user data or error
  */
 export async function getUser({
   supabase,
+  requireProfile = true,
 }: {
   supabase: SupabaseClient;
+  requireProfile?: boolean;
 }): Promise<{ user: TUserWithAuth | null; error: string | null }> {
   try {
     // Get auth user first since we need the ID
@@ -553,7 +557,46 @@ export async function getUser({
     } = await supabase.auth.getUser();
 
     if (userError || !authUser) {
+      console.error("[getUser] Failed to get user", {
+        error: userError,
+        hasUser: !!authUser,
+      });
       return { user: null, error: "Unauthorized" };
+    }
+
+    // If we don't need profile data (special cases), return minimal user object
+    if (!requireProfile) {
+      return {
+        user: {
+          id: authUser.id,
+          email: authUser.email ?? "",
+          name: "",
+          avatar_url: "",
+          has_password: false,
+          has_backup_codes: false,
+          created_at: authUser.created_at ?? new Date().toISOString(),
+          updated_at: authUser.updated_at ?? new Date().toISOString(),
+          auth: {
+            emailVerified: !!authUser.email_confirmed_at,
+            lastSignInAt: authUser.last_sign_in_at ?? new Date().toISOString(),
+            twoFactorEnabled: false,
+            enabled2faMethods: [],
+            availableVerificationMethods: [],
+            identities: authUser.identities?.map((identity) => ({
+              id: identity.id,
+              provider: identity.provider,
+              identity_data: identity.identity_data ?? {},
+              provider_id: identity.id,
+              user_id: identity.user_id,
+              created_at: identity.created_at ?? new Date().toISOString(),
+              last_sign_in_at:
+                identity.last_sign_in_at ?? new Date().toISOString(),
+              updated_at: identity.updated_at ?? new Date().toISOString(),
+            })),
+          },
+        },
+        error: null,
+      };
     }
 
     // Run remaining queries in parallel

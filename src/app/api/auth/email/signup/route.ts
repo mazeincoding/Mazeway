@@ -7,8 +7,6 @@ import {
   TEmailSignupRequest,
   TEmptySuccessResponse,
 } from "@/types/api";
-import { logAccountEvent } from "@/utils/account-events/server";
-import { UAParser } from "ua-parser-js";
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,23 +54,6 @@ export async function POST(request: NextRequest) {
         { error: authError.message },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    // Log account creation event
-    if (signupData.user?.id) {
-      const parser = new UAParser(request.headers.get("user-agent") || "");
-      await logAccountEvent({
-        user_id: signupData.user.id,
-        event_type: "ACCOUNT_CREATED",
-        metadata: {
-          device: {
-            device_name: parser.getDevice().model || "Unknown Device",
-            browser: parser.getBrowser().name || null,
-            os: parser.getOS().name || null,
-            ip_address: getClientIp(request),
-          },
-        },
-      });
     }
 
     return NextResponse.json(

@@ -17,6 +17,7 @@ import { setupDeviceSession } from "@/utils/auth/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
 import { AuthApiError } from "@supabase/supabase-js";
 import { TSendEmailAlertRequest } from "@/types/api";
+import { logAccountEvent } from "@/utils/account-events/server";
 
 export async function GET(request: Request) {
   console.log("Request received", {
@@ -125,6 +126,7 @@ export async function GET(request: Request) {
     let isNewUser = false;
 
     if (!dbUser) {
+      // Create user record for all new users
       console.log("Creating new user record", {
         userId: user.id,
       });
@@ -146,6 +148,21 @@ export async function GET(request: Request) {
         });
         throw new Error("Failed to create user");
       }
+
+      // Log account creation event
+      const parser = new UAParser(request.headers.get("user-agent") || "");
+      await logAccountEvent({
+        user_id: user.id,
+        event_type: "ACCOUNT_CREATED",
+        metadata: {
+          device: {
+            device_name: parser.getDevice().model || "Unknown Device",
+            browser: parser.getBrowser().name || null,
+            os: parser.getOS().name || null,
+            ip_address: request.headers.get("x-forwarded-for") || "::1",
+          },
+        },
+      });
 
       console.log("User record created successfully");
     }

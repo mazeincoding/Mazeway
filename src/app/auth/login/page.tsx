@@ -6,6 +6,9 @@ export default async function Login({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
+  const message = params.message
+    ? decodeURIComponent(params.message.toString())
+    : null;
 
   return (
     <main className="min-h-dvh flex items-center justify-center flex-col gap-5 px-8 py-10 relative">
@@ -18,7 +21,7 @@ export default async function Login({
             ? JSON.parse(params.available_methods.toString())
             : []
         }
-        message={params.message?.toString() || null}
+        message={message}
       />
     </main>
   );

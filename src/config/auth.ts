@@ -139,7 +139,7 @@ export const AUTH_CONFIG = {
   },
 
   api_rate_limit: {
-    enabled: false,
+    enabled: true,
   },
 
   passwordRequirements: {

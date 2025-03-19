@@ -82,13 +82,19 @@ const formatEventMessage = (event: TAccountEvent) => {
 export function EventLog({ className, limit = 50 }: TEventLogProps) {
   const [events, setEvents] = useState<TAccountEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [totalEvents, setTotalEvents] = useState<number>(0);
 
   const fetchEvents = async (cursorValue?: string) => {
     try {
-      setLoading(true);
+      if (cursorValue) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       const params = new URLSearchParams();
@@ -101,6 +107,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
         cursorValue ? [...prev, ...data.events] : data.events
       );
       setHasMore(data.hasMore);
+      setTotalEvents(data.total);
       if (data.events.length > 0) {
         setCursor(data.events[data.events.length - 1].created_at);
       }
@@ -108,6 +115,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
       setError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -134,7 +142,8 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
       <CardContent className="p-0">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <p className="text-sm text-muted-foreground">
-            {events.length} {events.length === 1 ? "event" : "events"}
+            Viewing {events.length} {events.length === 1 ? "event" : "events"}{" "}
+            out of {totalEvents}
           </p>
           <Button
             variant="ghost"
@@ -176,10 +185,27 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
                 variant="outline"
                 onClick={() => fetchEvents(cursor!)}
                 className="w-full"
+                disabled={loadingMore}
               >
-                Load more
+                {loadingMore ? (
+                  <div className="flex items-center gap-2">
+                    <RotateCw className="flex-shrink-0 h-4 w-4 animate-spin" />
+                    Loading more...
+                  </div>
+                ) : (
+                  `Load more (${events.length} of ${totalEvents})`
+                )}
               </Button>
             )}
+
+            {!loading &&
+              !hasMore &&
+              events.length > 0 &&
+              totalEvents > limit && (
+                <p className="text-center text-sm text-muted-foreground py-2">
+                  Showing all {events.length} events
+                </p>
+              )}
           </div>
         </ScrollArea>
       </CardContent>

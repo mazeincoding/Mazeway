@@ -95,7 +95,9 @@ export const exportUserDataTask = task({
       };
 
       // Upload to Supabase Storage
-      const filePath = getDataExportStoragePath(userId, exportId);
+      const fullPath = getDataExportStoragePath(userId, exportId);
+      // Remove the bucket name from the path since it's specified in .from()
+      const filePath = fullPath.replace(/^exports\//, "");
       const { error: uploadError } = await adminClient.storage
         .from("exports")
         .upload(filePath, JSON.stringify(exportData, null, 2), {

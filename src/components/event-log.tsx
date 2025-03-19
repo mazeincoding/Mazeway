@@ -155,7 +155,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
             <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </Button>
         </div>
-        <ScrollArea className="h-[300px] md:h-[450px] relative">
+        <ScrollArea className="h-[600px] md:h-[450px] relative">
           <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-background to-transparent pointer-events-none z-10" />
           <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none z-10" />
           <div className="space-y-4 p-6">

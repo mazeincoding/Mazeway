@@ -15,14 +15,21 @@ export const exportUserDataTask = task({
     payload: TDataExportEventPayload & {
       supabaseUrl: string;
       supabaseServiceKey: string;
+      resendApiKey?: string;
+      resendFromEmail?: string;
     }
   ) => {
-    const { userId, exportId, token, supabaseUrl, supabaseServiceKey } =
-      payload;
+    const {
+      userId,
+      exportId,
+      token,
+      supabaseUrl,
+      supabaseServiceKey,
+      resendApiKey,
+      resendFromEmail,
+    } = payload;
 
-    const resend = process.env.RESEND_API_KEY
-      ? new Resend(process.env.RESEND_API_KEY)
-      : null;
+    const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
     // Create Supabase client with passed creds
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -111,7 +118,7 @@ export const exportUserDataTask = task({
       if (resend && userData.email) {
         try {
           await resend.emails.send({
-            from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
+            from: resendFromEmail || "onboarding@resend.dev",
             to: userData.email,
             subject: "Your data export is ready",
             react: DataExportReadyTemplate({

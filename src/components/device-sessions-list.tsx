@@ -314,12 +314,6 @@ function DeviceItem({
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>{content}</DialogTrigger>
       <DialogContent>
-        <DialogHeader className="sr-only">
-          <DialogTitle>{deviceName}</DialogTitle>
-          <DialogDescription>
-            This device has been logged in to your account.
-          </DialogDescription>
-        </DialogHeader>
         <InfoItem label="Device name" value={deviceName} />
         <InfoItem label="Browser" value={browser} />
         {os && <InfoItem label="Operating System" value={os} />}

@@ -2,7 +2,7 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { TDataExportEventPayload } from "@/types/auth";
 import { getDataExportStoragePath } from "@/utils/data-export";
 import { updateDataExportStatus } from "@/utils/data-export/server";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import DataExportReadyTemplate from "@emails/templates/data-export-ready";
 import { logger, task } from "@trigger.dev/sdk/v3";
 import { Resend } from "resend";
@@ -11,8 +11,14 @@ export const exportUserDataTask = task({
   id: "export-user-data",
   // Set an optional maxDuration to prevent tasks from running indefinitely
   maxDuration: 600, // Stop executing after 600 secs (10 mins) of compute
-  run: async (payload: TDataExportEventPayload) => {
-    const { userId, exportId, token } = payload;
+  run: async (
+    payload: TDataExportEventPayload & {
+      supabaseUrl: string;
+      supabaseServiceKey: string;
+    }
+  ) => {
+    const { userId, exportId, token, supabaseUrl, supabaseServiceKey } =
+      payload;
 
     const resend = process.env.RESEND_API_KEY
       ? new Resend(process.env.RESEND_API_KEY)
@@ -22,7 +28,8 @@ export const exportUserDataTask = task({
       // Update status to processing
       await updateDataExportStatus(exportId, "processing");
 
-      const adminClient = await createClient({ useServiceRole: true });
+      // Create Supabase client with passed creds
+      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
       // Get user data
       const { data: userData, error: userError } = await adminClient

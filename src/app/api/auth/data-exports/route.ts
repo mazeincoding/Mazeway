@@ -154,6 +154,8 @@ export async function POST(
           userId: user.id,
           exportId: data.id,
           token,
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
         },
         {
           maxAttempts: 3,

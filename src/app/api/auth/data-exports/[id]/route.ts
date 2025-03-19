@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
 
     // Get the user
     const supabase = await createClient();
+    const supabaseAdmin = await createClient({ useServiceRole: true });
+
     const { user, error } = await getUser({ supabase });
 
     if (error || !user) {
@@ -56,7 +58,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the export status
-    const exportRequest = await getDataExportStatus(user.id, exportId);
+    const exportRequest = await getDataExportStatus(
+      supabaseAdmin,
+      user.id,
+      exportId
+    );
 
     if (!exportRequest) {
       return NextResponse.json(

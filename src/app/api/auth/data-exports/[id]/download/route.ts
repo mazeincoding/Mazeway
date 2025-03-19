@@ -75,9 +75,16 @@ export async function GET(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
+    // Get the file from storage
+    const adminClient = await createClient({ useServiceRole: true });
+
     // Verify the token
     console.log("[Debug] Verifying token for export:", exportId);
-    const exportRequest = await verifyDataExportToken(exportId, token);
+    const exportRequest = await verifyDataExportToken(
+      adminClient,
+      exportId,
+      token
+    );
     console.log(
       "[Debug] Export request found:",
       !!exportRequest,
@@ -93,7 +100,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the file from storage
-    const adminClient = await createClient({ useServiceRole: true });
     const fullPath = getDataExportStoragePath(exportRequest.user_id, exportId);
     // Remove the bucket name from the path since it's specified in .from()
     const filePath = fullPath.replace(/^exports\//, "");
@@ -114,12 +120,14 @@ export async function GET(request: NextRequest) {
     console.log("[Debug] File downloaded successfully");
 
     // Mark token as used and clean up file
-    await markTokenAsUsed(exportId);
+    await markTokenAsUsed(adminClient, exportId);
 
     // Clean up the file after successful download
-    cleanupDataExportFile(exportRequest.user_id, exportId).catch((error) => {
-      console.error("Error cleaning up export file:", error);
-    });
+    cleanupDataExportFile(adminClient, exportRequest.user_id, exportId).catch(
+      (error) => {
+        console.error("Error cleaning up export file:", error);
+      }
+    );
 
     // Return the file
     const headers = new Headers();

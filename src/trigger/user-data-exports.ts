@@ -24,12 +24,12 @@ export const exportUserDataTask = task({
       ? new Resend(process.env.RESEND_API_KEY)
       : null;
 
+    // Create Supabase client with passed creds
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
     try {
       // Update status to processing
-      await updateDataExportStatus(exportId, "processing");
-
-      // Create Supabase client with passed creds
-      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+      await updateDataExportStatus(adminClient, exportId, "processing");
 
       // Get user data
       const { data: userData, error: userError } = await adminClient
@@ -127,10 +127,11 @@ export const exportUserDataTask = task({
       }
 
       // Update status to completed
-      await updateDataExportStatus(exportId, "completed");
+      await updateDataExportStatus(adminClient, exportId, "completed");
     } catch (error) {
       // Update status to failed with error message
       await updateDataExportStatus(
+        adminClient,
         exportId,
         "failed",
         error instanceof Error ? error.message : "Unknown error"

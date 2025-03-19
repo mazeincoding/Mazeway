@@ -3,7 +3,7 @@
  * These functions should only be used in server code
  */
 
-import { createClient } from "@/utils/supabase/server";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { getDataExportStoragePath } from "./index";
 import { TDataExportRequest, TDataExportStatus } from "@/types/auth";
 import { verifyVerificationCode } from "@/utils/auth/verification-codes";
@@ -13,6 +13,7 @@ import { AUTH_CONFIG } from "@/config/auth";
  * Get the status of a data export request
  */
 export async function getDataExportStatus(
+  adminClient: SupabaseClient,
   userId: string,
   exportId: string
 ): Promise<TDataExportRequest | null> {
@@ -21,8 +22,6 @@ export async function getDataExportStatus(
       "Getting data export status can only be done on the server"
     );
   }
-
-  const adminClient = await createClient({ useServiceRole: true });
 
   const { data, error } = await adminClient
     .from("data_export_requests")
@@ -49,6 +48,7 @@ export async function getDataExportStatus(
  * Returns the export request if valid, null otherwise
  */
 export async function verifyDataExportToken(
+  adminClient: SupabaseClient,
   exportId: string,
   token: string
 ): Promise<TDataExportRequest | null> {
@@ -57,8 +57,6 @@ export async function verifyDataExportToken(
       "Verifying data export token can only be done on the server"
     );
   }
-
-  const adminClient = await createClient({ useServiceRole: true });
 
   // Get the export request
   const { data, error } = await adminClient
@@ -119,12 +117,13 @@ export async function verifyDataExportToken(
  * Mark a data export token as used
  * This prevents token reuse for security
  */
-export async function markTokenAsUsed(exportId: string): Promise<void> {
+export async function markTokenAsUsed(
+  adminClient: SupabaseClient,
+  exportId: string
+): Promise<void> {
   if (typeof window !== "undefined") {
     throw new Error("Marking token as used can only be done on the server");
   }
-
-  const adminClient = await createClient({ useServiceRole: true });
 
   const { error } = await adminClient
     .from("data_export_requests")
@@ -142,6 +141,7 @@ export async function markTokenAsUsed(exportId: string): Promise<void> {
  * Update the status of a data export request
  */
 export async function updateDataExportStatus(
+  adminClient: SupabaseClient,
   exportId: string,
   status: TDataExportStatus,
   error?: string
@@ -151,8 +151,6 @@ export async function updateDataExportStatus(
       "Updating data export status can only be done on the server"
     );
   }
-
-  const adminClient = await createClient({ useServiceRole: true });
 
   const updates: {
     status: TDataExportStatus;
@@ -186,6 +184,7 @@ export async function updateDataExportStatus(
  * This is a security measure to prevent unauthorized access to the file
  */
 export async function cleanupDataExportFile(
+  adminClient: SupabaseClient,
   userId: string,
   exportId: string
 ): Promise<void> {
@@ -194,8 +193,6 @@ export async function cleanupDataExportFile(
       "Cleaning up data export file can only be done on the server"
     );
   }
-
-  const adminClient = await createClient({ useServiceRole: true });
 
   const filePath = getDataExportStoragePath(userId, exportId);
 

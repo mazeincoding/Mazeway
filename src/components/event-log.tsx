@@ -146,7 +146,7 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
             <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </Button>
         </div>
-        <ScrollArea className="h-[450px] relative">
+        <ScrollArea className="h-[300px] md:h-[450px] relative">
           <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-background to-transparent pointer-events-none z-10" />
           <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none z-10" />
           <div className="space-y-4 p-6">
@@ -192,12 +192,13 @@ function EventItem({ event }: { event: TAccountEvent }) {
   const colors = EVENT_COLORS[category];
 
   return (
-    <div className="rounded-lg border bg-card p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5">
+    <div className="rounded-lg border bg-card p-3 sm:p-4 hover:shadow-md transition-shadow">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-4">
+        <div className="flex flex-col gap-1.5 w-full">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Badge
               variant="secondary"
+              className="break-all"
               style={{
                 backgroundColor: `${colors.bg}20`,
                 color: colors.text,
@@ -205,21 +206,21 @@ function EventItem({ event }: { event: TAccountEvent }) {
             >
               {event.event_type}
             </Badge>
-            <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+            <ChevronRight className="h-3 w-3 text-muted-foreground/50 hidden sm:block" />
             <span className="text-xs text-muted-foreground capitalize">
               {category}
             </span>
           </div>
           {event.metadata.description && (
-            <p className="text-sm">{event.metadata.description}</p>
+            <p className="text-sm break-words">{event.metadata.description}</p>
           )}
           {formatEventMessage(event) && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground break-words">
               {formatEventMessage(event)}
             </p>
           )}
         </div>
-        <time className="text-xs text-muted-foreground shrink-0">
+        <time className="text-xs text-muted-foreground mt-1 sm:mt-0 shrink-0">
           {formatDistanceToNow(new Date(event.created_at), {
             addSuffix: true,
           })}
@@ -231,9 +232,9 @@ function EventItem({ event }: { event: TAccountEvent }) {
 
 function EventSkeleton() {
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
+    <div className="rounded-lg border bg-card p-3 sm:p-4">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-4">
+        <div className="flex flex-col gap-1.5 w-full">
           <div className="flex items-center gap-2">
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-4 w-16" />
@@ -241,7 +242,7 @@ function EventSkeleton() {
           <Skeleton className="h-4 w-48" />
           <Skeleton className="h-4 w-32" />
         </div>
-        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-4 w-16 mt-1 sm:mt-0" />
       </div>
     </div>
   );

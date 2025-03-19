@@ -110,15 +110,41 @@ export async function GET(request: Request) {
     let provider: TDeviceSessionProvider = claimedProvider;
 
     if (user.auth.identities && user.auth.identities.length > 0) {
-      const identity = user.auth.identities[0];
-      if (identity.provider === "google") {
-        provider = "google";
-      } else if (identity.provider === "github") {
-        provider = "github";
-      } else if (identity.provider === "email") {
-        provider = "email";
+      // Find the most recently used identity (the one used for this login)
+      const mostRecentIdentity = user.auth.identities.reduce(
+        (latest, current) => {
+          if (
+            !latest ||
+            new Date(current.last_sign_in_at) > new Date(latest.last_sign_in_at)
+          ) {
+            return current;
+          }
+          return latest;
+        },
+        user.auth.identities[0]
+      ); // Initialize with first identity instead of null
+
+      if (mostRecentIdentity) {
+        if (mostRecentIdentity.provider === "google") {
+          provider = "google";
+        } else if (mostRecentIdentity.provider === "github") {
+          provider = "github";
+        } else if (mostRecentIdentity.provider === "email") {
+          provider = "email";
+        }
+        // Add more providers here as they're supported
       }
-      // Add more providers here as they're supported
+
+      console.log("Identity details", {
+        provider,
+        claimedProvider,
+        identityProvider: mostRecentIdentity?.provider,
+        lastSignIn: mostRecentIdentity?.last_sign_in_at,
+        allIdentities: user.auth.identities.map((i) => ({
+          provider: i.provider,
+          lastSignIn: i.last_sign_in_at,
+        })),
+      });
     }
 
     console.log("Determined provider", {

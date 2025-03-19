@@ -4,20 +4,24 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { isLocalIP } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
-  // Get request IP for rate limiting
+  const requestTimestamp = new Date().toISOString();
   const requestIp = getClientIp(request);
-
-  // Get target IP from query params
   const targetIp = request.nextUrl.searchParams.get("ip");
+
+  console.log(
+    `[Geolocation] Request at ${requestTimestamp} - Target IP: ${targetIp}, Request IP: ${requestIp}`
+  );
+
   if (!targetIp) {
+    console.log("[Geolocation] Missing target IP parameter");
     return NextResponse.json(
       { error: "Target IP address is required" },
       { status: 400 }
     ) satisfies NextResponse<TApiErrorResponse>;
   }
 
-  // Return a standard response for local IPs before rate limiting
   if (isLocalIP(targetIp)) {
+    console.log("[Geolocation] Local IP detected, returning mock data");
     return NextResponse.json({
       data: {
         city: "Local Development",
@@ -27,11 +31,13 @@ export async function GET(request: NextRequest) {
     }) satisfies NextResponse<TGeolocationResponse>;
   }
 
-  // Only rate limit non-local IPs that will actually use the geolocation service
   if (apiRateLimit) {
     const { success } = await apiRateLimit.limit(requestIp);
 
     if (!success) {
+      console.log(
+        `[Geolocation] Rate limit exceeded for request IP: ${requestIp}`
+      );
       return NextResponse.json(
         {
           error: "Too many requests. Please try again later.",
@@ -42,12 +48,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Use ipapi.co's free service (no API key required)
+    console.log(
+      `[Geolocation] Fetching data from ipapi.co for IP: ${targetIp}`
+    );
     const response = await fetch(`https://ipapi.co/${targetIp}/json/`);
     const data = await response.json();
 
-    // Handle rate limiting specifically
+    // Log the raw response for debugging
+    console.log("[Geolocation] ipapi.co response:", {
+      status: response.status,
+      data: data,
+      targetIp,
+      timestamp: requestTimestamp,
+    });
+
     if (data.error && data.reason?.toLowerCase().includes("rate limit")) {
+      console.log("[Geolocation] ipapi.co rate limit hit:", data);
       return NextResponse.json(
         {
           error:
@@ -57,9 +73,12 @@ export async function GET(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Handle other API errors
     if (data.error) {
-      console.error("ipapi.co error:", data);
+      console.error("[Geolocation] ipapi.co error:", {
+        error: data,
+        targetIp,
+        timestamp: requestTimestamp,
+      });
       throw new Error(data.reason || "Failed to get location data");
     }
 
@@ -73,7 +92,18 @@ export async function GET(request: NextRequest) {
       },
     }) satisfies NextResponse<TGeolocationResponse>;
   } catch (error) {
-    console.error("Error getting location data:", error);
+    console.error("[Geolocation] Critical error:", {
+      error:
+        error instanceof Error
+          ? {
+              message: error.message,
+              stack: error.stack,
+            }
+          : error,
+      targetIp,
+      timestamp: requestTimestamp,
+    });
+
     return NextResponse.json(
       { error: "Failed to get location data" },
       { status: 500 }

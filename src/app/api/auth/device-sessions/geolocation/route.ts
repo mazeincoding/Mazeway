@@ -49,49 +49,62 @@ export async function GET(request: NextRequest) {
 
   try {
     console.log(
-      `[Geolocation] Fetching data from ipapi.co for IP: ${targetIp}`
+      `[Geolocation] Fetching data from ip-api.com for IP: ${targetIp}`
     );
-    const response = await fetch(`https://ipapi.co/${targetIp}/json/`);
+
+    // Using ip-api.com with JSON format and fields we need
+    const response = await fetch(
+      `http://ip-api.com/json/${targetIp}?fields=status,message,city,regionName,country,lat,lon`,
+      {
+        // Adding timeout to prevent hanging requests
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
 
-    // Log the raw response for debugging
-    console.log("[Geolocation] ipapi.co response:", {
+    console.log("[Geolocation] ip-api.com response:", {
       status: response.status,
-      data: data,
+      data,
       targetIp,
       timestamp: requestTimestamp,
     });
 
-    if (data.error && data.reason?.toLowerCase().includes("rate limit")) {
-      console.log("[Geolocation] ipapi.co rate limit hit:", data);
-      return NextResponse.json(
-        {
-          error:
-            "Location service is temporarily unavailable. Please try again later.",
-        },
-        { status: 429 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    if (data.error) {
-      console.error("[Geolocation] ipapi.co error:", {
+    if (data.status === "fail") {
+      console.error("[Geolocation] ip-api.com error:", {
         error: data,
         targetIp,
         timestamp: requestTimestamp,
       });
-      throw new Error(data.reason || "Failed to get location data");
+      throw new Error(data.message || "Failed to get location data");
     }
 
     return NextResponse.json({
       data: {
         city: data.city,
-        region: data.region,
-        country: data.country_name,
-        latitude: data.latitude,
-        longitude: data.longitude,
+        region: data.regionName,
+        country: data.country,
+        latitude: data.lat,
+        longitude: data.lon,
       },
     }) satisfies NextResponse<TGeolocationResponse>;
   } catch (error) {
+    // Check specifically for timeout errors
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      console.error("[Geolocation] Request timeout:", {
+        targetIp,
+        timestamp: requestTimestamp,
+      });
+      return NextResponse.json(
+        { error: "Location service timed out. Please try again." },
+        { status: 408 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     console.error("[Geolocation] Critical error:", {
       error:
         error instanceof Error

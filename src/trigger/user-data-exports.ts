@@ -17,6 +17,7 @@ export const exportUserDataTask = task({
       supabaseServiceKey: string;
       resendApiKey?: string;
       resendFromEmail?: string;
+      siteUrl: string;
     }
   ) => {
     const {
@@ -27,6 +28,7 @@ export const exportUserDataTask = task({
       supabaseServiceKey,
       resendApiKey,
       resendFromEmail,
+      siteUrl,
     } = payload;
 
     const resend = resendApiKey ? new Resend(resendApiKey) : null;
@@ -112,7 +114,7 @@ export const exportUserDataTask = task({
       }
 
       // Create download URL with token
-      const downloadUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/data-exports/${exportId}/download?token=${token}`;
+      const downloadUrl = `${siteUrl}/api/auth/data-exports/${exportId}/download?token=${token}`;
 
       // Send email with download link
       if (resend && userData.email) {

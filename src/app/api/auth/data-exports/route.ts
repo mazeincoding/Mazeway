@@ -158,6 +158,7 @@ export async function POST(
           supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
           resendApiKey: process.env.RESEND_API_KEY,
           resendFromEmail: process.env.RESEND_FROM_EMAIL,
+          siteUrl: process.env.NEXT_PUBLIC_SITE_URL!,
         },
         {
           maxAttempts: 3,

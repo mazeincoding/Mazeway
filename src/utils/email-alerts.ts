@@ -49,6 +49,12 @@ export async function sendEmailAlert({
     const browser = parser.getBrowser().name || "Unknown Browser";
     const os = parser.getOS().name || "Unknown OS";
 
+    console.log("Sending email alert");
+    console.log("Device name", deviceName);
+    console.log("Browser", browser);
+    console.log("OS", os);
+    console.log("IP address", request.headers.get("x-forwarded-for"));
+
     const body: TSendEmailAlertRequest = {
       email: user.email,
       title,
@@ -65,6 +71,8 @@ export async function sendEmailAlert({
       ...(oldEmail && newEmail ? { oldEmail, newEmail } : {}),
       ...(revokedDevice ? { revokedDevice } : {}),
     };
+
+    console.log("Email alert body", body);
 
     const emailAlertResponse = await fetch(
       `${origin}/api/auth/send-email-alert`,

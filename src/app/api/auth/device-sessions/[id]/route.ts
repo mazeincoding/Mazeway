@@ -115,11 +115,8 @@ export async function DELETE(
       .from("device_sessions")
       .select(
         `
-        id,
-        device_name,
-        browser,
-        os,
-        ip_address
+        *,
+        device:devices(*)
       `
       )
       .eq("id", sessionId)
@@ -127,6 +124,10 @@ export async function DELETE(
       .single();
 
     if (sessionError || !session) {
+      console.error("Session not found or unauthorized", {
+        sessionError,
+        session,
+      });
       throw new Error("Session not found or unauthorized");
     }
 
@@ -185,10 +186,10 @@ export async function DELETE(
       device_session_id: currentSessionId,
       metadata: {
         device: {
-          device_name: session.device_name,
-          browser: session.browser,
-          os: session.os,
-          ip_address: session.ip_address,
+          device_name: session.device.device_name,
+          browser: session.device.browser,
+          os: session.device.os,
+          ip_address: session.device.ip_address,
         },
         action: "revoke_device",
         category: "warning",
@@ -196,27 +197,20 @@ export async function DELETE(
       },
     });
 
-    const { error: deleteError } = await adminClient
-      .from("device_sessions")
-      .delete()
-      .eq("id", sessionId);
-
-    if (deleteError) throw deleteError;
-
-    // Log the device revocation event
+    // Log the device revocation event BEFORE deleting the session
     await logAccountEvent({
       user_id: user.id,
       event_type: "DEVICE_REVOKED",
       device_session_id: sessionId,
       metadata: {
         device: {
-          device_name: session.device_name,
-          browser: session.browser,
-          os: session.os,
-          ip_address: session.ip_address,
+          device_name: session.device.device_name,
+          browser: session.device.browser,
+          os: session.device.os,
+          ip_address: session.device.ip_address,
         },
         category: "warning",
-        description: `Device revoked: ${session.browser || "Unknown browser"} on ${session.os || "Unknown OS"}`,
+        description: `Device revoked: ${session.device.browser || "Unknown browser"} on ${session.device.os || "Unknown OS"}`,
       },
     });
 
@@ -225,20 +219,62 @@ export async function DELETE(
       AUTH_CONFIG.emailAlerts.deviceSessions.enabled &&
       AUTH_CONFIG.emailAlerts.deviceSessions.alertOnRevoke
     ) {
-      await sendEmailAlert({
-        request,
-        origin,
-        user,
-        title: "Device access revoked",
-        message: `A device's access to your account was revoked. If this wasn't you, please secure your account immediately.`,
-        revokedDevice: {
-          device_name: session.device_name,
-          browser: session.browser,
-          os: session.os,
-          ip_address: session.ip_address,
-        },
+      console.log(
+        "[DEBUG] Attempting to send email alert for device revocation",
+        {
+          enabled: AUTH_CONFIG.emailAlerts.deviceSessions.enabled,
+          alertOnRevoke: AUTH_CONFIG.emailAlerts.deviceSessions.alertOnRevoke,
+          deviceInfo: {
+            name: session.device.device_name,
+            browser: session.device.browser,
+            os: session.device.os,
+          },
+          origin,
+          userId: user.id,
+          email: user.email,
+        }
+      );
+
+      try {
+        await sendEmailAlert({
+          request,
+          origin,
+          user,
+          title: "Device access revoked",
+          message: `A device's access to your account was revoked. If this wasn't you, please secure your account immediately.`,
+          revokedDevice: {
+            device_name: session.device.device_name,
+            browser: session.device.browser,
+            os: session.device.os,
+            ip_address: session.device.ip_address,
+          },
+        });
+        console.log("[DEBUG] Email alert sent successfully");
+      } catch (emailError) {
+        console.error("[DEBUG] Failed to send email alert", {
+          error: emailError instanceof Error ? emailError.message : emailError,
+          stack: emailError instanceof Error ? emailError.stack : undefined,
+          config: {
+            enabled: AUTH_CONFIG.emailAlerts.deviceSessions.enabled,
+            alertOnRevoke: AUTH_CONFIG.emailAlerts.deviceSessions.alertOnRevoke,
+          },
+        });
+        // Don't throw the error - we still want to complete the device revocation
+      }
+    } else {
+      console.log("[DEBUG] Email alerts disabled for device revocation", {
+        enabled: AUTH_CONFIG.emailAlerts.deviceSessions.enabled,
+        alertOnRevoke: AUTH_CONFIG.emailAlerts.deviceSessions.alertOnRevoke,
       });
     }
+
+    // Delete the session AFTER logging the events
+    const { error: deleteError } = await adminClient
+      .from("device_sessions")
+      .delete()
+      .eq("id", sessionId);
+
+    if (deleteError) throw deleteError;
 
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {

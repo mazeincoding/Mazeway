@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const deviceSessionId = getDeviceSessionId(request);
 
     // Clear Supabase session
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
 
     // Create response with success status
     const response = NextResponse.json({ success: true });

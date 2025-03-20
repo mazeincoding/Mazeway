@@ -126,6 +126,7 @@ export function getConfigured2FAMethods() {
  * This includes both 2FA methods (authenticator, SMS, backup codes) and basic methods (email, password)
  *
  * @param supabase - Supabase client instance
+ * @param supabaseAdmin - Supabase admin client instance (only needed on the server)
  * @returns Object containing all verification data:
  *   - methods: Array of available verification method types
  *   - factors: Array of verification factors with their IDs (for 2FA methods)

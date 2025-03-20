@@ -257,6 +257,8 @@ function ResetPasswordContent() {
                               placeholder="Confirm password"
                               {...field}
                               disabled={loading}
+                              showPassword={showPassword}
+                              onShowPasswordChange={setShowPassword}
                             />
                           </FormControl>
                           <FormMessage />

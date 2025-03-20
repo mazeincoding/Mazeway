@@ -4,6 +4,8 @@ import { createRecoveryToken } from "@/utils/auth/recovery-token";
 import { AUTH_CONFIG } from "@/config/auth";
 import { getUserVerificationMethods, getUser } from "@/utils/auth";
 import { AuthApiError } from "@supabase/supabase-js";
+import { createDeviceSession } from "@/utils/auth/device-sessions/server";
+import { UAParser } from "ua-parser-js";
 
 export async function GET(request: Request) {
   console.log("[AUTH] /api/auth/callback - Request received", {
@@ -176,6 +178,28 @@ export async function GET(request: Request) {
       email: user.email,
     });
 
+    // Create device session with high trust (user proved ownership through email)
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    const deviceName = parser.getDevice().model || "Unknown Device";
+    const browser = parser.getBrowser().name || "Unknown Browser";
+    const os = parser.getOS().name || "Unknown OS";
+
+    const currentDevice = {
+      user_id: user.id,
+      device_name: deviceName,
+      browser,
+      os,
+      ip_address: request.headers.get("x-forwarded-for") || "::1",
+    };
+
+    const session_id = await createDeviceSession({
+      user_id: user.id,
+      device: currentDevice,
+      confidence_score: 100,
+      needs_verification: false,
+      is_trusted: true,
+    });
+
     // Check if user has 2FA enabled
     const { has2FA, factors } = await getUserVerificationMethods({
       supabase,
@@ -187,6 +211,15 @@ export async function GET(request: Request) {
     });
 
     const resetUrl = new URL(`${origin}/auth/reset-password`);
+    const response = NextResponse.redirect(resetUrl);
+
+    // Set device session cookie
+    response.cookies.set("device_session_id", session_id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
+    });
 
     if (has2FA) {
       // Add 2FA requirements to URL
@@ -195,9 +228,6 @@ export async function GET(request: Request) {
       resetUrl.searchParams.set("available_methods", JSON.stringify(factors));
       console.log("[AUTH] /api/auth/callback - Adding 2FA params to reset URL");
     }
-
-    // Create response for reset password redirect
-    const response = NextResponse.redirect(resetUrl);
 
     // Only do recovery token flow if relogin is required
     if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {

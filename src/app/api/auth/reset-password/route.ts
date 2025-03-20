@@ -186,40 +186,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     ) satisfies NextResponse<TResetPasswordResponse>;
 
-    // Set up device session if not requiring relogin
-    if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
-      // Parse user agent for device info
-      const parser = new UAParser(request.headers.get("user-agent") || "");
-      const deviceName = parser.getDevice().model || "Unknown Device";
-      const browser = parser.getBrowser().name || "Unknown Browser";
-      const os = parser.getOS().name || "Unknown OS";
-
-      const currentDevice: TDeviceInfo = {
-        user_id: userId,
-        device_name: deviceName,
-        browser,
-        os,
-        ip_address: request.headers.get("x-forwarded-for") || "::1",
-      };
-
-      // High trust because user proved ownership through password reset email
-      const session_id = await createDeviceSession({
-        user_id: userId,
-        device: currentDevice,
-        confidence_score: 100,
-        needs_verification: false,
-        is_trusted: true,
-      });
-
-      // Set device session cookie
-      response.cookies.set("device_session_id", session_id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
-      });
-    }
-
     // Clear recovery cookie if it was used
     if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
       response.cookies.set("recovery_session", "", {

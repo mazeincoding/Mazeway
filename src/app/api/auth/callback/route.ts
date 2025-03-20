@@ -211,6 +211,16 @@ export async function GET(request: Request) {
     });
 
     const resetUrl = new URL(`${origin}/auth/reset-password`);
+
+    if (has2FA) {
+      // Add 2FA requirements to URL
+      resetUrl.searchParams.set("requires_2fa", "true");
+      resetUrl.searchParams.set("factor_id", factors[0].factorId);
+      resetUrl.searchParams.set("available_methods", JSON.stringify(factors));
+      console.log("[AUTH] /api/auth/callback - Adding 2FA params to reset URL");
+    }
+
+    // Create response AFTER all URL parameters have been set
     const response = NextResponse.redirect(resetUrl);
 
     // Set device session cookie
@@ -220,14 +230,6 @@ export async function GET(request: Request) {
       sameSite: "lax",
       maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
     });
-
-    if (has2FA) {
-      // Add 2FA requirements to URL
-      resetUrl.searchParams.set("requires_2fa", "true");
-      resetUrl.searchParams.set("factor_id", factors[0].factorId);
-      resetUrl.searchParams.set("available_methods", JSON.stringify(factors));
-      console.log("[AUTH] /api/auth/callback - Adding 2FA params to reset URL");
-    }
 
     // Only do recovery token flow if relogin is required
     if (AUTH_CONFIG.passwordReset.requireReloginAfterReset) {

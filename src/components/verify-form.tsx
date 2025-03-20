@@ -193,8 +193,14 @@ export function VerifyForm({
             AUTH_CONFIG.backupCodes.alphanumericLength
           );
         } else {
-          // For word-based backup codes, don't limit length
-          sanitizedValue = value;
+          // For word-based backup codes:
+          // 1. Convert multiple spaces/hyphens to single hyphens
+          // 2. Remove any non-word characters except hyphens
+          sanitizedValue = value
+            .toLowerCase()
+            .replace(/[^a-z\-\s]/g, "")
+            .replace(/[\s\-]+/g, "-")
+            .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
         }
         break;
       case "password":
@@ -221,8 +227,6 @@ export function VerifyForm({
     if (method && onMethodChange) {
       onMethodChange(method);
       setCurrentMethod(value);
-      setShowOtherMethods(false);
-      // Reset the sent state when changing methods
       initialEmailSentRef.current = false;
     }
   };
@@ -254,93 +258,6 @@ export function VerifyForm({
   return (
     <Form {...form}>
       <form onSubmit={onSubmit} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="code"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {currentMethod
-                  ? methodInputLabels[currentMethod]
-                  : "Enter code"}
-              </FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Input
-                    type={currentMethod === "password" ? "password" : "text"}
-                    inputMode={
-                      currentMethod === "authenticator" ||
-                      currentMethod === "sms"
-                        ? "numeric"
-                        : "text"
-                    }
-                    pattern={
-                      currentMethod === "authenticator" ||
-                      currentMethod === "sms"
-                        ? "[0-9]*"
-                        : undefined
-                    }
-                    maxLength={
-                      currentMethod === "authenticator" ||
-                      currentMethod === "sms"
-                        ? 6
-                        : currentMethod === "email"
-                          ? AUTH_CONFIG.emailVerification.codeLength
-                          : currentMethod === "backup_codes" &&
-                              AUTH_CONFIG.backupCodes.format === "alphanumeric"
-                            ? AUTH_CONFIG.backupCodes.alphanumericLength
-                            : undefined
-                    }
-                    placeholder={
-                      currentMethod === "authenticator" ||
-                      currentMethod === "sms"
-                        ? "000000"
-                        : currentMethod === "email"
-                          ? "Enter code"
-                          : currentMethod === "backup_codes"
-                            ? "Enter backup code"
-                            : "Enter password"
-                    }
-                    value={field.value}
-                    onChange={(e) =>
-                      handleCodeChange(e.target.value, field.onChange)
-                    }
-                    disabled={isVerifying}
-                    autoComplete={
-                      currentMethod === "password" ? "current-password" : "off"
-                    }
-                    showPassword={
-                      currentMethod === "password" ? showPassword : undefined
-                    }
-                    onShowPasswordChange={
-                      currentMethod === "password" ? setShowPassword : undefined
-                    }
-                    className={cn(currentMethod === "email" && "pr-10")}
-                  />
-                  {currentMethod === "email" && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleResendCode}
-                      disabled={isResending || isVerifying}
-                      className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
-                      aria-label="Resend code"
-                    >
-                      <RotateCw
-                        className={cn("h-4 w-4", isResending && "animate-spin")}
-                      />
-                    </Button>
-                  )}
-                </div>
-              </FormControl>
-              <FormMessage>
-                {error || form.formState.errors.code?.message}
-              </FormMessage>
-            </FormItem>
-          )}
-        />
-
         {showOtherMethods ? (
           <div className="space-y-4">
             <Button
@@ -349,7 +266,7 @@ export function VerifyForm({
               className="flex items-center gap-2 -ml-2"
               onClick={handleBackToDefault}
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 flex-shrink-0" />
               Back to default method
             </Button>
             <FormField
@@ -369,37 +286,151 @@ export function VerifyForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {availableMethods
-                        .filter((m) => m.type !== currentMethod)
-                        .map((method) => (
-                          <SelectItem key={method.type} value={method.type}>
-                            {methodLabels[method.type] || method.type}
-                          </SelectItem>
-                        ))}
+                      {availableMethods.map((method) => (
+                        <SelectItem key={method.type} value={method.type}>
+                          {methodLabels[method.type] || method.type}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </FormItem>
               )}
             />
-          </div>
-        ) : null}
-
-        <div className="space-y-3 pt-2">
-          <Button type="submit" className="w-full" disabled={isVerifying}>
-            {isVerifying ? "Verifying..." : "Verify"}
-          </Button>
-
-          {!showOtherMethods && availableMethods.length > 1 && (
             <Button
               type="button"
-              variant="ghost"
               className="w-full"
-              onClick={() => setShowOtherMethods(true)}
+              onClick={() => setShowOtherMethods(false)}
+              disabled={!currentMethod}
             >
-              Verify another way
+              Continue with{" "}
+              {currentMethod
+                ? methodLabels[currentMethod].toLowerCase()
+                : "selected method"}
             </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <>
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {currentMethod
+                      ? methodInputLabels[currentMethod]
+                      : "Enter code"}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={
+                          currentMethod === "password" ? "password" : "text"
+                        }
+                        inputMode={
+                          currentMethod === "authenticator" ||
+                          currentMethod === "sms"
+                            ? "numeric"
+                            : "text"
+                        }
+                        pattern={
+                          currentMethod === "authenticator" ||
+                          currentMethod === "sms"
+                            ? "[0-9]*"
+                            : undefined
+                        }
+                        maxLength={
+                          currentMethod === "authenticator" ||
+                          currentMethod === "sms"
+                            ? 6
+                            : currentMethod === "email"
+                              ? AUTH_CONFIG.emailVerification.codeLength
+                              : currentMethod === "backup_codes" &&
+                                  AUTH_CONFIG.backupCodes.format ===
+                                    "alphanumeric"
+                                ? AUTH_CONFIG.backupCodes.alphanumericLength
+                                : undefined
+                        }
+                        placeholder={
+                          currentMethod === "authenticator" ||
+                          currentMethod === "sms"
+                            ? "000000"
+                            : currentMethod === "email"
+                              ? "Enter code"
+                              : currentMethod === "backup_codes"
+                                ? "Enter a backup code you saved"
+                                : "Enter password"
+                        }
+                        value={field.value}
+                        onChange={(e) =>
+                          handleCodeChange(e.target.value, field.onChange)
+                        }
+                        disabled={isVerifying}
+                        autoComplete={
+                          currentMethod === "password"
+                            ? "current-password"
+                            : "off"
+                        }
+                        showPassword={
+                          currentMethod === "password"
+                            ? showPassword
+                            : undefined
+                        }
+                        onShowPasswordChange={
+                          currentMethod === "password"
+                            ? setShowPassword
+                            : undefined
+                        }
+                        className={cn(currentMethod === "email" && "pr-10")}
+                      />
+                      {currentMethod === "email" && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleResendCode}
+                          disabled={isResending || isVerifying}
+                          className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                          aria-label="Resend code"
+                        >
+                          <RotateCw
+                            className={cn(
+                              "h-4 w-4",
+                              isResending && "animate-spin"
+                            )}
+                          />
+                        </Button>
+                      )}
+                    </div>
+                  </FormControl>
+                  <FormMessage>
+                    {error || form.formState.errors.code?.message}
+                  </FormMessage>
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-3 pt-2">
+              <Button type="submit" className="w-full" disabled={isVerifying}>
+                {isVerifying ? "Verifying..." : "Verify"}
+              </Button>
+
+              {availableMethods.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setShowOtherMethods(true);
+                    // Reset the form when showing other methods
+                    form.reset({ ...form.getValues(), code: "" });
+                  }}
+                >
+                  Verify another way
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </form>
     </Form>
   );

@@ -107,7 +107,9 @@ export function EventLog({ className, limit = 50 }: TEventLogProps) {
         cursorValue ? [...prev, ...data.events] : data.events
       );
       setHasMore(data.hasMore);
-      setTotalEvents(data.total);
+      if (!cursorValue) {
+        setTotalEvents(data.total);
+      }
       if (data.events.length > 0) {
         setCursor(data.events[data.events.length - 1].created_at);
       }

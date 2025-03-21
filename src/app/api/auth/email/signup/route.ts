@@ -34,18 +34,37 @@ export async function POST(request: NextRequest) {
 
     const body: TEmailSignupRequest = validation.data;
 
+    // Check if email exists in our database using service role to bypass RLS
+    const adminClient = await createClient({ useServiceRole: true });
+    const { data: existingUser } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("email", body.email)
+      .single();
+
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          error: "This email is already in use. Please try logging in instead.",
+        },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     const supabase = await createClient();
     const { data: signupData, error: authError } = await supabase.auth.signUp({
       email: body.email,
       password: body.password,
     });
 
+    // Double-check Supabase's auth system for existing users
     if (authError) {
+      console.error("Signup error:", authError);
       if (authError.code === "user_already_exists") {
         return NextResponse.json(
           {
             error:
-              "This email is already in use. Please try logging in instead.",
+              "This email is already registered. Please try logging in instead.",
           },
           { status: 400 }
         ) satisfies NextResponse<TApiErrorResponse>;

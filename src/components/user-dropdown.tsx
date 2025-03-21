@@ -48,11 +48,8 @@ export function UserDropdown() {
   async function handleSignOut() {
     try {
       await api.auth.logout();
-
-      // Force revalidation with cache clearing
-      await refreshUser(undefined, { revalidate: true });
-
-      // Use window.location for a full page refresh to clear all state
+      // No need to refresh user data after logout
+      // Just redirect to home page and force a full page refresh
       window.location.href = "/";
     } catch (error) {
       toast.error("Failed to log out", {

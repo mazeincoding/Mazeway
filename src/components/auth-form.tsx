@@ -238,11 +238,21 @@ export function AuthForm({
             </CardTitle>
             <CardDescription className="text-foreground/35">
               {requiresTwoFactor
-                ? availableMethods.length > 1
-                  ? "Choose a verification method"
-                  : availableMethods[0]?.type === "authenticator"
-                    ? "Enter the code from your authenticator app"
-                    : "Enter the code sent to your phone"
+                ? factorId &&
+                  availableMethods.find((m) => m.factorId === factorId)
+                    ?.type === "authenticator"
+                  ? "Enter the code from your authenticator app"
+                  : factorId &&
+                      availableMethods.find((m) => m.factorId === factorId)
+                        ?.type === "backup_codes"
+                    ? "Enter a backup code"
+                    : factorId &&
+                        availableMethods.find((m) => m.factorId === factorId)
+                          ?.type === "sms"
+                      ? "Enter the code sent to your phone"
+                      : availableMethods.length > 1
+                        ? "Choose a verification method"
+                        : "Enter verification code"
                 : showPasswordField
                   ? determinedType === "login"
                     ? "Enter your password to continue"

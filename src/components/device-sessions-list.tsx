@@ -67,6 +67,14 @@ export function DeviceSessionsList() {
 
       // If empty response, session was revoked successfully
       if (!("requiresTwoFactor" in data)) {
+        // If we're revoking our own session, redirect to login
+        if (sessionId === currentSession?.id) {
+          window.location.href =
+            "/auth/login?message=You have been logged out from this device";
+          return;
+        }
+
+        // Otherwise just refresh the list
         refresh();
         return;
       }
@@ -128,9 +136,18 @@ export function DeviceSessionsList() {
         duration: 3000,
       });
 
-      // Clear state and refresh list
+      // Clear state
       setTwoFactorData(null);
       setShowTwoFactorDialog(false);
+
+      // If we're revoking our own session, redirect to login
+      if (twoFactorData.sessionId === currentSession?.id) {
+        window.location.href =
+          "/auth/login?message=You have been logged out from this device";
+        return;
+      }
+
+      // Otherwise refresh the list
       refresh();
     } catch (err) {
       console.error("Error verifying:", err);

@@ -5,7 +5,13 @@ import { TApiErrorResponse } from "@/types/api";
 import { getDeviceSessionId } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
+  console.log("Logout request received");
+  console.log("Incoming cookies:", request.cookies.getAll());
   try {
+    const { searchParams } = new URL(request.url);
+    const next = searchParams.get("next");
+    const message = searchParams.get("message") || "You have been logged out";
+
     if (basicRateLimit) {
       const ip = getClientIp(request);
       const { success } = await basicRateLimit.limit(ip);
@@ -21,14 +27,21 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const adminClient = await createClient({ useServiceRole: true });
 
-    // Get device session ID using our utility
-    const deviceSessionId = getDeviceSessionId(request);
-
     // Clear Supabase session
     await supabase.auth.signOut({ scope: "local" });
 
-    // Create response with success status
-    const response = NextResponse.json({ success: true });
+    console.log("Cleared Supabase session");
+
+    // Create response - either redirect or success JSON
+    const response = next
+      ? NextResponse.redirect(
+          `${new URL(request.url).origin}${next}?message=${encodeURIComponent(message)}`
+        )
+      : NextResponse.json({ success: true });
+
+    // Get device session ID using our utility
+    const deviceSessionId = getDeviceSessionId(request);
+    console.log("Device session ID:", deviceSessionId);
 
     // Clear device session cookie
     response.cookies.delete("device_session_id");

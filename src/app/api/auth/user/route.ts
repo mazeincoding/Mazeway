@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { TApiErrorResponse, TGetUserResponse } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
-import { getUser, getDeviceSessionId } from "@/utils/auth";
+import {
+  getUser,
+  getDeviceSessionId,
+  getUserVerificationMethods,
+  getAuthenticatorAssuranceLevel,
+} from "@/utils/auth";
 
 export async function GET(request: NextRequest) {
+  console.log("GET request received");
   try {
     if (apiRateLimit) {
       const ip = getClientIp(request);
@@ -18,23 +24,45 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const { origin } = new URL(request.url);
     const supabase = await createClient();
+    const supabaseAdmin = await createClient({ useServiceRole: true });
     const { user, error } = await getUser({ supabase });
 
+    // Handle no user or auth error
     if (error || !user) {
-      return NextResponse.json(
-        { error: error || "Unauthorized" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
+      // Clear any existing session
+      await fetch(`${origin}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          cookie: request.headers.get("cookie") || "",
+        },
+      });
+
+      // Return redirect response
+      return NextResponse.redirect(
+        `${origin}/auth/login?message=${encodeURIComponent("Please log in to continue")}`
+      );
     }
 
     // Get device session ID
+    console.log("Getting device session ID");
     const deviceSessionId = getDeviceSessionId(request);
+    console.log("Device session ID:", deviceSessionId);
     if (!deviceSessionId) {
-      return NextResponse.json(
-        { error: "No device session found" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
+      console.log("No device session ID found");
+      // Clear any existing session
+      await fetch(`${origin}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          cookie: request.headers.get("cookie") || "",
+        },
+      });
+
+      // Return redirect response
+      return NextResponse.redirect(
+        `${origin}/auth/login?message=${encodeURIComponent("Your session has expired. Please log in again.")}`
+      );
     }
 
     // Validate that the device session exists and is valid
@@ -46,14 +74,44 @@ export async function GET(request: NextRequest) {
       .gt("expires_at", new Date().toISOString());
 
     if (sessionError || count === 0) {
-      // Invalid session - clear device session cookie and return error
-      const response = NextResponse.json(
-        { error: "Invalid or expired device session" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
+      console.log("Session error or count is 0");
+      // Clear any existing session
+      await fetch(`${origin}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          cookie: request.headers.get("cookie") || "",
+        },
+      });
 
-      response.cookies.delete("device_session_id");
-      return response;
+      // Return redirect response
+      return NextResponse.redirect(
+        `${origin}/auth/login?message=${encodeURIComponent("Your session has expired. Please log in again.")}`
+      );
+    }
+
+    // Check if user has 2FA enabled and validate AAL level
+    const { has2FA } = await getUserVerificationMethods({
+      supabase,
+      supabaseAdmin,
+    });
+    if (has2FA) {
+      const currentAAL = await getAuthenticatorAssuranceLevel(
+        supabase,
+        deviceSessionId
+      );
+      if (currentAAL !== "aal2") {
+        // User has 2FA but hasn't completed it - redirect to 2FA verification
+        const { factors } = await getUserVerificationMethods({
+          supabase,
+          supabaseAdmin,
+        });
+        const availableMethods = encodeURIComponent(JSON.stringify(factors));
+        const factorId = factors[0]?.factorId;
+
+        return NextResponse.redirect(
+          `${origin}/auth/login?requires_2fa=true&factor_id=${factorId}&available_methods=${availableMethods}&next=${request.nextUrl.pathname}`
+        );
+      }
     }
 
     return NextResponse.json({

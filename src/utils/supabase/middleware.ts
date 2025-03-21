@@ -43,8 +43,12 @@ export async function updateSession(request: NextRequest) {
 
   // If there's a user session
   if (user) {
-    // Redirect authenticated users away from auth paths
-    if (isAuthPath) {
+    // Don't redirect if we're going to 2FA verification
+    const requires2FA =
+      request.nextUrl.searchParams.get("requires_2fa") === "true";
+
+    // Redirect authenticated users away from auth paths UNLESS 2FA is required
+    if (isAuthPath && !requires2FA) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);

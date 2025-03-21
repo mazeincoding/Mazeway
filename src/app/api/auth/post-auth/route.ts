@@ -35,47 +35,45 @@ export async function GET(request: Request) {
   });
 
   const { searchParams } = new URL(request.url);
-  const claimedProvider = (searchParams.get("provider") ||
+  const provider = (searchParams.get("provider") ||
     "browser") as TDeviceSessionProvider;
   const next = searchParams.get("next") || "/dashboard";
   const { origin } = new URL(request.url);
   const isLocalEnv = process.env.NODE_ENV === "development";
 
   console.log("Parameters", {
-    claimedProvider,
+    provider,
     next,
     origin,
     isLocalEnv,
   });
 
   try {
-    // Validate claimed provider is one we actually support
+    // Validate provider is one we actually support
     const isValidProvider =
-      claimedProvider === "browser" ||
-      claimedProvider === "google" ||
-      claimedProvider === "github" ||
-      claimedProvider === "email";
+      provider === "browser" ||
+      provider === "google" ||
+      provider === "github" ||
+      provider === "email";
     if (!isValidProvider) {
       console.error("Invalid provider", {
-        provider: claimedProvider,
+        provider,
       });
       throw new Error("Invalid provider");
     }
 
     // Check if the provider is enabled when using OAuth
     if (
-      (claimedProvider === "google" &&
-        !AUTH_CONFIG.socialProviders.google.enabled) ||
-      (claimedProvider === "github" &&
-        !AUTH_CONFIG.socialProviders.github.enabled)
+      (provider === "google" && !AUTH_CONFIG.socialProviders.google.enabled) ||
+      (provider === "github" && !AUTH_CONFIG.socialProviders.github.enabled)
     ) {
       console.error("OAuth provider is disabled but received OAuth provider", {
-        provider: claimedProvider,
+        provider,
       });
 
       // Redirect to error page instead of throwing an error
       return NextResponse.redirect(
-        `${origin}/auth/error?error=${claimedProvider}_auth_disabled&message=${encodeURIComponent(`${claimedProvider} authentication is disabled`)}`
+        `${origin}/auth/error?error=${provider}_auth_disabled&message=${encodeURIComponent(`${provider} authentication is disabled`)}`
       );
     }
 
@@ -103,53 +101,6 @@ export async function GET(request: Request) {
       elapsed: `${Date.now() - startTime}ms`,
       authProvider: user.auth.identities?.[0]?.provider,
       emailVerified: user.auth.emailVerified,
-    });
-
-    // Determine the actual provider based on user metadata
-    // Default to the claimed provider, but verify with user data when possible
-    let provider: TDeviceSessionProvider = claimedProvider;
-
-    if (user.auth.identities && user.auth.identities.length > 0) {
-      // Find the most recently used identity (the one used for this login)
-      const mostRecentIdentity = user.auth.identities.reduce(
-        (latest, current) => {
-          if (
-            !latest ||
-            new Date(current.last_sign_in_at) > new Date(latest.last_sign_in_at)
-          ) {
-            return current;
-          }
-          return latest;
-        },
-        user.auth.identities[0]
-      ); // Initialize with first identity instead of null
-
-      if (mostRecentIdentity) {
-        if (mostRecentIdentity.provider === "google") {
-          provider = "google";
-        } else if (mostRecentIdentity.provider === "github") {
-          provider = "github";
-        } else if (mostRecentIdentity.provider === "email") {
-          provider = "email";
-        }
-        // Add more providers here as they're supported
-      }
-
-      console.log("Identity details", {
-        provider,
-        claimedProvider,
-        identityProvider: mostRecentIdentity?.provider,
-        lastSignIn: mostRecentIdentity?.last_sign_in_at,
-        allIdentities: user.auth.identities.map((i) => ({
-          provider: i.provider,
-          lastSignIn: i.last_sign_in_at,
-        })),
-      });
-    }
-
-    console.log("Determined provider", {
-      provider,
-      claimedProvider,
     });
 
     const isOAuthProvider = provider !== "email" && provider !== "browser";

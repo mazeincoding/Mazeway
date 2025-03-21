@@ -276,6 +276,25 @@ export async function DELETE(
 
     if (deleteError) throw deleteError;
 
+    // If we're revoking our own session, clear cookies and logout
+    if (sessionId === currentSessionId) {
+      // Clear device session cookie
+      const response = NextResponse.json(
+        {}
+      ) satisfies NextResponse<TEmptySuccessResponse>;
+      response.cookies.delete("device_session_id");
+
+      // Call logout endpoint to clear Supabase session
+      await fetch(`${origin}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          Cookie: request.headers.get("cookie") || "",
+        },
+      });
+
+      return response;
+    }
+
     return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
   } catch (error) {
     const err = error as Error;

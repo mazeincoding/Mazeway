@@ -79,7 +79,7 @@ const formatEventMessage = (event: TAccountEvent) => {
   }
 };
 
-export function EventLog({ className, limit = 50 }: TEventLogProps) {
+export function EventLog({ className, limit = 20 }: TEventLogProps) {
   const [events, setEvents] = useState<TAccountEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

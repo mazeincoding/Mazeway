@@ -5,7 +5,7 @@ import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { getUser } from "@/utils/auth";
 import { TEventType } from "@/types/auth";
 
-const DEFAULT_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 export async function GET(request: NextRequest) {

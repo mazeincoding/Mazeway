@@ -331,6 +331,12 @@ function DeviceItem({
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>{content}</DialogTrigger>
       <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Device details</DialogTitle>
+          <DialogDescription>
+            View details about this device and log out
+          </DialogDescription>
+        </DialogHeader>
         <InfoItem label="Device name" value={deviceName} />
         <InfoItem label="Browser" value={browser} />
         {os && <InfoItem label="Operating System" value={os} />}

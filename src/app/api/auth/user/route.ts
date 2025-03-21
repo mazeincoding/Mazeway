@@ -31,18 +31,32 @@ export async function GET(request: NextRequest) {
 
     // Handle no user or auth error
     if (error || !user) {
-      // Clear any existing session
-      await fetch(`${origin}/api/auth/logout`, {
+      // Call logout endpoint to clear session
+      const logoutRes = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
         headers: {
           cookie: request.headers.get("cookie") || "",
         },
       });
 
-      // Return redirect response
-      return NextResponse.redirect(
-        `${origin}/auth/login?message=${encodeURIComponent("Please log in to continue")}`
+      // Get set-cookie header from logout response
+      const setCookie = logoutRes.headers.get("set-cookie");
+
+      // Return JSON error response with 401 status
+      const response = NextResponse.json(
+        {
+          error: "Authentication failed",
+          redirect: `${origin}/auth/login?message=${encodeURIComponent("Please log in to continue")}`,
+        },
+        { status: 401 }
       );
+
+      // Apply cookies from logout response
+      if (setCookie) {
+        response.headers.set("Set-Cookie", setCookie);
+      }
+
+      return response;
     }
 
     // Get device session ID
@@ -51,18 +65,33 @@ export async function GET(request: NextRequest) {
     console.log("Device session ID:", deviceSessionId);
     if (!deviceSessionId) {
       console.log("No device session ID found");
-      // Clear any existing session
-      await fetch(`${origin}/api/auth/logout`, {
+
+      // Call logout endpoint to clear session
+      const logoutRes = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
         headers: {
           cookie: request.headers.get("cookie") || "",
         },
       });
 
-      // Return redirect response
-      return NextResponse.redirect(
-        `${origin}/auth/login?message=${encodeURIComponent("Your session has expired. Please log in again.")}`
+      // Get set-cookie header from logout response
+      const setCookie = logoutRes.headers.get("set-cookie");
+
+      // Return JSON error response with 401 status
+      const response = NextResponse.json(
+        {
+          error: "Authentication failed",
+          redirect: `${origin}/auth/login?message=${encodeURIComponent("Your session has expired. Please log in again.")}`,
+        },
+        { status: 401 }
       );
+
+      // Apply cookies from logout response
+      if (setCookie) {
+        response.headers.set("Set-Cookie", setCookie);
+      }
+
+      return response;
     }
 
     // Validate that the device session exists and is valid
@@ -75,18 +104,33 @@ export async function GET(request: NextRequest) {
 
     if (sessionError || count === 0) {
       console.log("Session error or count is 0");
-      // Clear any existing session
-      await fetch(`${origin}/api/auth/logout`, {
+
+      // Call logout endpoint to clear session
+      const logoutRes = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
         headers: {
           cookie: request.headers.get("cookie") || "",
         },
       });
 
-      // Return redirect response
-      return NextResponse.redirect(
-        `${origin}/auth/login?message=${encodeURIComponent("Your session has expired. Please log in again.")}`
+      // Get set-cookie header from logout response
+      const setCookie = logoutRes.headers.get("set-cookie");
+
+      // Return JSON error response with 401 status
+      const response = NextResponse.json(
+        {
+          error: "Authentication failed",
+          redirect: `${origin}/auth/login?message=${encodeURIComponent("Your session has expired. Please log in again.")}`,
+        },
+        { status: 401 }
       );
+
+      // Apply cookies from logout response
+      if (setCookie) {
+        response.headers.set("Set-Cookie", setCookie);
+      }
+
+      return response;
     }
 
     // Check if user has 2FA enabled and validate AAL level

@@ -54,3 +54,4 @@ CONTRIBUTING.dev.md
 scripts/decode-jwt.py
 
 .trigger
+.cursor/mcp.json

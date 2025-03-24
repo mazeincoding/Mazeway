@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { api } from "@/utils/api";
 import { AUTH_CONFIG } from "@/config/auth";
 import { TDataExportStatus } from "@/types/auth";
 import { format } from "date-fns";
+import { useDataExports } from "@/hooks/use-data-exports";
 
 function getStatusBadgeColor(status: TDataExportStatus) {
   switch (status) {
@@ -23,43 +23,17 @@ function getStatusBadgeColor(status: TDataExportStatus) {
 
 export function DataExport() {
   const [isRequesting, setIsRequesting] = useState(false);
-  const [previousExports, setPreviousExports] = useState<
-    {
-      id: string;
-      status: TDataExportStatus;
-      created_at: string;
-      completed_at?: string;
-    }[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadPreviousExports();
-  }, []);
-
-  const loadPreviousExports = async () => {
-    try {
-      const response = await api.auth.dataExport.getAll();
-      setPreviousExports(response.exports);
-    } catch (error) {
-      console.error("Failed to load previous exports:", error);
-      toast.error("Failed to load previous exports");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { exports, isLoading, error, requestExport } = useDataExports();
 
   // If data exports are disabled, don't render anything
   if (!AUTH_CONFIG.dataExport.enabled) {
     return null;
   }
 
-  const requestExport = async () => {
+  const handleExportRequest = async () => {
     try {
       setIsRequesting(true);
-      await api.auth.dataExport.create();
-      await loadPreviousExports(); // Refresh the list
-
+      await requestExport();
       toast.success("Export requested", {
         description: "We'll email you when your data is ready to download.",
       });
@@ -74,9 +48,21 @@ export function DataExport() {
     }
   };
 
+  if (error) {
+    return (
+      <div className="text-sm text-destructive">
+        Failed to load exports. Please try refreshing the page.
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <Button onClick={requestExport} disabled={isRequesting} className="w-fit">
+      <Button
+        onClick={handleExportRequest}
+        disabled={isRequesting}
+        className="w-fit"
+      >
         {isRequesting ? "Requesting..." : "Export my data"}
       </Button>
 
@@ -84,13 +70,13 @@ export function DataExport() {
         <div className="text-muted-foreground text-sm">
           Loading previous exports...
         </div>
-      ) : previousExports.length > 0 ? (
+      ) : exports.length > 0 ? (
         <div className="flex flex-col gap-4">
           <h3 className="text-sm font-medium text-foreground">
             Previous exports
           </h3>
           <div className="space-y-3">
-            {previousExports.map((exportItem) => (
+            {exports.map((exportItem) => (
               <div
                 key={exportItem.id}
                 className="flex items-center justify-between rounded-lg border border-border bg-card p-4"

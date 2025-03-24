@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { TAccountEvent, TEventCategory } from "@/types/auth";
-import { api } from "@/utils/api";
 import { formatDistanceToNow } from "date-fns";
 import { RotateCw, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAccountEvents } from "@/hooks/use-account-events";
 
 type TEventLogProps = {
   className?: string;
@@ -80,54 +79,16 @@ const formatEventMessage = (event: TAccountEvent) => {
 };
 
 export function EventLog({ className, limit = 20 }: TEventLogProps) {
-  const [events, setEvents] = useState<TAccountEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [totalEvents, setTotalEvents] = useState<number>(0);
-
-  const fetchEvents = async (cursorValue?: string) => {
-    try {
-      if (cursorValue) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      const params = new URLSearchParams();
-      params.append("limit", String(limit));
-      if (cursorValue) params.append("cursor", cursorValue);
-
-      const data = await api.user.getEvents(params);
-
-      setEvents((prev) =>
-        cursorValue ? [...prev, ...data.events] : data.events
-      );
-      setHasMore(data.hasMore);
-      if (!cursorValue) {
-        setTotalEvents(data.total);
-      }
-      if (data.events.length > 0) {
-        setCursor(data.events[data.events.length - 1].created_at);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load events");
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  const refresh = () => {
-    fetchEvents();
-  };
-
-  useEffect(() => {
-    fetchEvents();
-  }, []);
+  const {
+    events,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    totalEvents,
+    refresh,
+    loadMore,
+  } = useAccountEvents(limit);
 
   if (error) {
     return (
@@ -185,7 +146,7 @@ export function EventLog({ className, limit = 20 }: TEventLogProps) {
             {!loading && hasMore && (
               <Button
                 variant="outline"
-                onClick={() => fetchEvents(cursor!)}
+                onClick={loadMore}
                 className="w-full"
                 disabled={loadingMore}
               >

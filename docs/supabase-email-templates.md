@@ -88,7 +88,7 @@ clicking the button below.
     
     <!-- Action Button Section -->
     <div style="background-color: #ffffff; padding: 20px 0; text-align: left; margin-bottom: 20px;">
-      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account&old_email={{ .Email }}" style="background-color: #000000; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Confirm Email Change</a>
+      <a href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/account&old_email={{ .Email }}" style="background-color: #000000; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: 500; display: inline-block; font-size: 16px;">Confirm Email Change</a>
     </div>
     
     <!-- Footer Text -->

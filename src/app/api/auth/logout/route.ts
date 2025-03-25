@@ -5,8 +5,6 @@ import { TApiErrorResponse } from "@/types/api";
 import { getDeviceSessionId } from "@/utils/auth";
 
 export async function POST(request: NextRequest) {
-  console.log("Logout request received");
-  console.log("Incoming cookies:", request.cookies.getAll());
   try {
     const { searchParams } = new URL(request.url);
     const next = searchParams.get("next");

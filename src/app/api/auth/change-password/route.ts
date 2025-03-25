@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const supabaseAdmin = await createClient({ useServiceRole: true });
+    const adminClient = await createClient({ useServiceRole: true });
 
     const { user, error } = await getUser({ supabase });
     if (error || !user) {
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       // Check if user has 2FA enabled
       const { has2FA, factors } = await getUserVerificationMethods({
         supabase,
-        supabaseAdmin,
+        supabaseAdmin: adminClient,
       });
 
       if (has2FA) {
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update has_password flag
-    const { error: flagError } = await supabase
+    const { error: flagError } = await adminClient
       .from("users")
       .update({ has_password: true })
       .eq("id", user.id);

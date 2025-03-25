@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
 
     // Get device session ID using our utility
     const deviceSessionId = getDeviceSessionId(request);
-    console.log("Device session ID:", deviceSessionId);
 
     // Clear device session cookie
     response.cookies.delete("device_session_id");

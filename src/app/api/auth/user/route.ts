@@ -60,9 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get device session ID
-    console.log("Getting device session ID");
     const deviceSessionId = getDeviceSessionId(request);
-    console.log("Device session ID:", deviceSessionId);
     if (!deviceSessionId) {
       console.log("No device session ID found");
 

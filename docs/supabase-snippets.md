@@ -13,7 +13,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Create the user table**
+**Create the users table**
 ```sql
 -- Step 1: Create the users table
 CREATE TABLE users (

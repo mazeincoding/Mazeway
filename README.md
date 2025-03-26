@@ -1451,6 +1451,24 @@ In case you did, you'll need to:
     - You only need this if you're gonna have EU users
     - Check out the guide [here](#setting-up-user-data-exports)
 
+## Limitations
+
+1. Security checks, logging, etc can be bypassed by calling Supabase APIs directly
+   - This is a limitation with any app using Supabase
+   - But an attacker could potentially do something like:
+      - `supabase.auth.signOut()`
+      - `supabase.auth.updateUser()`
+      - `supabase.auth.signInWithPassword()`
+      - And so on
+   - You can't really control what happens during these events
+   - Which means you can't add custom security checks
+   - Like checking if they have a valid device session
+   - Yes, Supabase does have something called "Auth hooks"
+   - But it's only available on the paid tier
+   - So instead of forcing devs into use it, I thought it'd be better to document it here
+   - But to be fair, they don't have that many. Maybe 3 or 4. Not enough at all
+   - If you're already on the Pro tier, I recommend setting some Auth hooks up though!
+
 ## Pro tips + note for Supabase
 
 **Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.

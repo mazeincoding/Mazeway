@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { KeyRound, ShieldIcon, ScrollText } from "lucide-react";
+import { KeyRound, ShieldIcon, ScrollText, InfoIcon } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
 import {
   passwordChangeSchema,
@@ -10,7 +10,11 @@ import {
   type AddPasswordSchema,
 } from "@/validation/auth-validation";
 import { toast } from "sonner";
-import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
+import {
+  TTwoFactorMethod,
+  TVerificationFactor,
+  TSocialProvider,
+} from "@/types/auth";
 import { TwoFactorMethods } from "@/components/2fa-methods";
 import { DeviceSessionsList } from "@/components/device-sessions-list";
 import { useForm } from "react-hook-form";
@@ -36,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { VerifyForm } from "@/components/verify-form";
 import { EventLog } from "@/components/event-log";
+import { SocialProviders } from "@/components/social-providers";
 
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
@@ -121,7 +126,26 @@ export default function Security() {
         return;
       }
 
-      // Success - password was changed
+      // Check if re-login is required (for OAuth users adding password)
+      if (data.requiresRelogin) {
+        // Show success message and redirect to login
+        toast.success("Password added", {
+          description:
+            data.message ||
+            "Password has been added to your account. Please log in again.",
+          duration: 5000,
+        });
+
+        // Reset form and dialog state
+        setShowTwoFactorDialog(false);
+        form.reset();
+
+        // Redirect to login with the email pre-filled
+        window.location.href = `/auth/login?email=${encodeURIComponent(data.email || "")}&message=${encodeURIComponent(data.message || "")}`;
+        return;
+      }
+
+      // Regular success case
       toast.success(hasPasswordAuth ? "Password updated" : "Password added", {
         description: hasPasswordAuth
           ? "Your password has been changed successfully."
@@ -133,10 +157,7 @@ export default function Security() {
       setShowTwoFactorDialog(false);
       form.reset();
 
-      // Refresh user data if needed
-      if (verificationCode) {
-        await refreshUser();
-      }
+      await refreshUser();
     } catch (error) {
       if (error instanceof Error) {
         // Handle rate limiting error
@@ -371,6 +392,12 @@ export default function Security() {
                           {...field}
                         />
                       </FormControl>
+                      {!user?.has_password && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-2 pt-2">
+                          <InfoIcon className="w-4 h-4" />
+                          You will need to log in again after adding a password.
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -421,6 +448,25 @@ export default function Security() {
         </SettingCard.Header>
         <SettingCard.Content>
           <DeviceSessionsList />
+        </SettingCard.Content>
+      </SettingCard>
+
+      <SettingCard icon={ShieldIcon}>
+        <SettingCard.Header>
+          <SettingCard.Title>Connections</SettingCard.Title>
+          <SettingCard.Description>
+            Manage your connected social accounts.
+          </SettingCard.Description>
+        </SettingCard.Header>
+        <SettingCard.Content>
+          <SocialProviders
+            identities={
+              user?.auth?.identities?.map(
+                (i) => i.provider as TSocialProvider
+              ) ?? []
+            }
+            isLoading={isLoading}
+          />
         </SettingCard.Content>
       </SettingCard>
 

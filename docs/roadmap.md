@@ -86,7 +86,7 @@
 - [ ] Re-design settings UI to focus on simplicity
 - [ ] Maybe clean up all my GitHub issues I created and left there
 - [x] User data exports (GDPR Compliance)
-- [ ] Provider management
+- [x] Provider management
 - [ ] role-based access control
 
 **CLI direction**

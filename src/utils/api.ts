@@ -36,9 +36,15 @@ import type {
   TCreateDataExportResponse,
   TGetDataExportStatusResponse,
   TGetDataExportsResponse,
+  TGetUserIdentitiesResponse,
+  TConnectSocialProviderResponse,
+  TDisconnectSocialProviderResponse,
 } from "@/types/api";
+import { TSocialProvider } from "@/types/auth";
 import type { ProfileSchema } from "@/validation/auth-validation";
 import { mutate } from "swr";
+import { createClient } from "@/utils/supabase/client";
+import type { UserIdentity } from "@supabase/supabase-js";
 
 async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
@@ -309,6 +315,31 @@ export const api = {
         const response = await fetch(`/api/auth/data-exports/${exportId}`);
         return handleResponse<TGetDataExportStatusResponse>(response);
       },
+    },
+
+    getUserIdentities: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.getUserIdentities();
+      if (error) throw error;
+      return data as TGetUserIdentitiesResponse;
+    },
+
+    connectSocialProvider: async (provider: TSocialProvider) => {
+      const response = await fetch("/api/auth/social/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      return handleResponse<TConnectSocialProviderResponse>(response);
+    },
+
+    disconnectSocialProvider: async (provider: TSocialProvider) => {
+      const response = await fetch("/api/auth/social/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      return handleResponse<TDisconnectSocialProviderResponse>(response);
     },
   },
 

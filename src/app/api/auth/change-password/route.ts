@@ -204,6 +204,37 @@ export async function POST(request: NextRequest) {
       throw updateError;
     }
 
+    // For OAuth users adding a password the first time, add email provider
+    // In simple: Supabase thinks it makes sense to add a password without adding the provider
+    // Which in reality, makes no fucking sense
+    // So we're just working around that crap
+    // This will require users to re-login but that's a standard practice anyways
+    let requiresRelogin = false;
+    if (!dbUser.has_password) {
+      // Force add the email identity using admin API
+      const { error: adminError } = await adminClient.auth.admin.updateUserById(
+        user.id,
+        {
+          email: user.email,
+          password: newPassword,
+          email_confirm: true,
+        }
+      );
+
+      if (adminError) {
+        console.error(
+          "[Password Change] Failed to add email identity:",
+          adminError
+        );
+        return NextResponse.json(
+          { error: "Failed to add email provider" },
+          { status: 500 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      requiresRelogin = true;
+    }
+
     // Update has_password flag
     const { error: flagError } = await adminClient
       .from("users")
@@ -233,7 +264,9 @@ export async function POST(request: NextRequest) {
           ip_address: getClientIp(request),
         },
         category: "warning",
-        description: "Account password was changed",
+        description: requiresRelogin
+          ? "Added password to OAuth account"
+          : "Account password was changed",
       },
     });
 
@@ -246,13 +279,24 @@ export async function POST(request: NextRequest) {
         request,
         origin,
         user,
-        title: "Your password was changed",
-        message:
-          "Your account password was just changed. If this wasn't you, please secure your account immediately.",
+        title: requiresRelogin ? "Password Added" : "Your password was changed",
+        message: requiresRelogin
+          ? "A password was added to your account. You can now sign in using your email and password."
+          : "Your account password was just changed. If this wasn't you, please secure your account immediately.",
       });
     }
 
-    return NextResponse.json({}) satisfies NextResponse<TEmptySuccessResponse>;
+    // Return appropriate response based on whether re-login is needed
+    return NextResponse.json(
+      requiresRelogin
+        ? {
+            requiresRelogin: true,
+            email: user.email,
+            message:
+              "Password added successfully. Please log in again to use email/password authentication.",
+          }
+        : {}
+    );
   } catch (error) {
     return NextResponse.json(
       { error: "An unexpected error occurred" },

@@ -1,8 +1,10 @@
 // Authentication Assurance Level type
 export type TAAL = "aal1" | "aal2";
 
+export type TSocialProvider = "google" | "github";
+
 // Only the providers we actually support
-export type TDeviceSessionProvider = "browser" | "google" | "github" | "email";
+export type TDeviceSessionProvider = "browser" | "email" | TSocialProvider;
 
 export interface TDeviceInfo {
   user_id: string;
@@ -95,6 +97,9 @@ export type TEventType =
   | "BACKUP_CODE_USED"
   | "PASSWORD_CHANGED"
   | "EMAIL_CHANGED"
+  // Social provider events
+  | "SOCIAL_PROVIDER_CONNECTED"
+  | "SOCIAL_PROVIDER_DISCONNECTED"
   // Device events
   | "NEW_DEVICE_LOGIN"
   | "DEVICE_VERIFIED"
@@ -177,6 +182,13 @@ export type TEventMetadata = {
   };
   DATA_EXPORT_REQUESTED: TBaseEventMetadata & {
     device: TEventDeviceInfo;
+  };
+  // Social provider events
+  SOCIAL_PROVIDER_CONNECTED: TBaseEventMetadata & {
+    provider: TSocialProvider;
+  };
+  SOCIAL_PROVIDER_DISCONNECTED: TBaseEventMetadata & {
+    provider: TSocialProvider;
   };
 };
 

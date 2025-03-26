@@ -9,9 +9,11 @@ export const AUTH_CONFIG = {
   socialProviders: {
     google: {
       enabled: true, // Enable if you set up Google Auth
+      displayName: "Google",
     },
     github: {
       enabled: true, // Enable if you set up GitHub Auth
+      displayName: "GitHub",
     },
   },
   // Available verification methods
@@ -76,6 +78,8 @@ export const AUTH_CONFIG = {
   requireFreshVerification: {
     revokeDevices: false,
     deleteAccount: true,
+    connectProvider: true, // Connecting a social provider
+    disconnectProvider: true, // Disconnecting a social provider
   },
 
   // Device verification (for unknown device login)
@@ -97,9 +101,13 @@ export const AUTH_CONFIG = {
       alertOnReset: true, // Alert when password is reset via forgot-password flow
     },
     email: {
-      enabled: true, // Send alerts for email changes
+      // Disabled because Supabase already sends verification emails to both addresses during email changes by default
+      // Which makes the email alert redundant since the user is getting a confirmation email on the original email
+      // It can be changed here though: https://supabase.com/dashboard/project/_/auth/providers?provider=Email
+      // I recommend keeping it on in the Supabase dashboard because it's a good security practice
+      enabled: false,
       alertOnInitiate: false, // Alert when email change is initiated (to old email)
-      alertOnComplete: true, // Alert when email is changed (to both old and new)
+      alertOnComplete: false, // Alert when email is changed (to both old and new)
     },
     twoFactor: {
       enabled: true, // Send alerts for 2FA changes
@@ -113,6 +121,11 @@ export const AUTH_CONFIG = {
     accountDeletion: {
       enabled: true, // Send alerts for account deletion
       alertOnInitiate: false, // Alert when deletion is initiated (gives chance to recover if hacked)
+    },
+    socialProviders: {
+      enabled: true, // Send alerts for social provider changes
+      alertOnConnect: true, // Alert when a social provider is connected
+      alertOnDisconnect: true, // Alert when a social provider is disconnected
     },
   },
 

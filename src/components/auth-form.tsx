@@ -31,6 +31,7 @@ type AuthFormProps = {
   nextUrl?: string;
   initialMethods?: Array<{ type: TTwoFactorMethod; factorId: string }>;
   message?: string | null;
+  initialEmail?: string | null;
 };
 
 export function AuthForm({
@@ -39,6 +40,7 @@ export function AuthForm({
   nextUrl = "/dashboard",
   initialMethods = [],
   message,
+  initialEmail = null,
 }: AuthFormProps) {
   const router = useRouter();
 
@@ -63,7 +65,7 @@ export function AuthForm({
   }, [requires2fa, initialFactorId, nextUrl, initialMethods]);
 
   const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail || "");
   const [formError, setFormError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, setIsPending] = useState(false);

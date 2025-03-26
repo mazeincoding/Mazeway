@@ -9,7 +9,7 @@ import {
   getDeviceSessionId,
 } from "@/utils/auth";
 import { emailChangeSchema } from "@/validation/auth-validation";
-import { SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient, AuthError } from "@supabase/supabase-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { logAccountEvent } from "@/utils/account-events/server";
@@ -253,6 +253,33 @@ export async function POST(request: NextRequest) {
       });
     } catch (error) {
       console.error("Error in email change flow:", error);
+
+      // Handle Supabase Auth API errors
+      if (error instanceof AuthError) {
+        // Handle specific error cases
+        if (error.code === "email_exists") {
+          return NextResponse.json(
+            { error: "This email address is already in use" },
+            { status: 422 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
+
+        // Handle rate limiting
+        if (error.status === 429) {
+          return NextResponse.json(
+            { error: "Too many attempts. Please try again later." },
+            { status: 429 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
+
+        // For other auth errors, return the actual error message
+        return NextResponse.json(
+          { error: error.message || "Authentication error" },
+          { status: error.status || 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      // For unknown errors, keep the generic message but log the full error
       return NextResponse.json(
         { error: "Failed to process email change" },
         { status: 500 }
@@ -260,6 +287,29 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Error changing email:", error);
+
+    // Handle outer try-catch the same way for consistency
+    if (error instanceof AuthError) {
+      if (error.code === "email_exists") {
+        return NextResponse.json(
+          { error: "This email address is already in use" },
+          { status: 422 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      if (error.status === 429) {
+        return NextResponse.json(
+          { error: "Too many attempts. Please try again later." },
+          { status: 429 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      return NextResponse.json(
+        { error: error.message || "Authentication error" },
+        { status: error.status || 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

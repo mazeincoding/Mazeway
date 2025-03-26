@@ -318,3 +318,18 @@ export const validateDataExportToken = (token: string) => {
     error: result.success ? null : result.error.errors[0].message,
   };
 };
+
+// Social provider validation schemas
+export const socialProviderSchema = z.object({
+  provider: z.enum(["google", "github"] as const),
+});
+
+export type SocialProviderSchema = z.infer<typeof socialProviderSchema>;
+
+export const validateSocialProvider = (provider: unknown) => {
+  const result = socialProviderSchema.shape.provider.safeParse(provider);
+  return {
+    isValid: result.success,
+    error: !result.success ? result.error.issues[0]?.message : undefined,
+  };
+};

@@ -85,7 +85,14 @@ The open-source auth foundation that lives in your project, not a node_modules f
   - `validateEmail(email)`
   - `validatePhoneNumber(phone)`
   - `validateTwoFactorCode(code)`
+  - `validateSocialProvider(provider)`
   - `getPasswordRequirements(password)`
+- Validation schemas:
+  - `socialProviderSchema`: Validates social provider operations
+  - `authSchema`: Base auth validation
+  - `twoFactorVerificationSchema`: 2FA validation
+  - `verificationSchema`: General verification
+  - `emailAlertSchema`: Email alert validation
 
 ### Types (`src/types/`)
 - `auth.ts`:
@@ -95,9 +102,19 @@ The open-source auth foundation that lives in your project, not a node_modules f
   - `TAAL`: Auth assurance levels
   - `TVerificationMethod`: All verification methods
   - `TTwoFactorMethod`: 2FA methods subset
+  - `TEventType`: Account event types including:
+    - Security events (2FA, password changes)
+    - Social provider events (connect/disconnect)
+    - Device events (login, trust)
+    - Account events (creation, deletion)
+  - `TEventMetadata`: Event-specific metadata types
 - `api.ts`:
   - Request/response types for all API endpoints
   - All verification requirements interfaces
+  - Social provider types:
+    - `TSocialProvider`: Supported providers
+    - `TConnectSocialProviderRequest/Response`
+    - `TDisconnectSocialProviderRequest/Response`
 
 ### Supabase (`src/utils/supabase/`)
 - `server.ts`: Server-side Supabase client
@@ -150,6 +167,11 @@ The open-source auth foundation that lives in your project, not a node_modules f
 - `app/`: Next.js app router structure
   - `account/`: User settings & security
   - `api/`: Backend endpoints
+    - `auth/`: Auth endpoints
+      - `social/`: Social provider endpoints
+        - `connect/`: Connect provider endpoint
+        - `disconnect/`: Disconnect provider endpoint
+      - Other auth endpoints...
   - `auth/`: Auth-related pages
   - `dashboard/`: Main app pages
 - `components/`: React components
@@ -180,8 +202,75 @@ Auth config lives in `src/config/auth.ts` - controls:
 
 ## Database Schema
 See `docs/supabase-snippets.md` for database schema details
-- Rate limiting
-- Password requirements
 
-## Database Schema
-See `docs/supabase-snippets.md` for database schema details
+## Features
+
+### Authentication
+- Email/password login
+- Social login (Google, GitHub)
+- 2FA (TOTP, SMS, backup codes)
+- Password reset
+- Email verification
+- Rate limiting
+- Device tracking
+
+### Social Provider Management
+- Manual identity linking (more secure than automatic)
+- Connect/disconnect providers in account settings
+- Server-side event logging
+- Rate limiting on operations
+- Prevents account lockout (requires 2+ login methods)
+- Email alerts:
+  - Configurable alerts for connect/disconnect events
+  - Detailed device information in alerts
+  - Security warnings for unauthorized changes
+- Supports:
+  - Google OAuth
+  - GitHub OAuth
+- API Routes:
+  - `POST /api/auth/social/connect`: Link new provider
+  - `POST /api/auth/social/disconnect`: Remove provider
+- Security features:
+  - Rate limiting with `authRateLimit`
+  - User authentication check
+  - Request validation with Zod
+  - Event logging for audit trail
+  - Lockout prevention
+  - Manual linking only
+  - Email alerts for sensitive operations
+
+### Account Management
+- Profile settings
+- Security settings
+- Device management
+- Account deletion
+- Data export
+
+### Email Features
+- Transactional emails
+- Security alerts:
+  - Login alerts (configurable for all/unknown devices)
+  - Password changes and resets
+  - Email address changes
+  - 2FA changes (enable/disable)
+  - Device session management
+  - Account deletion
+  - Social provider changes (connect/disconnect)
+- Marketing emails (optional)
+- Email templates with react-email
+- Alert features:
+  - Device information tracking
+  - IP address logging
+  - Configurable per alert type
+  - Rate limiting protection
+  - Graceful error handling
+
+### Security Features
+- CSRF protection
+- Rate limiting
+- Input validation
+- Error handling
+- Audit logging
+- Session management
+- Password policies
+- 2FA enforcement options

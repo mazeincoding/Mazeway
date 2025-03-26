@@ -8,6 +8,7 @@ import {
   TAccountEvent,
   TDataExportStatus,
   TDataExportRequest,
+  TSocialProvider,
 } from "./auth";
 import type { ProfileSchema } from "@/validation/auth-validation";
 
@@ -138,6 +139,16 @@ export interface TRevokeDeviceSessionRequest {
   sessionId: string;
 }
 
+// /api/auth/social/connect
+export interface TConnectSocialProviderRequest {
+  provider: TSocialProvider;
+}
+
+// /api/auth/social/disconnect
+export interface TDisconnectSocialProviderRequest {
+  provider: TSocialProvider;
+}
+
 // ===== RESPONSE TYPES =====
 
 // Shared response type for error cases
@@ -184,6 +195,9 @@ export interface TResetPasswordResponse extends TVerificationRequirement {
 // /api/auth/change-password
 export interface TPasswordChangeResponse extends TVerificationRequirement {
   newPassword?: string;
+  requiresRelogin?: boolean;
+  email?: string;
+  message?: string;
 }
 
 // /api/auth/change-email
@@ -262,3 +276,25 @@ export interface TGetDataExportStatusResponse extends TDataExportResponseItem {}
 
 // Generic success response
 export interface TEmptySuccessResponse {}
+
+export type TConnectSocialProviderResponse =
+  | {
+      url: string;
+    }
+  | {
+      success: true;
+    }
+  | TVerificationRequirement;
+
+export type TDisconnectSocialProviderResponse =
+  | {
+      success: true;
+    }
+  | TVerificationRequirement;
+
+export type TGetUserIdentitiesResponse = {
+  identities: Array<{
+    id: string;
+    provider: TSocialProvider;
+  }>;
+};

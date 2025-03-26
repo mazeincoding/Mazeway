@@ -9,6 +9,9 @@ export default async function Login({
   const message = params.message
     ? decodeURIComponent(params.message.toString())
     : null;
+  const email = params.email
+    ? decodeURIComponent(params.email.toString())
+    : null;
 
   return (
     <main className="min-h-dvh flex items-center justify-center flex-col gap-5 px-8 py-10 relative">
@@ -22,6 +25,7 @@ export default async function Login({
             : []
         }
         message={message}
+        initialEmail={email}
       />
     </main>
   );

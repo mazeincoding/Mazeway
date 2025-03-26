@@ -81,8 +81,10 @@ Email</h1>
     <!-- Main Content -->
     <div style="margin-bottom: 16px;">
       <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
-        We received a request to change your email address from {{ .Email }} to {{ .NewEmail }}. Please confirm this change by 
-clicking the button below.
+        We received a request to change your email address from {{ .Email }} to {{ .NewEmail }}. For security, both your current and new email addresses must confirm this change.
+      </p>
+      <p style="font-size: 16px; color: #5f6368; margin: 0 0 16px;">
+        <strong>Important:</strong> You'll receive two verification emails - one at each address. Please verify both to complete the change.
       </p>
     </div>
     

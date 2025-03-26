@@ -100,6 +100,10 @@ But just know:
     - View activity history (logins, disable 2FA, etc)
     - Get alerts for sensitive activity (unknown device login, etc)
   - Enable and disable 2FA (including individual methods)
+  - Account connections
+     - Allows users to link/unlink social methods
+     - View connected methods (obv)
+     - Cases like changing email with OAuth-only handled
 - Verification:
   - 2FA methods (Authenticator, SMS)
   - Backup codes (for 2FA-accounts)
@@ -122,6 +126,8 @@ Before we get started, understand:
     - "I also need to buy a custom domain"
     - "What about production API keys?"
 - Don't think about these things at all.
+- For your own sake, don't just copy things
+- Actually try to reason about what we're doing
 
 ### 1. Install dependencies
 
@@ -172,15 +178,52 @@ npm run reset-project
    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
    - Copy and paste these [email templates](docs/supabase-email-templates.md)
 
-6. Add the callback redirect URL in Supabase (ensures Supabase can redirect to `/api/auth/callback`)
-    > Good to know:
-    >
-    > The callback URL isn't just used for Google OAuth like you might think.
-    >
-    > It's also used for resetting the password.
+6. Add redirect URLs in Supabase
+   - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
+   - Add these redirect URLs
+      - `http://localhost:3000/api/auth/callback`
+      - `http://localhost:3000/api/auth/confirm`
+  - Ensures Supabase can actually redirect to these routes
 
-    - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
-    - Add this redirect URL: `http://localhost:3000/api/auth/callback`
+7. Syncing user email
+
+   "Syncing user email? What? Why?"
+   
+   Alright, let me break it down:
+   - We created some Supabase tables earlier. Remember?
+   - One of those were a "users" table.
+   - This table includes an "email" column
+   - Supabase also stores an email in the auth user
+   - We need to make sure these are in sync
+   
+   The solution? Stupid simple. Let's set it up:
+   - Go to [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+   - Run this code:
+   ```sql
+   CREATE OR REPLACE FUNCTION public.update_user_email()
+   RETURNS TRIGGER AS $$
+   BEGIN
+     -- Only update if email has changed
+     IF NEW.email <> OLD.email THEN
+       UPDATE public.users
+       SET email = NEW.email
+       WHERE id = NEW.id;
+     END IF;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER;
+   
+   -- Trigger to call the function on UPDATE in auth.users
+   CREATE OR REPLACE TRIGGER on_auth_user_updated
+   AFTER UPDATE ON auth.users
+   FOR EACH ROW
+   EXECUTE FUNCTION public.update_user_email();
+   ```
+   This will:
+      - Create a function that updates the email column to whatever is in auth
+      - Make a trigger on the users table to call this function when a row changes
+
+   Done!
 
 ### 3. Set up Resend (optional)
 
@@ -308,6 +351,47 @@ PLEASE UNDERSTAND:
 - This section only covers development
 - You're gonna be setting up Google OAuth for development first
 - When you're ready for production, the "Go in production" section got you covered
+
+#### Enable Manual Linking
+
+Before setting up any providers, you need to enable manual linking in Supabase.
+
+What even is this? Quick explanation:
+- Supabase offers two ways for linking:
+   - Automatic linking
+   - Manual linking
+- What's the difference?
+   - Manual linking
+      - Users must connect social providers in settings.
+      - If a user tries to sign in with Google
+      - But the account isn't connected to that provider
+      - It won't automatically log in
+    - Automatic linking
+       - Users cannot connect/disconnect providers in settings
+       - If a user accidentally connects GitHub...
+       - They can't disconnect it again
+       - If user signs in with a provider, it automatically gets connected
+- This auth starter uses manual linking because:
+   - Allows users to connect/disconnect providers from settings
+   - It's more secure (requires explicit user action)
+   - Matches how serious apps do it (thus making your app appear more serious)
+   - Prevents accidental account linking (happens)
+   - I got roasted on Twitter at 1 AM and fixed it ([Source](https://x.com/mazewaydotdev/status/1904317131971276993))
+- "But automatic linking is more convenient"
+   - Yeah and more confusing?
+   - What do you want? Good or bad UX?
+   - Automatic linking creates a worse UX
+
+If you're too lazy to read that, in short:
+- Automatic linking is a terrible UX
+- Your app looks more serious with manual linking
+
+Here's how:
+1. Go to [Supabase Auth Providers](https://supabase.com/dashboard/project/_/auth/providers)
+2. Look for "Allow manual linking"
+3. Enable it
+
+That's it!
 
 #### Google
 
@@ -1171,7 +1255,37 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
 1. Add email templates
     - Your templates are here: [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
     - Just copy them from your dev project to production
-2. Enable any social providers and connect your production project to them
+2. Add redirect URLs in Supabase
+   - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
+   - Add these redirect URLs
+      - `https://your-production-domain.com/api/auth/callback`
+      - `https://your-production-domain.com/api/auth/confirm`
+3. Syncing user email
+
+   Same thing as earlier:
+   - Go to [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+   - Run this code:
+   ```sql
+   CREATE OR REPLACE FUNCTION public.update_user_email()
+   RETURNS TRIGGER AS $$
+   BEGIN
+     -- Only update if email has changed
+     IF NEW.email <> OLD.email THEN
+       UPDATE public.users
+       SET email = NEW.email
+       WHERE id = NEW.id;
+     END IF;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER;
+   
+   -- Trigger to call the function on UPDATE in auth.users
+   CREATE OR REPLACE TRIGGER on_auth_user_updated
+   AFTER UPDATE ON auth.users
+   FOR EACH ROW
+   EXECUTE FUNCTION public.update_user_email();
+   ```
+4. Enable any social providers and connect your production project to them
     > [!NOTE]
     > If you're not using any social providers, just skip this.
     
@@ -1211,11 +1325,11 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
     - Copy your "Client ID" and generate a secret, then copy that too
     - Go back to the Supabase GitHub provider and paste the values
 
-3. Add any Supabase storage buckets you might have (and upload any files you might need)
+5. Add any Supabase storage buckets you might have (and upload any files you might need)
   - Go to [Supabase Storage](https://supabase.com/dashboard/project/_/storage/buckets)
   - Add anything you might need
   - If you set up user data exports, you'll want to create the same "exports" bucket
-4. Connect your project to Resend
+6. Connect your project to Resend
     > [!NOTE]
     > I'm gonna assume you already set up Resend.
     >
@@ -1227,7 +1341,7 @@ I'm not gonna assume you never changed a thing like email templates (you likely 
     - And your domain
     - Enter the sender name (like your app name, company name)
     - Click "Configure SMTP integration"
-5. Set up automatic database cleanups
+7. Set up automatic database cleanups
     - If you already set it up, the extension "pg_cron" will already be enabled
     - This is because when we dumped the database, it includes enabled extensions.
     - But your actual cron job won't be in your prod project
@@ -1328,14 +1442,14 @@ In case you did, you'll need to:
           hostname: "res.cloudinary.com",
           port: "",
     -     pathname: "/**",
-    +     pathname: "/dzjgehvid/image/upload/**", // prevents anyone from using your image optimizations for their own assets
+    +     pathname: "/your-cloud-name/image/upload/**", // prevents anyone from using your image optimizations for their own assets
         },
       ],
     },
     ```
 11. Set up user data exports
     - You only need this if you're gonna have EU users
-    - Guide is in the "Auth configuration" section
+    - Check out the guide [here](#setting-up-user-data-exports)
 
 ## Pro tips + note for Supabase
 

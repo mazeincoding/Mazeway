@@ -160,6 +160,15 @@ export function DeviceSessionsList() {
     }
   };
 
+  const handleMethodChange = (method: TVerificationFactor) => {
+    if (!twoFactorData) return;
+
+    setTwoFactorData({
+      ...twoFactorData,
+      factorId: method.factorId,
+    });
+  };
+
   if (error) {
     return <div className="text-destructive w-full">{error}</div>;
   }

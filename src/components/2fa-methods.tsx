@@ -198,7 +198,6 @@ export function TwoFactorMethods({
               factorId={disableState.currentMethod.factorId}
               availableMethods={disableState.userEnabledMethods}
               onVerify={handleDisableVerify}
-              onMethodChange={handleVerificationMethodChange}
               isVerifying={isDisableVerifying}
               error={disableError}
             />

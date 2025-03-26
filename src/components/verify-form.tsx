@@ -13,89 +13,52 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   verificationSchema,
   type VerificationSchema,
 } from "@/validation/auth-validation";
 import { useUser } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { getDefaultVerificationMethod } from "@/utils/auth";
-import { ArrowLeft, RotateCw } from "lucide-react";
+import {
+  ArrowLeft,
+  RotateCw,
+  ShieldCheck,
+  Mail,
+  Key,
+  Smartphone,
+  CheckCircle2,
+} from "lucide-react";
 import { TVerificationMethod, TVerificationFactor } from "@/types/auth";
 import { api } from "@/utils/api";
 import { cn } from "@/lib/utils";
 import { AUTH_CONFIG } from "@/config/auth";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface VerifyFormProps {
   factorId: string;
   availableMethods?: TVerificationFactor[];
   onVerify: (code: string) => Promise<void>;
-  onMethodChange?: (method: TVerificationFactor) => void;
   isVerifying?: boolean;
   error?: string | null;
-}
-
-function useInitialEmailVerification(method: TVerificationMethod | null) {
-  const hasTriedToSendRef = useRef(false);
-  const [isResending, setIsResending] = useState(false);
-
-  useEffect(() => {
-    const sendInitialEmail = async () => {
-      // Only try to send once per component instance
-      if (hasTriedToSendRef.current || method !== "email") {
-        return;
-      }
-
-      console.log("Attempting to send initial email verification");
-      hasTriedToSendRef.current = true;
-
-      try {
-        setIsResending(true);
-        await api.auth.sendEmailVerification();
-        console.log("Initial email verification sent successfully");
-      } catch (error) {
-        console.error("Failed to send initial email verification:", error);
-        toast.error("Error", {
-          description:
-            error instanceof Error ? error.message : "An error occurred",
-          duration: 3000,
-        });
-      } finally {
-        setIsResending(false);
-      }
-    };
-
-    sendInitialEmail();
-  }, [method]); // Only depend on method
-
-  return isResending;
 }
 
 export function VerifyForm({
   factorId,
   availableMethods = [],
   onVerify,
-  onMethodChange,
   isVerifying = false,
   error,
 }: VerifyFormProps) {
   console.log("VerifyForm rendered:", {
     factorId,
     availableMethods,
-    currentMethod: undefined,
   });
 
   const { refresh: refreshUser } = useUser();
   const [showOtherMethods, setShowOtherMethods] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isManualResending, setIsManualResending] = useState(false);
-  const initialEmailSentRef = useRef<boolean>(false);
+  const [isResending, setIsResending] = useState(false);
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
   const mountedRef = useRef(false);
 
   const defaultMethod = getDefaultVerificationMethod(
@@ -105,12 +68,6 @@ export function VerifyForm({
 
   const [currentMethod, setCurrentMethod] =
     useState<TVerificationMethod | null>(defaultMethod);
-
-  // Handle initial email verification
-  const isInitialSending = useInitialEmailVerification(currentMethod);
-
-  // Combined loading state for UI
-  const isResending = isInitialSending || isManualResending;
 
   // Log initial mount
   useEffect(() => {
@@ -140,6 +97,14 @@ export function VerifyForm({
     backup_codes: "Backup codes",
   };
 
+  const methodIcons: Record<TVerificationMethod, React.ReactNode> = {
+    authenticator: <ShieldCheck className="h-5 w-5" />,
+    sms: <Smartphone className="h-5 w-5" />,
+    email: <Mail className="h-5 w-5" />,
+    password: <Key className="h-5 w-5" />,
+    backup_codes: <Key className="h-5 w-5" />,
+  };
+
   const methodInputLabels: Record<TVerificationMethod, string> = {
     authenticator: "Enter the code from your authenticator app",
     sms: "Enter the code sent to your phone",
@@ -148,11 +113,33 @@ export function VerifyForm({
     backup_codes: "Enter a backup code",
   };
 
+  const handleSendEmailCode = async () => {
+    if (currentMethod !== "email") return;
+
+    try {
+      setIsResending(true);
+      await api.auth.sendEmailVerification();
+      setEmailCodeSent(true);
+      toast.success("Code sent", {
+        description: "A verification code has been sent to your email.",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "An error occurred",
+        duration: 3000,
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleResendCode = async () => {
     if (currentMethod !== "email") return;
 
     try {
-      setIsManualResending(true);
+      setIsResending(true);
       await api.auth.sendEmailVerification();
       toast.success("Code sent", {
         description: "A new verification code has been sent to your email.",
@@ -165,7 +152,7 @@ export function VerifyForm({
         duration: 3000,
       });
     } finally {
-      setIsManualResending(false);
+      setIsResending(false);
     }
   };
 
@@ -221,30 +208,39 @@ export function VerifyForm({
     onChange(sanitizedValue);
   };
 
-  const handleMethodChange = (value: TVerificationMethod) => {
-    console.log("Method change requested:", { from: currentMethod, to: value });
+  const handleMethodChange = async (value: TVerificationMethod) => {
     const method = availableMethods.find((m) => m.type === value);
-    if (method && onMethodChange) {
-      onMethodChange(method);
-      setCurrentMethod(value);
-      initialEmailSentRef.current = false;
+    if (!method) return;
+
+    setCurrentMethod(value);
+    form.setValue("code", ""); // Clear the code when changing methods
+
+    // Reset email sent state when changing methods
+    if (value === "email") {
+      setEmailCodeSent(false);
     }
   };
 
   const handleBackToDefault = () => {
     setShowOtherMethods(false);
-    if (defaultMethod && onMethodChange) {
+    if (defaultMethod) {
       const method = availableMethods.find((m) => m.type === defaultMethod);
       if (method) {
-        onMethodChange(method);
         setCurrentMethod(method.type);
+
+        // Reset email sent state when going back to default
+        if (method.type === "email") {
+          setEmailCodeSent(false);
+        }
       }
     }
   };
 
   const onSubmit = form.handleSubmit(async (data) => {
     try {
+      console.log("onSubmit", data);
       await onVerify(data.code);
+      console.log("onVerify success");
       await refreshUser();
     } catch (error) {
       toast.error("Error", {
@@ -272,27 +268,59 @@ export function VerifyForm({
             <FormField
               control={form.control}
               name="method"
-              render={() => (
-                <FormItem>
+              render={({ field }) => (
+                <FormItem className="space-y-4">
                   <FormLabel>Select verification method</FormLabel>
-                  <Select
-                    value={currentMethod ?? undefined}
-                    onValueChange={handleMethodChange}
-                    disabled={isVerifying}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a method" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={(value) =>
+                        handleMethodChange(value as TVerificationMethod)
+                      }
+                      defaultValue={currentMethod ?? undefined}
+                      value={currentMethod ?? undefined}
+                      disabled={isVerifying}
+                      className="space-y-2"
+                    >
                       {availableMethods.map((method) => (
-                        <SelectItem key={method.type} value={method.type}>
-                          {methodLabels[method.type] || method.type}
-                        </SelectItem>
+                        <label
+                          key={method.type}
+                          className={cn(
+                            "flex items-center justify-between border p-3 rounded-md cursor-pointer hover:bg-accent",
+                            currentMethod === method.type &&
+                              "border-primary bg-accent"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0">
+                              {methodIcons[method.type]}
+                            </div>
+                            <div className="flex flex-col">
+                              <h3 className="text-sm font-medium">
+                                {methodLabels[method.type] || method.type}
+                              </h3>
+                              <p className="text-xs text-muted-foreground">
+                                {method.type === "authenticator" &&
+                                  "Use your authenticator app"}
+                                {method.type === "sms" &&
+                                  "Get a code via text message"}
+                                {method.type === "email" &&
+                                  "Get a code via email"}
+                                {method.type === "password" &&
+                                  "Use your account password"}
+                                {method.type === "backup_codes" &&
+                                  "Use your saved backup codes"}
+                              </p>
+                            </div>
+                          </div>
+                          <RadioGroupItem
+                            value={method.type}
+                            className="mr-1"
+                          />
+                        </label>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -310,125 +338,161 @@ export function VerifyForm({
           </div>
         ) : (
           <>
-            <FormField
-              control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {currentMethod
-                      ? methodInputLabels[currentMethod]
-                      : "Enter code"}
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={
-                          currentMethod === "password" ? "password" : "text"
-                        }
-                        inputMode={
-                          currentMethod === "authenticator" ||
-                          currentMethod === "sms"
-                            ? "numeric"
-                            : "text"
-                        }
-                        pattern={
-                          currentMethod === "authenticator" ||
-                          currentMethod === "sms"
-                            ? "[0-9]*"
-                            : undefined
-                        }
-                        maxLength={
-                          currentMethod === "authenticator" ||
-                          currentMethod === "sms"
-                            ? 6
-                            : currentMethod === "email"
-                              ? AUTH_CONFIG.emailVerification.codeLength
-                              : currentMethod === "backup_codes" &&
-                                  AUTH_CONFIG.backupCodes.format ===
-                                    "alphanumeric"
-                                ? AUTH_CONFIG.backupCodes.alphanumericLength
-                                : undefined
-                        }
-                        placeholder={
-                          currentMethod === "authenticator" ||
-                          currentMethod === "sms"
-                            ? "000000"
-                            : currentMethod === "email"
-                              ? "Enter code"
-                              : currentMethod === "backup_codes"
-                                ? "Enter a backup code you saved"
-                                : "Enter password"
-                        }
-                        value={field.value}
-                        onChange={(e) =>
-                          handleCodeChange(e.target.value, field.onChange)
-                        }
-                        disabled={isVerifying}
-                        autoComplete={
-                          currentMethod === "password"
-                            ? "current-password"
-                            : "off"
-                        }
-                        showPassword={
-                          currentMethod === "password"
-                            ? showPassword
-                            : undefined
-                        }
-                        onShowPasswordChange={
-                          currentMethod === "password"
-                            ? setShowPassword
-                            : undefined
-                        }
-                        className={cn(currentMethod === "email" && "pr-10")}
-                      />
-                      {currentMethod === "email" && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={handleResendCode}
-                          disabled={isResending || isVerifying}
-                          className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
-                          aria-label="Resend code"
-                        >
-                          <RotateCw
-                            className={cn(
-                              "h-4 w-4",
-                              isResending && "animate-spin"
-                            )}
-                          />
-                        </Button>
-                      )}
-                    </div>
-                  </FormControl>
-                  <FormMessage>
-                    {error || form.formState.errors.code?.message}
-                  </FormMessage>
-                </FormItem>
-              )}
-            />
+            {currentMethod === "email" && !emailCodeSent ? (
+              <div className="space-y-4">
+                <div className="p-4 border rounded-md bg-muted/30 flex flex-col gap-2 items-center text-center">
+                  <Mail className="h-10 w-10 text-primary" />
+                  <h3 className="font-medium">Email verification required</h3>
+                  <p className="text-sm text-muted-foreground">
+                    We'll send a verification code to your email
+                  </p>
+                  <Button
+                    type="button"
+                    className="mt-2 w-full"
+                    onClick={handleSendEmailCode}
+                    disabled={isResending}
+                  >
+                    {isResending ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Sending code...
+                      </span>
+                    ) : (
+                      "Send verification code"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {currentMethod
+                        ? methodInputLabels[currentMethod]
+                        : "Enter code"}
+                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={
+                            currentMethod === "password" ? "password" : "text"
+                          }
+                          inputMode={
+                            currentMethod === "authenticator" ||
+                            currentMethod === "sms"
+                              ? "numeric"
+                              : "text"
+                          }
+                          pattern={
+                            currentMethod === "authenticator" ||
+                            currentMethod === "sms"
+                              ? "[0-9]*"
+                              : undefined
+                          }
+                          maxLength={
+                            currentMethod === "authenticator" ||
+                            currentMethod === "sms"
+                              ? 6
+                              : currentMethod === "email"
+                                ? AUTH_CONFIG.emailVerification.codeLength
+                                : currentMethod === "backup_codes" &&
+                                    AUTH_CONFIG.backupCodes.format ===
+                                      "alphanumeric"
+                                  ? AUTH_CONFIG.backupCodes.alphanumericLength
+                                  : undefined
+                          }
+                          placeholder={
+                            currentMethod === "authenticator" ||
+                            currentMethod === "sms"
+                              ? "000000"
+                              : currentMethod === "email"
+                                ? "Enter code"
+                                : currentMethod === "backup_codes"
+                                  ? "Enter a backup code you saved"
+                                  : "Enter password"
+                          }
+                          value={field.value}
+                          onChange={(e) =>
+                            handleCodeChange(e.target.value, field.onChange)
+                          }
+                          disabled={isVerifying}
+                          autoComplete={
+                            currentMethod === "password"
+                              ? "current-password"
+                              : "off"
+                          }
+                          showPassword={
+                            currentMethod === "password"
+                              ? showPassword
+                              : undefined
+                          }
+                          onShowPasswordChange={
+                            currentMethod === "password"
+                              ? setShowPassword
+                              : undefined
+                          }
+                          className={cn(currentMethod === "email" && "pr-10")}
+                        />
+                        {currentMethod === "email" && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleResendCode}
+                            disabled={isResending || isVerifying}
+                            className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                            aria-label="Resend code"
+                          >
+                            <RotateCw
+                              className={cn(
+                                "h-4 w-4",
+                                isResending && "animate-spin"
+                              )}
+                            />
+                          </Button>
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormMessage>
+                      {error || form.formState.errors.code?.message}
+                    </FormMessage>
 
-            <div className="space-y-3 pt-2">
-              <Button type="submit" className="w-full" disabled={isVerifying}>
-                {isVerifying ? "Verifying..." : "Verify"}
-              </Button>
+                    {currentMethod === "email" && emailCodeSent && (
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Code sent to your email
+                      </p>
+                    )}
+                  </FormItem>
+                )}
+              />
+            )}
 
-              {availableMethods.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => {
-                    setShowOtherMethods(true);
-                    // Reset the form when showing other methods
-                    form.reset({ ...form.getValues(), code: "" });
-                  }}
-                >
-                  Verify another way
+            {!(currentMethod === "email" && !emailCodeSent) && (
+              <div className="space-y-3 pt-2">
+                <Button type="submit" className="w-full" disabled={isVerifying}>
+                  {isVerifying ? "Verifying..." : "Verify"}
                 </Button>
-              )}
-            </div>
+
+                {availableMethods.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => {
+                      setShowOtherMethods(true);
+                      // Reset the form when showing other methods
+                      form.reset({ ...form.getValues(), code: "" });
+                    }}
+                  >
+                    Verify another way
+                  </Button>
+                )}
+              </div>
+            )}
           </>
         )}
       </form>

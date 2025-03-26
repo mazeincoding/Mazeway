@@ -70,11 +70,21 @@ function SocialProvider({
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const { refresh } = useUser();
 
+  const handleMethodChange = (method: TVerificationFactor) => {
+    if (!twoFactorData) return;
+
+    setTwoFactorData({
+      ...twoFactorData,
+      factorId: method.factorId,
+    });
+  };
+
   useEffect(() => {
     setIsLoading(parentLoading ?? false);
   }, [parentLoading]);
 
   const handleVerify = async (code: string) => {
+    console.log("handleVerify", code);
     try {
       setIsVerifying(true);
       setVerifyError(null);

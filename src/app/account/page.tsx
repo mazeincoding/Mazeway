@@ -70,8 +70,8 @@ export default function Account() {
     availableMethods: TVerificationFactor[];
     newEmail: string;
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<ProfileSchema>({
     resolver: zodResolver(profileSchema),

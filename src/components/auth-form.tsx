@@ -271,7 +271,6 @@ export function AuthForm({
                 factorId={factorId}
                 availableMethods={availableMethods}
                 onVerify={handleVerify}
-                onMethodChange={handleMethodChange}
                 isVerifying={isPending}
                 error={twoFactorError}
               />

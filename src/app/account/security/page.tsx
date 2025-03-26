@@ -58,8 +58,8 @@ export default function Security() {
     string | null
   >(null);
   const [verificationMethods, setVerificationMethods] = useState<
-    TVerificationFactor[] | null
-  >(null);
+    TVerificationFactor[]
+  >([]);
   const [qrCode, setQrCode] = useState<string>("");
   const [secret, setSecret] = useState<string>("");
   const [factorId, setFactorId] = useState<string>("");

@@ -29,6 +29,15 @@ export default function DeleteAccount({
   } | null>(null);
   const router = useRouter();
 
+  const handleMethodChange = (method: TVerificationFactor) => {
+    if (!verificationData) return;
+
+    setVerificationData({
+      ...verificationData,
+      factorId: method.factorId,
+    });
+  };
+
   const handleDelete = async () => {
     try {
       setIsDeleting(true);

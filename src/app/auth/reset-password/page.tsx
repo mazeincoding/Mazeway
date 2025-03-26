@@ -203,7 +203,6 @@ function ResetPasswordContent() {
                     factorId={factorId}
                     availableMethods={availableMethods}
                     onVerify={handleVerify}
-                    onMethodChange={handleMethodChange}
                     isVerifying={loading}
                     error={twoFactorError}
                   />

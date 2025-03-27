@@ -120,14 +120,14 @@ export async function POST(request: NextRequest) {
         supabaseAdmin,
       });
 
-      // Return available methods for verification
+      // If user has 2FA, they must use it
       if (has2FA) {
         return NextResponse.json({
-          requiresTwoFactor: true,
+          requiresVerification: true,
           availableMethods: factors,
         }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
       } else {
-        // Return available non-2FA methods
+        // Otherwise they can use basic verification methods
         const availableMethods = methods.map((method) => ({
           type: method,
           factorId: method, // For non-2FA methods, use method name as factorId
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({
-          requiresTwoFactor: false,
+          requiresVerification: true,
           availableMethods,
         }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
       }

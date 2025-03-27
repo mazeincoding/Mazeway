@@ -71,7 +71,6 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           requiresTwoFactor: true,
-          factorId: factor.factorId,
           availableMethods: factors,
           redirectTo: redirectUrl,
         }) satisfies NextResponse<TEmailLoginResponse>;

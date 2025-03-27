@@ -142,8 +142,7 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({
-          requiresTwoFactor: true,
-          factorId: factors[0].factorId,
+          requiresVerification: true,
           availableMethods: factors,
           newEmail,
         }) satisfies NextResponse<TChangeEmailResponse>;

@@ -159,7 +159,7 @@ export function AuthForm({
         // Handle 2FA
         if (result.requiresTwoFactor) {
           setRequiresTwoFactor(true);
-          setFactorId(result.factorId ?? null);
+          setFactorId(result.availableMethods?.[0]?.factorId ?? null);
           setAvailableMethods(result.availableMethods ?? []);
           setRedirectUrl(result.redirectTo);
           return;
@@ -178,8 +178,8 @@ export function AuthForm({
     }
   }
 
-  async function handleVerify(code: string) {
-    if (!factorId || !redirectUrl) return;
+  async function handleVerify(code: string, factorId: string) {
+    if (!redirectUrl) return;
 
     try {
       setIsPending(true);
@@ -263,7 +263,6 @@ export function AuthForm({
           {requiresTwoFactor ? (
             factorId && (
               <VerifyForm
-                factorId={factorId}
                 availableMethods={availableMethods}
                 onVerify={handleVerify}
                 isVerifying={isPending}

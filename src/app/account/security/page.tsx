@@ -54,9 +54,6 @@ export default function Security() {
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [verificationFactorId, setVerificationFactorId] = useState<
-    string | null
-  >(null);
   const [verificationMethods, setVerificationMethods] = useState<
     TVerificationFactor[]
   >([]);
@@ -96,11 +93,11 @@ export default function Security() {
 
     try {
       // If we're in verification mode, verify first
-      if (verificationCode && verificationFactorId && verificationMethods) {
+      if (verificationCode && verificationMethods) {
         console.log("Verifying 2FA code...");
         setIsVerifying(true);
         await api.auth.verify({
-          factorId: verificationFactorId,
+          factorId: verificationMethods[0].factorId,
           code: verificationCode,
           method: verificationMethods[0].type,
         });
@@ -118,9 +115,8 @@ export default function Security() {
       const data = await api.auth.changePassword(params);
       console.log("Password change response:", data);
 
-      // Check if 2FA is required
-      if (data.requiresTwoFactor && data.factorId && data.availableMethods) {
-        setVerificationFactorId(data.factorId);
+      // Check if verification is required
+      if (data.requiresVerification && data.availableMethods) {
         setVerificationMethods(data.availableMethods);
         setShowTwoFactorDialog(true);
         return;
@@ -483,7 +479,7 @@ export default function Security() {
       </SettingCard>
 
       {/* 2FA Dialog for Password Change */}
-      {verificationFactorId && verificationMethods && (
+      {verificationMethods.length > 0 && (
         <Dialog
           open={showTwoFactorDialog}
           onOpenChange={setShowTwoFactorDialog}
@@ -497,7 +493,6 @@ export default function Security() {
               </DialogDescription>
             </DialogHeader>
             <VerifyForm
-              factorId={verificationFactorId}
               availableMethods={verificationMethods}
               onVerify={handleVerifyPasswordChange}
               isVerifying={isVerifying}

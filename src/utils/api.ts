@@ -276,19 +276,6 @@ export const api = {
       },
     },
 
-    isAuthenticated: async () => {
-      try {
-        await api.auth.verifyPassword("");
-        return true;
-      } catch {
-        return false;
-      }
-    },
-
-    requiresTwoFactor: (response: TEmailLoginResponse) => {
-      return !!response.requiresTwoFactor && !!response.factorId;
-    },
-
     sendEmailVerification: async () => {
       const response = await fetch("/api/auth/email/send-verification", {
         method: "POST",

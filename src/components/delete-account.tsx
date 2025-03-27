@@ -36,7 +36,7 @@ export default function DeleteAccount({
 
       // If verification is needed, show verification form
       if (
-        data.requiresTwoFactor ||
+        data.requiresVerification ||
         (data.availableMethods && data.availableMethods.length > 0)
       ) {
         if (data.availableMethods) {

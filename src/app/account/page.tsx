@@ -66,7 +66,6 @@ export default function Account() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
-    factorId: string;
     availableMethods: TVerificationFactor[];
     newEmail: string;
   } | null>(null);
@@ -96,7 +95,7 @@ export default function Account() {
     }
   }, [user]);
 
-  const handleVerify2FA = async (code: string) => {
+  const handleVerify2FA = async (code: string, factorId: string) => {
     if (!twoFactorData) return;
 
     try {
@@ -105,9 +104,11 @@ export default function Account() {
 
       // First verify using the centralized verify endpoint
       await api.auth.verify({
-        factorId: twoFactorData.factorId,
+        factorId,
         code,
-        method: twoFactorData.availableMethods[0].type,
+        method:
+          twoFactorData.availableMethods.find((m) => m.factorId === factorId)
+            ?.type || twoFactorData.availableMethods[0].type,
       });
 
       // After successful verification, change email
@@ -152,13 +153,8 @@ export default function Account() {
         try {
           const data = await api.auth.changeEmail({ newEmail: values.email });
 
-          if (
-            data.requiresTwoFactor &&
-            data.factorId &&
-            data.availableMethods
-          ) {
+          if (data.requiresVerification && data.availableMethods) {
             setTwoFactorData({
-              factorId: data.factorId,
               availableMethods: data.availableMethods,
               newEmail: values.email,
             });
@@ -384,7 +380,6 @@ export default function Account() {
               </DialogDescription>
             </DialogHeader>
             <VerifyForm
-              factorId={twoFactorData.factorId}
               availableMethods={twoFactorData.availableMethods}
               onVerify={handleVerify2FA}
               isVerifying={isVerifying}

@@ -120,7 +120,7 @@ function SocialProvider({
       if (isConnected) {
         const result = await api.auth.disconnectSocialProvider(provider);
         console.log("[handleClick] disconnect result:", result);
-        if ("requiresTwoFactor" in result) {
+        if ("requiresVerification" in result) {
           console.log("[handleClick] setting two factor data:", {
             availableMethods: result.availableMethods,
           });
@@ -135,7 +135,7 @@ function SocialProvider({
       } else {
         const result = await api.auth.connectSocialProvider(provider);
         console.log("[handleClick] connect result:", result);
-        if ("requiresTwoFactor" in result) {
+        if ("requiresVerification" in result) {
           console.log("[handleClick] setting two factor data:", {
             availableMethods: result.availableMethods,
           });

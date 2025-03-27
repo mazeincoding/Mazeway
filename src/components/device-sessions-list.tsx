@@ -65,13 +65,13 @@ export function DeviceSessionsList() {
       const data = await api.auth.device.revokeSession({ sessionId });
 
       // If empty response, session was revoked successfully
-      if (!("requiresTwoFactor" in data)) {
+      if (!("requiresVerification" in data)) {
         refresh();
         return;
       }
 
       // Otherwise, verification is required
-      if (data.availableMethods) {
+      if (data.requiresVerification && data.availableMethods) {
         setTwoFactorData({
           availableMethods: data.availableMethods,
           sessionId: sessionId,

@@ -146,15 +146,15 @@ export async function DELETE(
         supabaseAdmin,
       });
 
-      // Return available methods for verification
+      // If user has 2FA, they must use it
       if (has2FA) {
         return NextResponse.json({
-          requiresTwoFactor: true,
+          requiresVerification: true,
           availableMethods: factors,
           sessionId,
         }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
       } else {
-        // Return available non-2FA methods
+        // Otherwise they can use basic verification methods
         const availableMethods = methods.map((method) => ({
           type: method,
           factorId: method, // For non-2FA methods, use method name as factorId
@@ -168,7 +168,7 @@ export async function DELETE(
         }
 
         return NextResponse.json({
-          requiresTwoFactor: false,
+          requiresVerification: true,
           availableMethods,
           sessionId,
         }) satisfies NextResponse<TRevokeDeviceSessionResponse>;

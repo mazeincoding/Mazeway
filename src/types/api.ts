@@ -12,9 +12,15 @@ import {
 } from "./auth";
 import type { ProfileSchema } from "@/validation/auth-validation";
 
-// Shared interface for responses that might require verification
-export interface TVerificationRequirement {
+// For API routes where the user is authenticating
+export interface TTwoFactorVerificationRequirement {
   requiresTwoFactor?: boolean;
+  availableMethods?: TVerificationFactor[];
+}
+
+// For API routes where the user is already authenticated and doing a sensitive action
+export interface TGeneralVerificationRequirement {
+  requiresVerification?: boolean;
   availableMethods?: TVerificationFactor[];
 }
 
@@ -182,17 +188,20 @@ export interface TVerifyResponse {
 }
 
 // /api/auth/email/login
-export interface TEmailLoginResponse extends TVerificationRequirement {
+// /api/auth/email/login
+export interface TEmailLoginResponse extends TTwoFactorVerificationRequirement {
   redirectTo: string;
 }
 
 // /api/auth/reset-password
-export interface TResetPasswordResponse extends TVerificationRequirement {
+export interface TResetPasswordResponse
+  extends TTwoFactorVerificationRequirement {
   newPassword?: string;
 }
 
 // /api/auth/change-password
-export interface TPasswordChangeResponse extends TVerificationRequirement {
+export interface TPasswordChangeResponse
+  extends TGeneralVerificationRequirement {
   newPassword?: string;
   requiresRelogin?: boolean;
   email?: string;
@@ -200,12 +209,13 @@ export interface TPasswordChangeResponse extends TVerificationRequirement {
 }
 
 // /api/auth/change-email
-export interface TChangeEmailResponse extends TVerificationRequirement {
+export interface TChangeEmailResponse extends TGeneralVerificationRequirement {
   newEmail?: string;
 }
 
 // /api/auth/device-sessions/[id]
-export interface TRevokeDeviceSessionResponse extends TVerificationRequirement {
+export interface TRevokeDeviceSessionResponse
+  extends TGeneralVerificationRequirement {
   sessionId: string;
 }
 
@@ -226,7 +236,8 @@ export interface TGeolocationResponse {
 }
 
 // /api/auth/user/delete
-export interface TDeleteAccountResponse extends TVerificationRequirement {}
+export interface TDeleteAccountResponse
+  extends TGeneralVerificationRequirement {}
 
 // /api/auth/email/check
 export interface TCheckEmailResponse {
@@ -276,6 +287,7 @@ export interface TGetDataExportStatusResponse extends TDataExportResponseItem {}
 // Generic success response
 export interface TEmptySuccessResponse {}
 
+// /api/auth/social/connect
 export type TConnectSocialProviderResponse =
   | {
       url: string;
@@ -283,13 +295,18 @@ export type TConnectSocialProviderResponse =
   | {
       success: true;
     }
-  | TVerificationRequirement;
+  | (TGeneralVerificationRequirement & {
+      requiresVerification: true;
+    });
 
+// /api/auth/social/disconnect
 export type TDisconnectSocialProviderResponse =
   | {
       success: true;
     }
-  | TVerificationRequirement;
+  | (TGeneralVerificationRequirement & {
+      requiresVerification: true;
+    });
 
 export type TGetUserIdentitiesResponse = {
   identities: Array<{

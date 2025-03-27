@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       // Return available methods for verification
       if (has2FA) {
         return NextResponse.json({
-          requiresTwoFactor: true,
+          requiresVerification: true,
           availableMethods: factors,
         }) satisfies NextResponse<TDeleteAccountResponse>;
       } else {
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({
-          requiresTwoFactor: false,
+          requiresVerification: true,
           availableMethods,
         }) satisfies NextResponse<TDeleteAccountResponse>;
       }

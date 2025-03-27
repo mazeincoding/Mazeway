@@ -20,32 +20,30 @@ import { logAccountEvent } from "@/utils/account-events/server";
 
 export async function GET(request: Request) {
   const startTime = Date.now();
-  const requestId = Math.random().toString(36).substring(7);
 
-  console.log(`[${requestId}] Post-auth flow started`, {
+  console.log("[AUTH] Post-auth request received", {
     url: request.url,
-    timestamp: new Date().toISOString(),
-    method: request.method,
-    headers: {
-      "user-agent": request.headers.get("user-agent"),
-      "x-forwarded-for": request.headers.get("x-forwarded-for"),
-      referer: request.headers.get("referer"),
-      "cookie-present": !!request.headers.get("cookie"),
-    },
   });
 
-  const { searchParams } = new URL(request.url);
-  const provider = (searchParams.get("provider") ||
-    "browser") as TDeviceSessionProvider;
-  const next = searchParams.get("next") || "/dashboard";
-  const { origin } = new URL(request.url);
+  const { searchParams, origin } = new URL(request.url);
+  const provider = searchParams.get("provider") || "browser";
+  const next = searchParams.get("next") || "/";
+  const shouldRefresh = searchParams.get("should_refresh") === "true";
   const isLocalEnv = process.env.NODE_ENV === "development";
 
-  console.log("Parameters", {
+  console.log("[AUTH] Post-auth parameters", {
     provider,
     next,
-    origin,
-    isLocalEnv,
+    shouldRefresh,
+  });
+
+  // Clean up the next URL to remove any OAuth codes
+  const cleanNext = new URL(next, origin);
+  cleanNext.searchParams.delete("code");
+
+  console.log("[AUTH] Cleaned next URL:", {
+    original: next,
+    cleaned: cleanNext.toString(),
   });
 
   try {
@@ -77,7 +75,7 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(`[${requestId}] Creating Supabase clients`, {
+    console.log("[AUTH] Creating Supabase clients", {
       timestamp: new Date().toISOString(),
       elapsed: `${Date.now() - startTime}ms`,
     });
@@ -87,7 +85,7 @@ export async function GET(request: Request) {
 
     const { user, error } = await getUser({ supabase, requireProfile: false });
     if (error || !user) {
-      console.error(`[${requestId}] Failed to get user`, {
+      console.error(`[AUTH] Failed to get user`, {
         error,
         hasUser: !!user,
         elapsed: `${Date.now() - startTime}ms`,
@@ -95,7 +93,7 @@ export async function GET(request: Request) {
       throw new Error("No user found");
     }
 
-    console.log(`[${requestId}] User authenticated`, {
+    console.log("[AUTH] User authenticated", {
       userId: user.id,
       email: user.email,
       elapsed: `${Date.now() - startTime}ms`,
@@ -286,7 +284,7 @@ export async function GET(request: Request) {
       sessionId: session_id,
     });
 
-    const response = NextResponse.redirect(`${origin}${next}`, {
+    const response = NextResponse.redirect(cleanNext.toString(), {
       status: 302,
     });
 
@@ -297,14 +295,13 @@ export async function GET(request: Request) {
       maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60, // Convert days to seconds
     });
 
-    console.log(`[${requestId}] Set device_session_id cookie`, {
+    console.log("[AUTH] Set device_session_id cookie", {
       sessionId: session_id,
       maxAge: AUTH_CONFIG.deviceSessions.maxAge * 24 * 60 * 60,
       secure: !isLocalEnv,
       elapsed: `${Date.now() - startTime}ms`,
     });
 
-    const shouldRefresh = searchParams.get("should_refresh") === "true";
     if (shouldRefresh) {
       response.headers.set("X-Should-Refresh-User", "true");
       console.log("Set refresh header");
@@ -399,7 +396,7 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log(`[${requestId}] Authentication successful`, {
+    console.log("[AUTH] Authentication successful", {
       userId: user.id,
       redirectTo: next,
       elapsed: `${Date.now() - startTime}ms`,
@@ -475,15 +472,17 @@ export async function GET(request: Request) {
       }
     }
 
+    console.log("[AUTH] Post-auth flow completed", {
+      url: cleanNext.toString(),
+      totalTime: `${Date.now() - startTime}ms`,
+    });
+
     return response;
-  } catch (error) {
-    const err = error as Error;
-    console.error(`[${requestId}] Error in post-auth flow`, {
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error("Unknown error");
+    console.error("[AUTH] Post-auth flow failed", {
       error: err.message,
-      stack: err.stack,
-      elapsed: `${Date.now() - startTime}ms`,
-      type: err instanceof AuthApiError ? "AuthApiError" : "UnknownError",
-      code: err instanceof AuthApiError ? err.code : undefined,
+      totalTime: `${Date.now() - startTime}ms`,
     });
 
     // Always logout on error
@@ -495,23 +494,35 @@ export async function GET(request: Request) {
       },
     });
 
-    let errorTitle = "Authentication error";
-    let errorMessage = "There was a problem completing your authentication.";
+    let errorTitle = "Authentication failed";
+    let errorMessage =
+      "There was a problem completing authentication. Please try again.";
 
     // Handle Supabase Auth errors
     if (err instanceof AuthApiError) {
-      switch (err.code) {
-        case "user_not_found":
-          errorTitle = "Session Error";
+      switch (err.status) {
+        case 400:
+          errorTitle = "Invalid request";
           errorMessage =
-            "We couldn't find your user session. Please try logging in again.";
+            "The authentication request was invalid. Please try again.";
           break;
-        case "user_already_exists":
-          errorTitle = "Account Creation Failed";
+        case 401:
+          errorTitle = "Unauthorized";
+          errorMessage = "You are not authorized to perform this action.";
+          break;
+        case 404:
+          errorTitle = "Not found";
+          errorMessage = "The requested resource was not found.";
+          break;
+        case 422:
+          errorTitle = "Validation error";
           errorMessage =
-            "We couldn't create your account. Please try signing up again.";
+            "There was a problem with your input. Please try again.";
           break;
-        // Add other Supabase error codes as needed
+        case 429:
+          errorTitle = "Too many requests";
+          errorMessage = "Please wait a moment before trying again.";
+          break;
       }
     }
 
@@ -530,10 +541,5 @@ export async function GET(request: Request) {
     return NextResponse.redirect(
       `${origin}/auth/error?title=${encodeURIComponent(errorTitle)}&message=${encodeURIComponent(errorMessage)}&actions=${actions}&error=${encodeURIComponent(err instanceof AuthApiError ? err.code || err.message : err.message)}`
     );
-  } finally {
-    console.log(`[${requestId}] Post-auth flow completed`, {
-      timestamp: new Date().toISOString(),
-      totalTime: `${Date.now() - startTime}ms`,
-    });
   }
 }

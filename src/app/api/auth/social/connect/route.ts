@@ -112,17 +112,33 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Link identity
+    console.log("[AUTH] Linking social provider", {
+      provider,
+      userId: user.id,
+    });
+
+    // Get the referer to return to after OAuth
+    const referer = request.headers.get("referer");
+
     const { data, error: linkError } = await supabase.auth.linkIdentity({
       provider,
+      options: {
+        redirectTo: `${origin}/api/auth/callback?provider=${provider}&next=${encodeURIComponent(referer || "/")}`,
+      },
     });
 
     if (linkError) {
-      console.error("Failed to link identity:", linkError);
+      console.error("[AUTH] Failed to link identity:", linkError);
       return NextResponse.json(
         { error: linkError.message },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    console.log("[AUTH] Social provider linked successfully", {
+      provider,
+      userId: user.id,
+    });
 
     // 7. Log sensitive action verification
     const parser = new UAParser(request.headers.get("user-agent") || "");
@@ -174,7 +190,7 @@ export async function POST(request: NextRequest) {
       data
     ) satisfies NextResponse<TConnectSocialProviderResponse>;
   } catch (error) {
-    console.error("Error in social provider connect:", error);
+    console.error("[AUTH] Error in social provider connect:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

@@ -8,9 +8,8 @@ import { createDeviceSession } from "@/utils/auth/device-sessions/server";
 import { UAParser } from "ua-parser-js";
 
 export async function GET(request: Request) {
-  console.log("[AUTH] /api/auth/callback - Request received", {
+  console.log("[AUTH] Callback request received", {
     url: request.url,
-    timestamp: new Date().toISOString(),
   });
 
   const { searchParams, origin } = new URL(request.url);
@@ -20,7 +19,7 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
   const provider = searchParams.get("provider") || "browser";
 
-  console.log("[AUTH] /api/auth/callback - Parameters", {
+  console.log(`[AUTH] Auth callback parameters`, {
     hasCode: !!code,
     next,
     hasTokenHash: !!token_hash,
@@ -32,11 +31,11 @@ export async function GET(request: Request) {
   const supabaseAdmin = await createClient({ useServiceRole: true });
 
   if (code) {
-    console.log("[AUTH] /api/auth/callback - Processing OAuth code exchange");
+    console.log("[AUTH] Processing OAuth code exchange");
 
     // Check if the provider is enabled before processing OAuth code exchange
     if (provider === "google" && !AUTH_CONFIG.socialProviders.google.enabled) {
-      console.error("[AUTH] /api/auth/callback - Google auth is disabled");
+      console.error("[AUTH] Google auth is disabled");
       const actions = encodeURIComponent(
         JSON.stringify([
           { label: "Log in with email", href: "/auth/login", type: "default" },
@@ -48,7 +47,7 @@ export async function GET(request: Request) {
       );
     }
     if (provider === "github" && !AUTH_CONFIG.socialProviders.github.enabled) {
-      console.error("[AUTH] /api/auth/callback - GitHub auth is disabled");
+      console.error("[AUTH] GitHub auth is disabled");
       const actions = encodeURIComponent(
         JSON.stringify([
           { label: "Log in with email", href: "/auth/login", type: "default" },
@@ -63,7 +62,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error("[AUTH] /api/auth/callback - OAuth code exchange failed", {
+      console.error("[AUTH] OAuth code exchange failed", {
         error: error.message,
         code: error.status,
       });
@@ -85,10 +84,7 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(
-      "[AUTH] /api/auth/callback - OAuth code exchange successful, redirecting to post-auth"
-    );
-
+    console.log("[AUTH] OAuth code exchange successful");
     return NextResponse.redirect(
       `${origin}/api/auth/post-auth?provider=${provider}&next=${next}&should_refresh=true`
     );

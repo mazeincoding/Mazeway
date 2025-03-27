@@ -78,8 +78,8 @@ export const AUTH_CONFIG = {
   requireFreshVerification: {
     revokeDevices: false,
     deleteAccount: true,
-    connectProvider: true, // Connecting a social provider
-    disconnectProvider: true, // Disconnecting a social provider
+    connectProvider: true,
+    disconnectProvider: true,
   },
 
   // Device verification (for unknown device login)

@@ -112,11 +112,6 @@ function ResetPasswordContent() {
     }
   };
 
-  const handleMethodChange = (method: TVerificationFactor) => {
-    setFactorId(method.factorId);
-    setTwoFactorError(null);
-  };
-
   const onSubmit = async (values: ResetPasswordSchema) => {
     setLoading(true);
 

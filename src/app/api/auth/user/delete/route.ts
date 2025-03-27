@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           requiresTwoFactor: true,
           availableMethods: factors,
-          factorId: factors[0].factorId,
         }) satisfies NextResponse<TDeleteAccountResponse>;
       } else {
         // Return available non-2FA methods

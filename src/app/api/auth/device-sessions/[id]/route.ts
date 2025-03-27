@@ -151,7 +151,6 @@ export async function DELETE(
         return NextResponse.json({
           requiresTwoFactor: true,
           availableMethods: factors,
-          factorId: factors[0].factorId,
           sessionId,
         }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
       } else {

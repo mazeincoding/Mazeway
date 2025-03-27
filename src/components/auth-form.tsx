@@ -204,11 +204,6 @@ export function AuthForm({
     }
   }
 
-  const handleMethodChange = (method: TVerificationFactor) => {
-    setFactorId(method.factorId);
-    setTwoFactorError(null);
-  };
-
   function handleBack() {
     if (!showPasswordField) {
       router.back();

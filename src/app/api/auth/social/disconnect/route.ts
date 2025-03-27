@@ -124,7 +124,6 @@ export async function POST(request: NextRequest) {
       if (has2FA) {
         return NextResponse.json({
           requiresTwoFactor: true,
-          factorId: factors[0].factorId,
           availableMethods: factors,
         }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
       } else {

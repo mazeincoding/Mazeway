@@ -9,7 +9,6 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { VerifyForm } from "./verify-form";
 import { TVerificationFactor } from "@/types/auth";
@@ -24,19 +23,8 @@ export default function DeleteAccount({
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationData, setVerificationData] = useState<{
-    factorId: string;
     availableMethods: TVerificationFactor[];
   } | null>(null);
-  const router = useRouter();
-
-  const handleMethodChange = (method: TVerificationFactor) => {
-    if (!verificationData) return;
-
-    setVerificationData({
-      ...verificationData,
-      factorId: method.factorId,
-    });
-  };
 
   const handleDelete = async () => {
     try {
@@ -53,7 +41,6 @@ export default function DeleteAccount({
       ) {
         if (data.availableMethods) {
           setVerificationData({
-            factorId: data.factorId || data.availableMethods[0].factorId,
             availableMethods: data.availableMethods,
           });
           return;
@@ -88,7 +75,7 @@ export default function DeleteAccount({
     }
   };
 
-  const handleVerify = async (code: string) => {
+  const handleVerify = async (code: string, factorId: string) => {
     try {
       setIsDeleting(true);
       setError(null);
@@ -97,7 +84,7 @@ export default function DeleteAccount({
 
       // Verify using the centralized verify endpoint
       await api.auth.verify({
-        factorId: verificationData.factorId,
+        factorId,
         method: verificationData.availableMethods[0].type,
         code,
       });
@@ -128,7 +115,6 @@ export default function DeleteAccount({
 
         {verificationData ? (
           <VerifyForm
-            factorId={verificationData.factorId}
             availableMethods={verificationData.availableMethods}
             onVerify={handleVerify}
             isVerifying={isDeleting}

@@ -35,22 +35,19 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface VerifyFormProps {
-  factorId: string;
-  availableMethods?: TVerificationFactor[];
-  onVerify: (code: string) => Promise<void>;
+  availableMethods: TVerificationFactor[];
+  onVerify: (code: string, factorId: string) => Promise<void>;
   isVerifying?: boolean;
   error?: string | null;
 }
 
 export function VerifyForm({
-  factorId,
-  availableMethods = [],
+  availableMethods,
   onVerify,
   isVerifying = false,
   error,
 }: VerifyFormProps) {
   console.log("VerifyForm rendered:", {
-    factorId,
     availableMethods,
   });
 
@@ -82,7 +79,6 @@ export function VerifyForm({
   const form = useForm<VerificationSchema>({
     resolver: zodResolver(verificationSchema),
     defaultValues: {
-      factorId,
       code: "",
       method: currentMethod ?? "authenticator",
     },
@@ -239,7 +235,13 @@ export function VerifyForm({
   const onSubmit = form.handleSubmit(async (data) => {
     try {
       console.log("onSubmit", data);
-      await onVerify(data.code);
+      const selectedMethod = availableMethods.find(
+        (m) => m.type === currentMethod
+      );
+      if (!selectedMethod) {
+        throw new Error("No verification method selected");
+      }
+      await onVerify(data.code, selectedMethod.factorId);
       console.log("onVerify success");
       await refreshUser();
     } catch (error) {

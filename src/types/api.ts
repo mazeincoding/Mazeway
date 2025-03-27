@@ -15,7 +15,6 @@ import type { ProfileSchema } from "@/validation/auth-validation";
 // Shared interface for responses that might require verification
 export interface TVerificationRequirement {
   requiresTwoFactor?: boolean;
-  factorId?: string;
   availableMethods?: TVerificationFactor[];
 }
 

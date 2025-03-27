@@ -26,7 +26,6 @@ export function DeviceSessionsList() {
   const { sessions, isLoading, error, refresh } = useDeviceSessions();
   const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
-    factorId: string;
     availableMethods: TVerificationFactor[];
     sessionId: string;
   } | null>(null);
@@ -74,7 +73,6 @@ export function DeviceSessionsList() {
       // Otherwise, verification is required
       if (data.availableMethods) {
         setTwoFactorData({
-          factorId: data.factorId || data.availableMethods[0].factorId,
           availableMethods: data.availableMethods,
           sessionId: sessionId,
         });
@@ -102,19 +100,11 @@ export function DeviceSessionsList() {
       setIsVerifying(true);
       setVerifyError(null);
 
-      const method = twoFactorData.availableMethods.find(
-        (m) => m.factorId === twoFactorData.factorId
-      )?.type;
-
-      if (!method) {
-        throw new Error("Invalid verification method");
-      }
-
       // First verify using the centralized endpoint
       await api.auth.verify({
-        factorId: twoFactorData.factorId,
+        factorId: twoFactorData.availableMethods[0].factorId,
         code,
-        method,
+        method: twoFactorData.availableMethods[0].type,
       });
 
       // Then try to revoke the session again
@@ -158,15 +148,6 @@ export function DeviceSessionsList() {
     } finally {
       setIsVerifying(false);
     }
-  };
-
-  const handleMethodChange = (method: TVerificationFactor) => {
-    if (!twoFactorData) return;
-
-    setTwoFactorData({
-      ...twoFactorData,
-      factorId: method.factorId,
-    });
   };
 
   if (error) {
@@ -227,7 +208,6 @@ export function DeviceSessionsList() {
               </DialogDescription>
             </DialogHeader>
             <VerifyForm
-              factorId={twoFactorData.factorId}
               availableMethods={twoFactorData.availableMethods}
               onVerify={handleVerify2FA}
               isVerifying={isVerifying}

@@ -63,35 +63,25 @@ function SocialProvider({
   const [isLoading, setIsLoading] = useState(false);
   const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState<{
-    factorId: string;
     availableMethods: TVerificationFactor[];
   } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const { refresh } = useUser();
 
-  const handleMethodChange = (method: TVerificationFactor) => {
-    if (!twoFactorData) return;
-
-    setTwoFactorData({
-      ...twoFactorData,
-      factorId: method.factorId,
-    });
-  };
-
   useEffect(() => {
     setIsLoading(parentLoading ?? false);
   }, [parentLoading]);
 
-  const handleVerify = async (code: string) => {
-    console.log("handleVerify", code);
+  const handleVerify = async (code: string, factorId: string) => {
+    console.log("handleVerify", code, factorId);
     try {
       setIsVerifying(true);
       setVerifyError(null);
 
       if (isConnected) {
         await api.auth.verify({
-          factorId: twoFactorData!.factorId,
+          factorId,
           code,
           method: twoFactorData!.availableMethods[0].type,
         });
@@ -99,7 +89,7 @@ function SocialProvider({
         toast.success(`${provider} account disconnected`);
       } else {
         await api.auth.verify({
-          factorId: twoFactorData!.factorId,
+          factorId,
           code,
           method: twoFactorData!.availableMethods[0].type,
         });
@@ -123,14 +113,18 @@ function SocialProvider({
   };
 
   const handleClick = async () => {
+    console.log("[handleClick] isConnected", isConnected);
     try {
       setIsLoading(true);
 
       if (isConnected) {
         const result = await api.auth.disconnectSocialProvider(provider);
+        console.log("[handleClick] disconnect result:", result);
         if ("requiresTwoFactor" in result) {
+          console.log("[handleClick] setting two factor data:", {
+            availableMethods: result.availableMethods,
+          });
           setTwoFactorData({
-            factorId: result.factorId!,
             availableMethods: result.availableMethods!,
           });
           setShowTwoFactorDialog(true);
@@ -140,9 +134,12 @@ function SocialProvider({
         await refresh();
       } else {
         const result = await api.auth.connectSocialProvider(provider);
+        console.log("[handleClick] connect result:", result);
         if ("requiresTwoFactor" in result) {
+          console.log("[handleClick] setting two factor data:", {
+            availableMethods: result.availableMethods,
+          });
           setTwoFactorData({
-            factorId: result.factorId!,
             availableMethods: result.availableMethods!,
           });
           setShowTwoFactorDialog(true);
@@ -203,7 +200,6 @@ function SocialProvider({
               </DialogDescription>
             </DialogHeader>
             <VerifyForm
-              factorId={twoFactorData.factorId}
               availableMethods={twoFactorData.availableMethods}
               onVerify={handleVerify}
               isVerifying={isVerifying}

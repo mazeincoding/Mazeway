@@ -195,7 +195,6 @@ function ResetPasswordContent() {
               <CardContent>
                 {factorId && (
                   <VerifyForm
-                    factorId={factorId}
                     availableMethods={availableMethods}
                     onVerify={handleVerify}
                     isVerifying={loading}

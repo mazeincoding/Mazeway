@@ -195,7 +195,6 @@ export function TwoFactorMethods({
           </DialogHeader>
           {disableState && (
             <VerifyForm
-              factorId={disableState.currentMethod.factorId}
               availableMethods={disableState.userEnabledMethods}
               onVerify={handleDisableVerify}
               isVerifying={isDisableVerifying}

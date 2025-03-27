@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     const { data, error: linkError } = await supabase.auth.linkIdentity({
       provider,
       options: {
-        redirectTo: `${origin}/api/auth/callback?provider=${provider}&next=${encodeURIComponent(referer || "/")}`,
+        redirectTo: `${origin}/api/auth/callback?provider=${provider}&next=${encodeURIComponent(referer || "/")}&is_provider_connection=true`,
       },
     });
 

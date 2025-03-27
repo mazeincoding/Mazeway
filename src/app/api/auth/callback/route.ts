@@ -112,9 +112,21 @@ export async function GET(request: Request) {
       }
 
       console.log("[AUTH] OAuth code exchange successful");
-      return NextResponse.redirect(
-        `${origin}/api/auth/post-auth?provider=${provider}&next=${next}&should_refresh=true`
-      );
+
+      // Preserve the is_provider_connection flag from the original request
+      const isProviderConnection = searchParams.get("is_provider_connection");
+      const postAuthUrl = new URL(`${origin}/api/auth/post-auth`);
+      postAuthUrl.searchParams.set("provider", provider);
+      postAuthUrl.searchParams.set("next", next);
+      postAuthUrl.searchParams.set("should_refresh", "true");
+      if (isProviderConnection) {
+        postAuthUrl.searchParams.set(
+          "is_provider_connection",
+          isProviderConnection
+        );
+      }
+
+      return NextResponse.redirect(postAuthUrl.toString());
     }
 
     // For non-OAuth flows, verify required parameters

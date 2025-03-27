@@ -30,11 +30,14 @@ export async function GET(request: Request) {
   const next = searchParams.get("next") || "/";
   const shouldRefresh = searchParams.get("should_refresh") === "true";
   const isLocalEnv = process.env.NODE_ENV === "development";
+  const isProviderConnection =
+    searchParams.get("is_provider_connection") === "true";
 
   console.log("[AUTH] Post-auth parameters", {
     provider,
     next,
     shouldRefresh,
+    isProviderConnection,
   });
 
   // Clean up the next URL to remove any OAuth codes
@@ -165,6 +168,22 @@ export async function GET(request: Request) {
       console.log("User record created successfully");
     }
 
+    // For provider connections, we already have a device session
+    // We don't want to create a new one
+    if (isProviderConnection) {
+      console.log("Skipping device session creation for provider connection");
+      const response = NextResponse.redirect(cleanNext.toString(), {
+        status: 302,
+      });
+
+      if (shouldRefresh) {
+        response.headers.set("X-Should-Refresh-User", "true");
+        console.log("Set refresh header");
+      }
+
+      return response;
+    }
+
     console.log("Fetching trusted sessions");
     let trustedSessions = null;
     try {
@@ -217,6 +236,7 @@ export async function GET(request: Request) {
       console.log("Continuing with empty trusted sessions");
     }
 
+    // Get device info
     const parser = new UAParser(request.headers.get("user-agent") || "");
     const deviceName = parser.getDevice().model || "Unknown Device";
     const browser = parser.getBrowser().name || "Unknown Browser";
@@ -450,7 +470,6 @@ export async function GET(request: Request) {
             );
 
             if (!emailAlertResponse.ok) {
-              // Just log the error but don't fail the authentication flow
               console.error("Failed to send email alert", {
                 status: emailAlertResponse.status,
                 statusText: emailAlertResponse.statusText,
@@ -468,7 +487,6 @@ export async function GET(request: Request) {
           }
         }
       } catch (error) {
-        // Log error but don't fail the authentication flow
         console.error("Error sending email alert", {
           error: error instanceof Error ? error.message : String(error),
         });

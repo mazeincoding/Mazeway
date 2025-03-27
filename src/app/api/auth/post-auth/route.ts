@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   });
 
   const { searchParams, origin } = new URL(request.url);
-  const provider = searchParams.get("provider") || "browser";
+  const provider = searchParams.get("provider");
   const next = searchParams.get("next") || "/";
   const shouldRefresh = searchParams.get("should_refresh") === "true";
   const isLocalEnv = process.env.NODE_ENV === "development";
@@ -47,12 +47,14 @@ export async function GET(request: Request) {
   });
 
   try {
-    // Validate provider is one we actually support
+    // Validate provider is one we actually support and is required
+    if (!provider) {
+      console.error("No provider specified");
+      throw new Error("Provider is required");
+    }
+
     const isValidProvider =
-      provider === "browser" ||
-      provider === "google" ||
-      provider === "github" ||
-      provider === "email";
+      provider === "google" || provider === "github" || provider === "email";
     if (!isValidProvider) {
       console.error("Invalid provider", {
         provider,
@@ -101,7 +103,8 @@ export async function GET(request: Request) {
       emailVerified: user.auth.emailVerified,
     });
 
-    const isOAuthProvider = provider !== "email" && provider !== "browser";
+    // Check if this is an OAuth provider
+    const isOAuthProvider = provider === "google" || provider === "github";
 
     const { data: dbUser, error: dbError } = await supabase
       .from("users")

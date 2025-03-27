@@ -4,7 +4,7 @@ export type TAAL = "aal1" | "aal2";
 export type TSocialProvider = "google" | "github";
 
 // Only the providers we actually support
-export type TDeviceSessionProvider = "browser" | "email" | TSocialProvider;
+export type TDeviceSessionProvider = "email" | TSocialProvider;
 
 export interface TDeviceInfo {
   user_id: string;

@@ -461,7 +461,7 @@ export function VerifyForm({
                     </FormMessage>
 
                     {currentMethod === "email" && emailCodeSent && (
-                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3" />
                         Code sent to your email
                       </p>

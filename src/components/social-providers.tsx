@@ -74,7 +74,6 @@ function SocialProvider({
   }, [parentLoading]);
 
   const handleVerify = async (code: string, factorId: string) => {
-    console.log("handleVerify", code, factorId);
     try {
       setIsVerifying(true);
       setVerifyError(null);
@@ -107,23 +106,19 @@ function SocialProvider({
       setVerifyError(
         error instanceof Error ? error.message : "Verification failed"
       );
+      throw error;
     } finally {
       setIsVerifying(false);
     }
   };
 
   const handleClick = async () => {
-    console.log("[handleClick] isConnected", isConnected);
     try {
       setIsLoading(true);
 
       if (isConnected) {
         const result = await api.auth.disconnectSocialProvider(provider);
-        console.log("[handleClick] disconnect result:", result);
         if ("requiresVerification" in result) {
-          console.log("[handleClick] setting two factor data:", {
-            availableMethods: result.availableMethods,
-          });
           setTwoFactorData({
             availableMethods: result.availableMethods!,
           });
@@ -134,11 +129,7 @@ function SocialProvider({
         await refresh();
       } else {
         const result = await api.auth.connectSocialProvider(provider);
-        console.log("[handleClick] connect result:", result);
         if ("requiresVerification" in result) {
-          console.log("[handleClick] setting two factor data:", {
-            availableMethods: result.availableMethods,
-          });
           setTwoFactorData({
             availableMethods: result.availableMethods!,
           });

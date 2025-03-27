@@ -68,10 +68,8 @@ export function VerifyForm({
 
   // Log initial mount
   useEffect(() => {
-    console.log("Component mounted");
     mountedRef.current = true;
     return () => {
-      console.log("Component unmounted");
       mountedRef.current = false;
     };
   }, []);
@@ -81,9 +79,24 @@ export function VerifyForm({
     defaultValues: {
       code: "",
       method: currentMethod ?? "authenticator",
+      factorId:
+        availableMethods.find((m) => m.type === currentMethod)?.factorId ?? "",
     },
     mode: "onSubmit",
   });
+
+  // Update form values when current method changes
+  useEffect(() => {
+    if (currentMethod) {
+      const selectedMethod = availableMethods.find(
+        (m) => m.type === currentMethod
+      );
+      if (selectedMethod) {
+        form.setValue("method", currentMethod);
+        form.setValue("factorId", selectedMethod.factorId);
+      }
+    }
+  }, [currentMethod, availableMethods, form]);
 
   const methodLabels: Record<TVerificationMethod, string> = {
     authenticator: "Authenticator app",
@@ -193,14 +206,9 @@ export function VerifyForm({
         sanitizedValue = value;
     }
 
-    form.reset(
-      { ...form.getValues(), code: sanitizedValue },
-      {
-        keepValues: true,
-        keepDirty: false,
-        keepErrors: false,
-      }
-    );
+    form.setValue("code", sanitizedValue, {
+      shouldValidate: true,
+    });
     onChange(sanitizedValue);
   };
 
@@ -209,7 +217,9 @@ export function VerifyForm({
     if (!method) return;
 
     setCurrentMethod(value);
-    form.setValue("code", ""); // Clear the code when changing methods
+    form.setValue("code", "");
+    form.setValue("method", value);
+    form.setValue("factorId", method.factorId);
 
     // Reset email sent state when changing methods
     if (value === "email") {
@@ -234,7 +244,6 @@ export function VerifyForm({
 
   const onSubmit = form.handleSubmit(async (data) => {
     try {
-      console.log("onSubmit", data);
       const selectedMethod = availableMethods.find(
         (m) => m.type === currentMethod
       );
@@ -242,16 +251,111 @@ export function VerifyForm({
         throw new Error("No verification method selected");
       }
       await onVerify(data.code, selectedMethod.factorId);
-      console.log("onVerify success");
       await refreshUser();
     } catch (error) {
-      toast.error("Error", {
-        description:
-          error instanceof Error ? error.message : "An error occurred",
-        duration: 3000,
+      console.error("Error in verification:", error);
+      form.setError("code", {
+        type: "manual",
+        message: error instanceof Error ? error.message : "Verification failed",
       });
+      return false;
     }
   });
+
+  const codeField = (
+    <FormField
+      control={form.control}
+      name="code"
+      render={({ field, fieldState }) => (
+        <FormItem>
+          <FormLabel>
+            {currentMethod ? methodInputLabels[currentMethod] : "Enter code"}
+          </FormLabel>
+          <FormControl>
+            <div className="relative">
+              <Input
+                {...field}
+                value={field.value}
+                onChange={(e) =>
+                  handleCodeChange(e.target.value, field.onChange)
+                }
+                type={currentMethod === "password" ? "password" : "text"}
+                inputMode={
+                  ((currentMethod === "authenticator" ||
+                    currentMethod === "sms") as boolean)
+                    ? "numeric"
+                    : "text"
+                }
+                pattern={
+                  ((currentMethod === "authenticator" ||
+                    currentMethod === "sms") as boolean)
+                    ? "[0-9]*"
+                    : undefined
+                }
+                maxLength={
+                  ((currentMethod === "authenticator" ||
+                    currentMethod === "sms") as boolean)
+                    ? 6
+                    : currentMethod === "email"
+                      ? AUTH_CONFIG.emailVerification.codeLength
+                      : currentMethod === "backup_codes" &&
+                          AUTH_CONFIG.backupCodes.format === "alphanumeric"
+                        ? AUTH_CONFIG.backupCodes.alphanumericLength
+                        : undefined
+                }
+                placeholder={
+                  ((currentMethod === "authenticator" ||
+                    currentMethod === "sms") as boolean)
+                    ? "000000"
+                    : currentMethod === "email"
+                      ? "Enter code"
+                      : currentMethod === "backup_codes"
+                        ? "Enter a backup code you saved"
+                        : "Enter password"
+                }
+                disabled={isVerifying}
+                autoComplete={
+                  currentMethod === "password" ? "current-password" : "off"
+                }
+                showPassword={
+                  currentMethod === "password" ? showPassword : undefined
+                }
+                onShowPasswordChange={
+                  currentMethod === "password" ? setShowPassword : undefined
+                }
+                className={cn(currentMethod === "email" && "pr-10")}
+              />
+              {currentMethod === "email" && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleResendCode}
+                  disabled={isResending || isVerifying}
+                  className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                  aria-label="Resend code"
+                >
+                  <RotateCw
+                    className={cn("h-4 w-4", isResending && "animate-spin")}
+                  />
+                </Button>
+              )}
+            </div>
+          </FormControl>
+          <FormMessage>
+            {fieldState.error?.message || form.formState.errors.code?.message}
+          </FormMessage>
+
+          {currentMethod === "email" && emailCodeSent && (
+            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Code sent to your email
+            </p>
+          )}
+        </FormItem>
+      )}
+    />
+  );
 
   return (
     <Form {...form}>
@@ -366,111 +470,7 @@ export function VerifyForm({
                 </div>
               </div>
             ) : (
-              <FormField
-                control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {currentMethod
-                        ? methodInputLabels[currentMethod]
-                        : "Enter code"}
-                    </FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={
-                            currentMethod === "password" ? "password" : "text"
-                          }
-                          inputMode={
-                            currentMethod === "authenticator" ||
-                            currentMethod === "sms"
-                              ? "numeric"
-                              : "text"
-                          }
-                          pattern={
-                            currentMethod === "authenticator" ||
-                            currentMethod === "sms"
-                              ? "[0-9]*"
-                              : undefined
-                          }
-                          maxLength={
-                            currentMethod === "authenticator" ||
-                            currentMethod === "sms"
-                              ? 6
-                              : currentMethod === "email"
-                                ? AUTH_CONFIG.emailVerification.codeLength
-                                : currentMethod === "backup_codes" &&
-                                    AUTH_CONFIG.backupCodes.format ===
-                                      "alphanumeric"
-                                  ? AUTH_CONFIG.backupCodes.alphanumericLength
-                                  : undefined
-                          }
-                          placeholder={
-                            currentMethod === "authenticator" ||
-                            currentMethod === "sms"
-                              ? "000000"
-                              : currentMethod === "email"
-                                ? "Enter code"
-                                : currentMethod === "backup_codes"
-                                  ? "Enter a backup code you saved"
-                                  : "Enter password"
-                          }
-                          value={field.value}
-                          onChange={(e) =>
-                            handleCodeChange(e.target.value, field.onChange)
-                          }
-                          disabled={isVerifying}
-                          autoComplete={
-                            currentMethod === "password"
-                              ? "current-password"
-                              : "off"
-                          }
-                          showPassword={
-                            currentMethod === "password"
-                              ? showPassword
-                              : undefined
-                          }
-                          onShowPasswordChange={
-                            currentMethod === "password"
-                              ? setShowPassword
-                              : undefined
-                          }
-                          className={cn(currentMethod === "email" && "pr-10")}
-                        />
-                        {currentMethod === "email" && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={handleResendCode}
-                            disabled={isResending || isVerifying}
-                            className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
-                            aria-label="Resend code"
-                          >
-                            <RotateCw
-                              className={cn(
-                                "h-4 w-4",
-                                isResending && "animate-spin"
-                              )}
-                            />
-                          </Button>
-                        )}
-                      </div>
-                    </FormControl>
-                    <FormMessage>
-                      {error || form.formState.errors.code?.message}
-                    </FormMessage>
-
-                    {currentMethod === "email" && emailCodeSent && (
-                      <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Code sent to your email
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
+              codeField
             )}
 
             {!(currentMethod === "email" && !emailCodeSent) && (

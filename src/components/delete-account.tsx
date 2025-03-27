@@ -89,24 +89,28 @@ export default function DeleteAccount({
       setIsFinalizing(true);
       setError(null);
 
-      // Try to delete account
-      const data = await api.auth.deleteAccount();
-
-      // Success - close dialog and clean up
+      // Close dialog and show loading state
       setIsOpen(false);
+      toast.loading("Deleting your account...");
+
+      // Delete the account first while we still have the session
+      await api.auth.deleteAccount();
+
+      // Clear all toasts
+      toast.dismiss();
 
       // Show success message
       toast.success("Account deleted", {
         description: "Your account has been permanently deleted.",
       });
 
-      // Clear any cached user data
+      // Now logout to clear the session
       await api.auth.logout();
 
-      // Small delay to ensure cleanup is complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Small delay to ensure everything is cleaned up
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Redirect to home and force a hard refresh to clear all state
+      // Force a hard refresh to clear all state and redirect to home
       window.location.href = "/";
     } catch (error) {
       setError(error instanceof Error ? error.message : "An error occurred");

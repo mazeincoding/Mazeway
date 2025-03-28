@@ -33,6 +33,7 @@ interface TwoFactorSetupDialogProps {
   backupCodes?: string[];
   isVerifying?: boolean;
   verificationError?: string | null;
+  setVerificationError: (error: string | null) => void;
   requiresVerification?: boolean;
   verificationMethods?: TVerificationFactor[];
   onVerificationComplete?: () => void;
@@ -49,6 +50,7 @@ export function TwoFactorSetupDialog({
   backupCodes,
   isVerifying = false,
   verificationError = null,
+  setVerificationError,
   requiresVerification = false,
   verificationMethods = [],
   onVerificationComplete,
@@ -205,6 +207,7 @@ export function TwoFactorSetupDialog({
             onVerify={handleVerifyIdentity}
             isVerifying={isVerifying}
             error={verificationError}
+            setError={setVerificationError}
           />
         )}
 

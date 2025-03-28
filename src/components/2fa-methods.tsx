@@ -33,6 +33,7 @@ interface TwoFactorMethodsProps {
   backupCodes?: string[];
   isVerifying?: boolean;
   verificationError?: string | null;
+  setVerificationError: (error: string | null) => void;
   verificationMethods?: TVerificationFactor[];
 }
 
@@ -53,6 +54,7 @@ export function TwoFactorMethods({
   backupCodes,
   isVerifying = false,
   verificationError = null,
+  setVerificationError = () => {},
   verificationMethods = [],
 }: TwoFactorMethodsProps) {
   // Core states
@@ -197,6 +199,7 @@ export function TwoFactorMethods({
           backupCodes={backupCodes}
           isVerifying={isVerifying}
           verificationError={verificationError}
+          setVerificationError={setVerificationError}
           requiresVerification={verificationMethods.length > 0}
           verificationMethods={verificationMethods}
           onVerificationComplete={handleVerificationComplete}
@@ -221,6 +224,7 @@ export function TwoFactorMethods({
               onVerify={handleDisableVerify}
               isVerifying={isDisableVerifying}
               error={disableError}
+              setError={setDisableError}
             />
           )}
         </DialogContent>

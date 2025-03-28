@@ -199,6 +199,7 @@ function ResetPasswordContent() {
                     onVerify={handleVerify}
                     isVerifying={loading}
                     error={twoFactorError}
+                    setError={setTwoFactorError}
                   />
                 )}
               </CardContent>

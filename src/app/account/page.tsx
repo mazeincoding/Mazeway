@@ -453,6 +453,7 @@ export default function Account() {
               onVerify={handleVerify2FA}
               isVerifying={isVerifying}
               error={error}
+              setError={setError}
             />
           </DialogContent>
         </Dialog>

@@ -254,6 +254,7 @@ export function AuthForm({
                 onVerify={handleVerify}
                 isVerifying={isPending}
                 error={twoFactorError}
+                setError={setTwoFactorError}
               />
             )
           ) : (

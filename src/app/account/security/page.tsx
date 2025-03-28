@@ -440,6 +440,7 @@ export default function Security() {
             backupCodes={backupCodes}
             isVerifying={isVerifying}
             verificationError={error}
+            setVerificationError={setError}
           />
         </SettingCard.Content>
       </SettingCard>
@@ -506,6 +507,7 @@ export default function Security() {
               onVerify={handleVerifyPasswordChange}
               isVerifying={isVerifying}
               error={error}
+              setError={setError}
             />
           </DialogContent>
         </Dialog>

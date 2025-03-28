@@ -178,6 +178,7 @@ export default function DeleteAccount({
             onVerify={handleVerify}
             isVerifying={isVerifying}
             error={error}
+            setError={setError}
           />
         ) : showFinalConfirmation ? (
           <div className="space-y-4">

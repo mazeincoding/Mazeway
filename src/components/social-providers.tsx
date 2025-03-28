@@ -195,6 +195,7 @@ function SocialProvider({
               onVerify={handleVerify}
               isVerifying={isVerifying}
               error={verifyError}
+              setError={setVerifyError}
             />
           </DialogContent>
         </Dialog>

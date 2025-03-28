@@ -212,6 +212,7 @@ export function DeviceSessionsList() {
               onVerify={handleVerify2FA}
               isVerifying={isVerifying}
               error={verifyError}
+              setError={setVerifyError}
             />
           </DialogContent>
         </Dialog>

@@ -39,6 +39,7 @@ interface VerifyFormProps {
   onVerify: (code: string, factorId: string) => Promise<void>;
   isVerifying?: boolean;
   error?: string | null;
+  setError: (error: string | null) => void;
 }
 
 export function VerifyForm({
@@ -46,6 +47,7 @@ export function VerifyForm({
   onVerify,
   isVerifying = false,
   error,
+  setError,
 }: VerifyFormProps) {
   console.log("VerifyForm rendered:", {
     availableMethods,
@@ -89,6 +91,7 @@ export function VerifyForm({
         availableMethods.find((m) => m.type === currentMethod)?.factorId ?? "",
     },
     mode: "onSubmit",
+    reValidateMode: "onBlur",
   });
 
   // Update form values when current method changes
@@ -175,6 +178,10 @@ export function VerifyForm({
     value: string,
     onChange: (value: string) => void
   ) => {
+    // Clear any existing errors when user types
+    setError(null);
+    form.clearErrors("code");
+
     // Validate based on method
     let sanitizedValue = value;
     switch (currentMethod) {
@@ -213,7 +220,7 @@ export function VerifyForm({
     }
 
     form.setValue("code", sanitizedValue, {
-      shouldValidate: true,
+      shouldValidate: false,
     });
     onChange(sanitizedValue);
   };

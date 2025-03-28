@@ -1,0 +1,22 @@
+[
+  {
+    "fileName": "main-overview.mdc",
+    "description": "High-level system architecture documentation covering the core auth system, component interactions, and data flow patterns"
+  },
+  {
+    "fileName": "auth-workflows.mdc",
+    "description": "Detailed documentation of authentication flows including 2FA implementation, verification methods, device trust calculation, and session management algorithms"
+  },
+  {
+    "fileName": "data-models.mdc",
+    "description": "Documentation of core data models including user accounts, device sessions, account events, auth methods, and their relationships"
+  },
+  {
+    "fileName": "security-algorithms.mdc",
+    "description": "Documentation of security-related algorithms including device trust scoring, rate limiting implementation, verification code generation/validation, and data export processing"
+  },
+  {
+    "fileName": "component-architecture.mdc",
+    "description": "Documentation of the UI component architecture focusing on form handling, validation patterns, and state management across auth-related components"
+  }
+]

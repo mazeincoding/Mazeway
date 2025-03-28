@@ -8,8 +8,7 @@ alwaysApply: false
 ### Two-Factor Authentication (2FA) Implementation
 - MUST: Implement 2FA using authenticator apps and SMS with the following flow:
   1. Generate verification codes using `src/utils/auth/verification-codes.ts`
-  2. Store hashed codes using `crypto.subtle.digest`
-  3. Validate codes against hashes
+  2. Validate codes against hashes
 - AVOID: 
   - Storing raw verification codes
   - Using email as primary 2FA method

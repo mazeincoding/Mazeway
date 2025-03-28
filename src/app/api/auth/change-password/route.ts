@@ -149,7 +149,9 @@ export async function POST(request: NextRequest) {
       deviceSessionId,
     });
 
-    if (gracePeriodExpired) {
+    // Skip verification for OAuth users adding a password for the first time
+    // Because they'll need to re-login anyway
+    if (gracePeriodExpired && dbUser.has_password) {
       // Check if user has 2FA enabled
       const { has2FA, factors } = await getUserVerificationMethods({
         supabase,

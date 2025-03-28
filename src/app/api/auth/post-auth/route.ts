@@ -76,7 +76,7 @@ export async function GET(request: Request) {
 
       // Redirect to error page instead of throwing an error
       return NextResponse.redirect(
-        `${origin}/auth/error?error=${provider}_auth_disabled&message=${encodeURIComponent(`${provider} authentication is disabled`)}`
+        `${origin}/auth/error?message=${encodeURIComponent(`${provider} authentication is disabled`)}`
       );
     }
 

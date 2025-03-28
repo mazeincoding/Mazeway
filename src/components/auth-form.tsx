@@ -1,6 +1,6 @@
 "use client";
 import { Suspense } from "react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -30,7 +30,6 @@ type AuthFormProps = {
   initialFactorId?: string | null;
   nextUrl?: string;
   initialMethods?: Array<{ type: TTwoFactorMethod; factorId: string }>;
-  message?: string | null;
   initialEmail?: string | null;
 };
 
@@ -39,21 +38,9 @@ export function AuthForm({
   initialFactorId = null,
   nextUrl = "/dashboard",
   initialMethods = [],
-  message,
   initialEmail = null,
 }: AuthFormProps) {
   const router = useRouter();
-
-  // Show message from props
-  useEffect(() => {
-    if (message) {
-      // Small delay to ensure the toast is shown after hydration
-      const timer = setTimeout(() => {
-        toast.info(message);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
 
   const initialTwoFactorState = useMemo(() => {
     return {

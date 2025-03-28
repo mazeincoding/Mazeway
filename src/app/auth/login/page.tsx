@@ -6,9 +6,6 @@ export default async function Login({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const message = params.message
-    ? decodeURIComponent(params.message.toString())
-    : null;
   const email = params.email
     ? decodeURIComponent(params.email.toString())
     : null;
@@ -24,7 +21,6 @@ export default async function Login({
             ? JSON.parse(params.available_methods.toString())
             : []
         }
-        message={message}
         initialEmail={email}
       />
     </main>

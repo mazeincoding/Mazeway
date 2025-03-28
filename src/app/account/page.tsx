@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-auth";
-import { InfoIcon, UserIcon } from "lucide-react";
+import { InfoIcon, Trash2Icon, UserIcon } from "lucide-react";
 import { SettingCard } from "@/components/setting-card";
 import {
   profileSchema,
@@ -360,7 +360,7 @@ export default function Account() {
         </SettingCard.Footer>
       </SettingCard>
 
-      <SettingCard icon={UserIcon}>
+      <SettingCard icon={Trash2Icon}>
         <SettingCard.Header>
           <SettingCard.Title>Delete account</SettingCard.Title>
           <SettingCard.Description>

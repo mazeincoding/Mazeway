@@ -10,8 +10,9 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { Suspense } from "react";
 
-export default function EmailVerifiedPage() {
+function EmailVerifiedContent() {
   const router = useRouter();
 
   useEffect(() => {
@@ -45,5 +46,23 @@ export default function EmailVerifiedPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function EmailVerifiedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Card className="w-full max-w-md p-6">
+            <CardHeader>
+              <CardTitle className="text-2xl">Loading...</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+      }
+    >
+      <EmailVerifiedContent />
+    </Suspense>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { toast } from "sonner";
 
-export function URLErrorHandler() {
+function URLErrorContent() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
   const shownMessages = useRef<Set<string>>(new Set());
@@ -19,4 +19,12 @@ export function URLErrorHandler() {
   }, [message]);
 
   return null;
+}
+
+export function URLErrorHandler() {
+  return (
+    <Suspense fallback={null}>
+      <URLErrorContent />
+    </Suspense>
+  );
 }

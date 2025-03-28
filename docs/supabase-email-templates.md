@@ -19,7 +19,7 @@ Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
   <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
     <!-- Header with Logo -->
     <div>
-      <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" 
+      <img src="https://res.cloudinary.com/dzjgehvid/image/upload/v1741403094/text-logo-black_xh4avc.png" alt="Logo" 
 style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
     </div>
     
@@ -70,7 +70,7 @@ Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
   <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
     <!-- Header with Logo -->
     <div>
-      <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" 
+      <img src="https://res.cloudinary.com/dzjgehvid/image/upload/v1741403094/text-logo-black_xh4avc.png" alt="Logo" 
 style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
     </div>
     
@@ -123,7 +123,7 @@ Cantarell, 'Helvetica     Neue', sans-serif; margin: 0; padding: 0;">
   <div class="container" style="padding: 40px 20px; max-width: 600px; margin: 0 auto;">
     <!-- Header with Logo -->
     <div>
-      <img src="https://rqsfebcljeizuojtkabi.supabase.co/storage/v1/object/public/logo/Frame%2038.png" alt="Logo" 
+      <img src="httpshttps://res.cloudinary.com/dzjgehvid/image/upload/v1741403094/text-logo-black_xh4avc.png" alt="Logo" 
 style="margin-bottom: 12px; max-width:     150px; width: 100%; height: auto; display: block;">
     </div>
     

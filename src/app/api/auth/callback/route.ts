@@ -27,19 +27,21 @@ export async function GET(request: Request) {
   });
 
   try {
-    // Validate provider is one we actually support and is required
-    if (!provider) {
-      console.error("No provider specified");
-      throw new Error("Provider is required");
-    }
+    if (code) {
+      // Validate provider is one we actually support and is required
+      if (!provider) {
+        console.error("No provider specified");
+        throw new Error("Provider is required");
+      }
 
-    const isValidProvider =
-      provider === "google" || provider === "github" || provider === "email";
-    if (!isValidProvider) {
-      console.error("Invalid provider", {
-        provider,
-      });
-      throw new Error("Invalid provider");
+      const isValidProvider =
+        provider === "google" || provider === "github" || provider === "email";
+      if (!isValidProvider) {
+        console.error("Invalid provider", {
+          provider,
+        });
+        throw new Error("Invalid provider");
+      }
     }
 
     const supabase = await createClient();
@@ -118,7 +120,7 @@ export async function GET(request: Request) {
       // Preserve the is_provider_connection flag from the original request
       const isProviderConnection = searchParams.get("is_provider_connection");
       const postAuthUrl = new URL(`${origin}/api/auth/post-auth`);
-      postAuthUrl.searchParams.set("provider", provider);
+      provider && postAuthUrl.searchParams.set("provider", provider);
       postAuthUrl.searchParams.set("next", next);
       postAuthUrl.searchParams.set("should_refresh", "true");
       if (isProviderConnection) {

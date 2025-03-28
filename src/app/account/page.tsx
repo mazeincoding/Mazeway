@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { VerifyForm } from "@/components/verify-form";
 import { TVerificationFactor } from "@/types/auth";
@@ -71,6 +72,14 @@ export default function Account() {
   } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEmailChangeInfoDialog, setShowEmailChangeInfoDialog] =
+    useState(false);
+  const [pendingEmailChange, setPendingEmailChange] = useState<string | null>(
+    null
+  );
+  const [pendingNameChange, setPendingNameChange] = useState<string | null>(
+    null
+  );
 
   const form = useForm<ProfileSchema>({
     resolver: zodResolver(profileSchema),
@@ -146,54 +155,27 @@ export default function Account() {
     setIsUpdating(true);
 
     try {
-      const changedData: Partial<ProfileSchema> = {};
-      if (values.name !== user.name) changedData.name = values.name;
+      // Store all changes
+      const hasNameChange = values.name !== user.name;
+      const hasEmailChange = values.email !== user.email;
 
-      if (values.email !== user.email) {
-        try {
-          const data = await api.auth.changeEmail({ newEmail: values.email });
-
-          if (data.requiresVerification && data.availableMethods) {
-            setTwoFactorData({
-              availableMethods: data.availableMethods,
-              newEmail: values.email,
-            });
-            setShowTwoFactorDialog(true);
-            return;
-          }
-
-          toast.success("Verification emails sent", {
-            description:
-              "Please check both your current and new email addresses. You'll need to verify both to complete the change.",
-            duration: 5000,
-          });
-
-          // Reset form email field
-          form.setValue("email", user.email);
-        } catch (error) {
-          if (
-            error instanceof Error &&
-            error.message.includes("Too many requests")
-          ) {
-            toast.error("Too many attempts", {
-              description: "Please wait a moment before trying again.",
-              duration: 3000,
-            });
-            return;
-          }
-          toast.error("Error", {
-            description:
-              error instanceof Error ? error.message : "Failed to update email",
-            duration: 3000,
-          });
-          return;
+      // Handle email change with dialog
+      if (hasEmailChange) {
+        // Store both changes for later
+        if (hasNameChange) {
+          setPendingNameChange(values.name);
         }
+
+        setPendingEmailChange(values.email);
+        setShowEmailChangeInfoDialog(true);
+        setIsUpdating(false);
+        return;
       }
 
-      // Handle other profile updates
-      if (Object.keys(changedData).length > 0) {
+      // If only name change, process immediately
+      if (hasNameChange) {
         try {
-          await api.user.update(changedData);
+          await api.user.update({ name: values.name });
 
           toast.success("Profile updated", {
             description: "Your profile has been updated successfully.",
@@ -216,6 +198,85 @@ export default function Account() {
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleProceedEmailChange = async () => {
+    if (!pendingEmailChange || !user) return;
+
+    setIsUpdating(true);
+    setShowEmailChangeInfoDialog(false);
+
+    try {
+      // Process email change
+      const data = await api.auth.changeEmail({ newEmail: pendingEmailChange });
+
+      // Process name change if pending
+      if (pendingNameChange) {
+        try {
+          await api.user.update({ name: pendingNameChange });
+        } catch (error) {
+          toast.error("Error updating name", {
+            description:
+              error instanceof Error ? error.message : "An error occurred",
+            duration: 3000,
+          });
+        }
+      }
+
+      if (data.requiresVerification && data.availableMethods) {
+        setTwoFactorData({
+          availableMethods: data.availableMethods,
+          newEmail: pendingEmailChange,
+        });
+        setShowTwoFactorDialog(true);
+        return;
+      }
+
+      // Success message for email
+      toast.success("Verification emails sent", {
+        description:
+          "Please check both your current and new email addresses. You'll need to verify both to complete the change.",
+        duration: 5000,
+      });
+
+      // Success message for name if it was also updated
+      if (pendingNameChange) {
+        toast.success("Profile updated", {
+          description: "Your name has been updated successfully.",
+          duration: 3000,
+        });
+      }
+
+      // Reset form fields
+      form.setValue("email", user.email);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Too many requests")
+      ) {
+        toast.error("Too many attempts", {
+          description: "Please wait a moment before trying again.",
+          duration: 3000,
+        });
+        return;
+      }
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Failed to update email",
+        duration: 3000,
+      });
+    } finally {
+      setIsUpdating(false);
+      setPendingEmailChange(null);
+      setPendingNameChange(null);
+    }
+  };
+
+  const handleCancelEmailChange = () => {
+    setShowEmailChangeInfoDialog(false);
+    setPendingEmailChange(null);
+    setPendingNameChange(null);
+    form.setValue("email", user?.email || "");
   };
 
   return (
@@ -274,43 +335,7 @@ export default function Account() {
                       />
                     </FormControl>
                     {user?.has_password ? (
-                      <>
-                        <FormMessage />
-                        {user?.auth.identities?.some(
-                          (i) => i.provider !== "email"
-                        ) && (
-                          <div className="space-y-2 pt-2 text-sm text-muted-foreground">
-                            <p className="flex gap-2 items-center">
-                              <InfoIcon className="w-4 h-4 flex-shrink-0" />
-                              Here's what happens when you change your email:
-                            </p>
-                            <ul className="list-disc pl-9 space-y-1">
-                              <li>
-                                You'll receive verification emails at{" "}
-                                <strong>both</strong> your current and new email
-                                addresses
-                              </li>
-                              <li>
-                                You must verify <strong>both</strong> emails to
-                                complete the change (this is for security)
-                              </li>
-                              <li>
-                                After verification, you'll get all your account
-                                updates at your new email address
-                              </li>
-                              <li>
-                                When signing in with email and password, you'll
-                                need to use your new email
-                              </li>
-                              <li>
-                                {getConnectedProvidersMessage(
-                                  user?.auth.identities
-                                )}
-                              </li>
-                            </ul>
-                          </div>
-                        )}
-                      </>
+                      <FormMessage />
                     ) : (
                       <p className="flex gap-2 items-center text-muted-foreground text-sm pt-2 ml-1">
                         <InfoIcon className="w-4 h-4" />
@@ -365,6 +390,50 @@ export default function Account() {
           </div>
         </SettingCard.Content>
       </SettingCard>
+
+      <Dialog
+        open={showEmailChangeInfoDialog}
+        onOpenChange={setShowEmailChangeInfoDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Email Change Information</DialogTitle>
+            <DialogDescription>
+              Here's what happens when you change your email:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ul className="list-disc pl-6 space-y-3 text-sm text-muted-foreground">
+              <li>
+                You'll receive verification emails at <strong>both</strong> your
+                current and new email addresses
+              </li>
+              <li>
+                You must verify <strong>both</strong> emails to complete the
+                change (this is for security)
+              </li>
+              <li>
+                After verification, you'll get all your account updates at your
+                new email address
+              </li>
+              <li>
+                When signing in with email and password, you'll need to use your
+                new email
+              </li>
+              {user?.auth.identities?.some((i) => i.provider !== "email") &&
+                getConnectedProvidersMessage(user?.auth.identities) && (
+                  <li>{getConnectedProvidersMessage(user?.auth.identities)}</li>
+                )}
+            </ul>
+          </div>
+          <DialogFooter className="flex flex-row gap-2 pt-4">
+            <Button variant="outline" onClick={handleCancelEmailChange}>
+              Cancel
+            </Button>
+            <Button onClick={handleProceedEmailChange}>Proceed</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showTwoFactorDialog && twoFactorData && (
         <Dialog

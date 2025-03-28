@@ -7,6 +7,8 @@ import { AuthApiError } from "@supabase/supabase-js";
 import { createDeviceSession } from "@/utils/auth/device-sessions/server";
 import { UAParser } from "ua-parser-js";
 
+type TCallbackType = "recovery" | "email_change";
+
 export async function GET(request: Request) {
   console.log("[AUTH] Callback request received", {
     url: request.url,
@@ -16,7 +18,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
   const token_hash = searchParams.get("token_hash");
-  const type = searchParams.get("type");
+  const type = searchParams.get("type") as TCallbackType | null;
   const provider = searchParams.get("provider");
 
   console.log("[AUTH] Callback parameters", {
@@ -142,6 +144,61 @@ export async function GET(request: Request) {
       return NextResponse.redirect(
         `${origin}/auth/error?title=${encodeURIComponent("Invalid link")}&message=${encodeURIComponent("The authentication link is invalid or incomplete.")}&actions=${actions}&error=validation_failed`
       );
+    }
+
+    // Validate type is one we support
+    if (type !== "recovery" && type !== "email_change") {
+      console.error("[AUTH] /api/auth/callback - Invalid callback type", {
+        type,
+      });
+
+      const actions = encodeURIComponent(
+        JSON.stringify([{ label: "Go home", href: "/", type: "default" }])
+      );
+      return NextResponse.redirect(
+        `${origin}/auth/error?title=${encodeURIComponent("Invalid link")}&message=${encodeURIComponent("The authentication link is invalid.")}&actions=${actions}&error=validation_failed`
+      );
+    }
+
+    // Handle email change confirmation
+    if (type === "email_change") {
+      console.log(
+        "[AUTH] /api/auth/callback - Processing email change confirmation"
+      );
+
+      // Verify the email change token
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: "email_change",
+      });
+
+      if (error) {
+        console.error(
+          "[AUTH] /api/auth/callback - Email change verification failed",
+          {
+            error: error.message,
+            code: error.status,
+          }
+        );
+
+        // Don't log the user out - just redirect them back to account page with error
+        return NextResponse.redirect(
+          `${origin}/account?message=${encodeURIComponent("There was a problem changing your email. Please try again.")}`
+        );
+      }
+
+      console.log(
+        "[AUTH] /api/auth/callback - Email change verified successfully"
+      );
+      console.log(
+        "[AUTH] /api/auth/callback - Email confirmed, redirecting to post-auth"
+      );
+
+      const postAuthUrl = new URL(`${origin}/api/auth/post-auth`);
+      postAuthUrl.searchParams.set("provider", "email");
+      postAuthUrl.searchParams.set("next", next);
+      postAuthUrl.searchParams.set("should_refresh", "true");
+      return NextResponse.redirect(postAuthUrl.toString());
     }
 
     // Handle password reset callback

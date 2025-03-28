@@ -41,6 +41,7 @@ import {
 import { VerifyForm } from "@/components/verify-form";
 import { EventLog } from "@/components/event-log";
 import { SocialProviders } from "@/components/social-providers";
+import Link from "next/link";
 
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
@@ -399,10 +400,13 @@ export default function Security() {
                   )}
                 />
               </div>
+              <Link href="/auth/forgot-password" className="text-sm mt-2">
+                Forgot password?
+              </Link>
             </form>
           </Form>
         </SettingCard.Content>
-        <SettingCard.Footer>
+        <SettingCard.Footer className="flex justify-between">
           <Button
             type="submit"
             form="password-form"

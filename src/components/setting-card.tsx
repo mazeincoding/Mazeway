@@ -57,8 +57,8 @@ function SettingCardHeader({
         {...props}
       >
         {Icon && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-full bg-accent p-2 size-12">
-            <Icon className="size-6" />
+          <div className="flex flex-col items-center justify-center gap-2 rounded-full size-8">
+            <Icon className="size-7" />
           </div>
         )}
         <div className="flex flex-col gap-1">{children}</div>
@@ -78,7 +78,7 @@ function SettingCardTitle({
   ...props
 }: SettingCardTitleProps) {
   return (
-    <h1 className={cn("text-2xl font-bold", className)} {...props}>
+    <h1 className={cn("text-xl font-bold", className)} {...props}>
       {children}
     </h1>
   );

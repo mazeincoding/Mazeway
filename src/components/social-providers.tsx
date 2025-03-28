@@ -182,7 +182,7 @@ function SocialProvider({
           open={showTwoFactorDialog}
           onOpenChange={setShowTwoFactorDialog}
         >
-          <DialogContent>
+          <DialogContent className="space-y-4">
             <DialogHeader>
               <DialogTitle>Verify your identity</DialogTitle>
               <DialogDescription>

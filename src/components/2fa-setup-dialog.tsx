@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { TTwoFactorMethod } from "@/types/auth";
+import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
 import { Check, Copy, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { VerifyForm } from "./verify-form";
 
 interface TwoFactorSetupDialogProps {
   open: boolean;
@@ -32,6 +33,9 @@ interface TwoFactorSetupDialogProps {
   backupCodes?: string[];
   isVerifying?: boolean;
   verificationError?: string | null;
+  requiresVerification?: boolean;
+  verificationMethods?: TVerificationFactor[];
+  onVerificationComplete?: () => void;
 }
 
 export function TwoFactorSetupDialog({
@@ -45,10 +49,13 @@ export function TwoFactorSetupDialog({
   backupCodes,
   isVerifying = false,
   verificationError = null,
+  requiresVerification = false,
+  verificationMethods = [],
+  onVerificationComplete,
 }: TwoFactorSetupDialogProps) {
   const [setupStep, setSetupStep] = useState<
-    "initial" | "verify" | "backup-codes"
-  >("initial");
+    "verification" | "initial" | "verify" | "backup-codes"
+  >(requiresVerification ? "verification" : "initial");
   const [phone, setPhone] = useState<E164Number | undefined>(undefined);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
@@ -56,7 +63,14 @@ export function TwoFactorSetupDialog({
   const [copiedBackupCodes, setCopiedBackupCodes] = useState(false);
   const [verificationComplete, setVerificationComplete] = useState(false);
 
-  // Watch for backup codes after verification
+  useEffect(() => {
+    if (requiresVerification && verificationMethods.length > 0) {
+      setSetupStep("verification");
+    } else if (setupStep === "verification") {
+      setSetupStep("initial");
+    }
+  }, [requiresVerification, verificationMethods, setupStep]);
+
   useEffect(() => {
     if (verificationComplete && backupCodes && backupCodes.length > 0) {
       console.log("Backup codes received after verification, showing them");
@@ -68,7 +82,7 @@ export function TwoFactorSetupDialog({
   const handleCancel = () => {
     console.log("Dialog cancel/close called. Current step:", setupStep);
     onOpenChange(false);
-    setSetupStep("initial");
+    setSetupStep(requiresVerification ? "verification" : "initial");
     setVerificationCode("");
     setPhone(undefined);
     setPhoneError(null);
@@ -105,6 +119,17 @@ export function TwoFactorSetupDialog({
     } catch (error) {
       console.error("Verification error:", error);
       setVerificationComplete(false);
+    }
+  };
+
+  const handleVerifyIdentity = async (code: string) => {
+    try {
+      if (onVerificationComplete) {
+        await onVerificationComplete();
+        setSetupStep("initial");
+      }
+    } catch (error) {
+      console.error("Identity verification error:", error);
     }
   };
 
@@ -155,20 +180,33 @@ export function TwoFactorSetupDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {setupStep === "backup-codes"
-              ? "Save your backup codes"
-              : `Set up ${method === "authenticator" ? "Authenticator App" : "SMS"} Authentication`}
+            {setupStep === "verification"
+              ? "Verify your identity"
+              : setupStep === "backup-codes"
+                ? "Save your backup codes"
+                : `Set up ${method === "authenticator" ? "Authenticator App" : "SMS"} Authentication`}
           </DialogTitle>
           <DialogDescription>
-            {setupStep === "initial"
-              ? method === "authenticator"
-                ? "Scan the QR code with your authenticator app to get started."
-                : "Enter your phone number to receive verification codes via SMS."
-              : setupStep === "verify"
-                ? "Enter the verification code to complete setup."
-                : "Store these backup codes in a safe place. You can use them to sign in if you lose access to your authentication device."}
+            {setupStep === "verification"
+              ? "Please verify your identity to enable two-factor authentication."
+              : setupStep === "initial"
+                ? method === "authenticator"
+                  ? "Scan the QR code with your authenticator app to get started."
+                  : "Enter your phone number to receive verification codes via SMS."
+                : setupStep === "verify"
+                  ? "Enter the verification code to complete setup."
+                  : "Store these backup codes in a safe place. You can use them to sign in if you lose access to your authentication device."}
           </DialogDescription>
         </DialogHeader>
+
+        {setupStep === "verification" && verificationMethods.length > 0 && (
+          <VerifyForm
+            availableMethods={verificationMethods}
+            onVerify={handleVerifyIdentity}
+            isVerifying={isVerifying}
+            error={verificationError}
+          />
+        )}
 
         {method === "sms" && setupStep === "initial" && (
           <div className="flex flex-col gap-4">

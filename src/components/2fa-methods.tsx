@@ -33,6 +33,7 @@ interface TwoFactorMethodsProps {
   backupCodes?: string[];
   isVerifying?: boolean;
   verificationError?: string | null;
+  verificationMethods?: TVerificationFactor[];
 }
 
 // State for disabling a 2FA method
@@ -52,6 +53,7 @@ export function TwoFactorMethods({
   backupCodes,
   isVerifying = false,
   verificationError = null,
+  verificationMethods = [],
 }: TwoFactorMethodsProps) {
   // Core states
   const [selectedMethod, setSelectedMethod] = useState<TTwoFactorMethod | null>(
@@ -82,11 +84,21 @@ export function TwoFactorMethods({
       setIsMethodLoading((prev) => ({ ...prev, [method]: true }));
 
       if (shouldEnable) {
+        // Set selected method first, but don't show dialog yet
         setSelectedMethod(method);
+
+        // For authenticator setup, we need to generate a QR code first
         if (method === "authenticator") {
+          // This might return verification requirements, which will be handled by the parent
           await onMethodSetup(method);
+
+          // If we reach here, no verification was needed (or it was handled by the parent)
+          // Now we can show the setup dialog
+          setShowSetupDialog(true);
+        } else {
+          // For SMS, we can show the dialog first as it collects the phone number
+          setShowSetupDialog(true);
         }
-        setShowSetupDialog(true);
       } else {
         // Get all available verification methods
         const { factors: userEnabledMethods } =
@@ -139,6 +151,21 @@ export function TwoFactorMethods({
     }
   };
 
+  // Handle verification complete
+  const handleVerificationComplete = async () => {
+    if (!selectedMethod) return;
+
+    // After verification, start the actual 2FA setup
+    try {
+      await onMethodSetup(selectedMethod);
+    } catch (error) {
+      console.error("Error in onMethodSetup after verification:", error);
+      toast.error("Error", {
+        description: "Failed to setup 2FA method after verification.",
+      });
+    }
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -170,6 +197,9 @@ export function TwoFactorMethods({
           backupCodes={backupCodes}
           isVerifying={isVerifying}
           verificationError={verificationError}
+          requiresVerification={verificationMethods.length > 0}
+          verificationMethods={verificationMethods}
+          onVerificationComplete={handleVerificationComplete}
         />
       )}
 

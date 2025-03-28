@@ -58,6 +58,12 @@ export function VerifyForm({
   const [emailCodeSent, setEmailCodeSent] = useState(false);
   const mountedRef = useRef(false);
 
+  useEffect(() => {
+    if (error) {
+      console.log("Error in useEffect (VerifyForm):", error);
+    }
+  }, [error]);
+
   const defaultMethod = getDefaultVerificationMethod(
     availableMethods.map((m) => m.type)
   );
@@ -343,7 +349,9 @@ export function VerifyForm({
             </div>
           </FormControl>
           <FormMessage>
-            {fieldState.error?.message || form.formState.errors.code?.message}
+            {fieldState.error?.message ||
+              form.formState.errors.code?.message ||
+              error}
           </FormMessage>
 
           {currentMethod === "email" && emailCodeSent && (

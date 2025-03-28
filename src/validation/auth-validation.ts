@@ -234,10 +234,10 @@ export const verificationSchema = z
         ).test(data.code);
       }
 
-      // For password verification, any non-empty string is fine
-      // (password has its own validation)
+      // For password verification, validate using password schema
       if (data.method === "password") {
-        return true;
+        const result = authSchema.shape.password.safeParse(data.code);
+        return result.success;
       }
 
       // For backup codes, validate using the same format as enrollment

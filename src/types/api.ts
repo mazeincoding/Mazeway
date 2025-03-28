@@ -114,11 +114,6 @@ export interface TVerifyRequest {
   email?: string; // Only included for email verification
 }
 
-// /api/auth/verify-password
-export interface TVerifyPasswordRequest {
-  password: string;
-}
-
 // /api/auth/change-email
 export interface TChangeEmailRequest {
   newEmail: string;

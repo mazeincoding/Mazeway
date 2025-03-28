@@ -200,15 +200,6 @@ export const api = {
       return handleResponse<TGithubSignInResponse>(response);
     },
 
-    verifyPassword: async (password: string) => {
-      const response = await fetch("/api/auth/verify-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      return handleResponse<TEmptySuccessResponse>(response);
-    },
-
     changeEmail: async (params: TChangeEmailRequest) => {
       const response = await fetch("/api/auth/change-email", {
         method: "POST",

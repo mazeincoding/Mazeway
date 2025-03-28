@@ -128,6 +128,7 @@ export default function DeleteAccount({
   };
 
   const handleVerify = async (code: string, factorId: string) => {
+    console.log("handleVerify");
     try {
       setIsVerifying(true);
       setError(null);

@@ -314,10 +314,19 @@ export async function POST(request: NextRequest) {
         });
 
         if (error) {
-          return NextResponse.json(
-            { error: "Invalid password" },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
+          if (error.code === "invalid_credentials") {
+            return NextResponse.json(
+              { error: "Invalid password" },
+              { status: 400 }
+            ) satisfies NextResponse<TApiErrorResponse>;
+          } else {
+            return NextResponse.json(
+              {
+                error: "An unexpected error occurred. Please try again.",
+              },
+              { status: 500 }
+            ) satisfies NextResponse<TApiErrorResponse>;
+          }
         }
 
         verificationSuccessful = true;

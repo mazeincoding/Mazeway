@@ -118,14 +118,6 @@ export function TwoFactorMethods({
     }
   };
 
-  const handleVerificationMethodChange = (method: TVerificationFactor) => {
-    if (!disableState) return;
-    setDisableState({
-      ...disableState,
-      currentMethod: method,
-    });
-  };
-
   const handleDisableVerify = async (code: string) => {
     if (!disableState) return;
 

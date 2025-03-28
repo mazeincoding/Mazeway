@@ -53,6 +53,14 @@ export async function GET(request: NextRequest) {
       code: error.status,
     });
 
+    // For email changes, redirect back to account page with error message
+    if (type === "email_change") {
+      return NextResponse.redirect(
+        `${origin}/account?message=${encodeURIComponent("There was a problem changing your email. Please try again.")}`
+      );
+    }
+
+    // For other verification types, show the error page
     const actions = encodeURIComponent(
       JSON.stringify([
         { label: "Try again", href: "/auth/signup", type: "default" },
@@ -122,6 +130,17 @@ export async function GET(request: NextRequest) {
         },
       });
     }
+
+    // Check if email actually changed by comparing old and new email
+    let redirectUrl = `${origin}/account`;
+    if (oldEmail && user.email && oldEmail !== user.email) {
+      // Email actually changed, show success message
+      redirectUrl += `?message=${encodeURIComponent("Your email has been changed successfully.")}`;
+    }
+
+    // For email changes, redirect directly to account page
+    // Skip post-auth since we don't need to recreate device session etc
+    return NextResponse.redirect(redirectUrl);
   }
 
   if (!user.email_confirmed_at) {
@@ -144,7 +163,8 @@ export async function GET(request: NextRequest) {
     "[AUTH] /api/auth/confirm - Email confirmed, redirecting to post-auth"
   );
 
+  // For all other flows, redirect to post-auth with provider and refresh flag
   return NextResponse.redirect(
-    `${origin}/api/auth/post-auth?next=${next}&should_refresh=true`
+    `${origin}/api/auth/post-auth?provider=email&next=${next}&should_refresh=true`
   );
 }

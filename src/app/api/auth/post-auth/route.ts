@@ -32,6 +32,13 @@ export async function GET(request: Request) {
   const isLocalEnv = process.env.NODE_ENV === "development";
   const isProviderConnection =
     searchParams.get("is_provider_connection") === "true";
+  const type = searchParams.get("type");
+
+  // Skip post-auth for email changes since they don't need device sessions etc
+  if (type === "email_change") {
+    console.log("[AUTH] Skipping post-auth for email change");
+    return NextResponse.redirect(next);
+  }
 
   console.log("[AUTH] Post-auth parameters", {
     provider,

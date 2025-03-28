@@ -7,7 +7,7 @@ import { AuthApiError } from "@supabase/supabase-js";
 import { createDeviceSession } from "@/utils/auth/device-sessions/server";
 import { UAParser } from "ua-parser-js";
 
-type TCallbackType = "recovery" | "email_change";
+type TCallbackType = "recovery";
 
 export async function GET(request: Request) {
   console.log("[AUTH] Callback request received", {
@@ -147,7 +147,7 @@ export async function GET(request: Request) {
     }
 
     // Validate type is one we support
-    if (type !== "recovery" && type !== "email_change") {
+    if (type !== "recovery") {
       console.error("[AUTH] /api/auth/callback - Invalid callback type", {
         type,
       });
@@ -158,47 +158,6 @@ export async function GET(request: Request) {
       return NextResponse.redirect(
         `${origin}/auth/error?title=${encodeURIComponent("Invalid link")}&message=${encodeURIComponent("The authentication link is invalid.")}&actions=${actions}&error=validation_failed`
       );
-    }
-
-    // Handle email change confirmation
-    if (type === "email_change") {
-      console.log(
-        "[AUTH] /api/auth/callback - Processing email change confirmation"
-      );
-
-      // Verify the email change token
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash,
-        type: "email_change",
-      });
-
-      if (error) {
-        console.error(
-          "[AUTH] /api/auth/callback - Email change verification failed",
-          {
-            error: error.message,
-            code: error.status,
-          }
-        );
-
-        // Don't log the user out - just redirect them back to account page with error
-        return NextResponse.redirect(
-          `${origin}/account?message=${encodeURIComponent("There was a problem changing your email. Please try again.")}`
-        );
-      }
-
-      console.log(
-        "[AUTH] /api/auth/callback - Email change verified successfully"
-      );
-      console.log(
-        "[AUTH] /api/auth/callback - Email confirmed, redirecting to post-auth"
-      );
-
-      const postAuthUrl = new URL(`${origin}/api/auth/post-auth`);
-      postAuthUrl.searchParams.set("provider", "email");
-      postAuthUrl.searchParams.set("next", next);
-      postAuthUrl.searchParams.set("should_refresh", "true");
-      return NextResponse.redirect(postAuthUrl.toString());
     }
 
     // Handle password reset callback
@@ -244,9 +203,13 @@ export async function GET(request: Request) {
       // Get user data after successful verification
       const { user, error: userError } = await getUser({ supabase });
       if (userError || !user) {
-        const errorMessage = userError || "Invalid user session";
-        console.error("[AUTH] /api/auth/callback - Failed to get user data", {
-          error: errorMessage,
+        console.error("[AUTH] /api/auth/callback - Failed to get user", {
+          error:
+            typeof userError === "object" &&
+            userError !== null &&
+            "message" in userError
+              ? (userError as { message: string }).message
+              : userError,
         });
 
         const actions = encodeURIComponent(
@@ -260,15 +223,22 @@ export async function GET(request: Request) {
           ])
         );
 
+        const errorCode =
+          typeof userError === "object" &&
+          userError !== null &&
+          "message" in userError
+            ? (userError as { message: string }).message
+            : typeof userError === "string"
+              ? userError
+              : "user_not_found";
+
         return NextResponse.redirect(
-          `${origin}/auth/error?title=${encodeURIComponent("Password reset failed")}&message=${encodeURIComponent("There was a problem with your session. Please try again.")}&actions=${actions}&error=${errorMessage}`
+          `${origin}/auth/error?title=${encodeURIComponent("Password reset failed")}&message=${encodeURIComponent("There was a problem with your account. Please try again.")}&actions=${actions}&error=${errorCode}`
         );
       }
 
-      console.log("[AUTH] /api/auth/callback - Got user data", {
-        userId: user.id,
-        email: user.email,
-      });
+      // Create recovery token for password reset
+      const recoveryToken = createRecoveryToken(user.id);
 
       // Create device session with high trust (user proved ownership through email)
       const parser = new UAParser(request.headers.get("user-agent") || "");
@@ -303,6 +273,7 @@ export async function GET(request: Request) {
       });
 
       const resetUrl = new URL(`${origin}/auth/reset-password`);
+      resetUrl.searchParams.set("token", recoveryToken);
 
       if (has2FA) {
         // Add 2FA requirements to URL
@@ -330,9 +301,6 @@ export async function GET(request: Request) {
         console.log(
           "[AUTH] /api/auth/callback - Setting up recovery token for password reset"
         );
-
-        // Create encrypted recovery token with user ID
-        const recoveryToken = createRecoveryToken(user.id);
 
         // Set secure HTTP-only recovery cookie with 15 minute expiry
         response.cookies.set("recovery_session", recoveryToken, {
@@ -362,7 +330,7 @@ export async function GET(request: Request) {
       return response;
     }
 
-    // Invalid type
+    // Invalid type (should never happen due to validation above)
     console.error("[AUTH] /api/auth/callback - Invalid callback type", {
       type,
     });

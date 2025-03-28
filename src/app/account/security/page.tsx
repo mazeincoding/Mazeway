@@ -400,19 +400,24 @@ export default function Security() {
                   )}
                 />
               </div>
-              <Link href="/auth/forgot-password" className="text-sm mt-2">
-                Forgot password?
-              </Link>
             </form>
           </Form>
         </SettingCard.Content>
-        <SettingCard.Footer className="flex justify-between">
+        <SettingCard.Footer className="flex gap-2">
           <Button
             type="submit"
             form="password-form"
             disabled={isLoading || isChangingPassword}
           >
-            {hasPasswordAuth ? "Update password" : "Add password"}
+            {hasPasswordAuth ? "Change password" : "Add password"}
+          </Button>
+          <Button
+            type="submit"
+            form="password-form"
+            disabled={isLoading || isChangingPassword}
+            variant="outline"
+          >
+            <Link href="/auth/forgot-password">Forgot password?</Link>
           </Button>
         </SettingCard.Footer>
       </SettingCard>

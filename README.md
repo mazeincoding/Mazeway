@@ -8,6 +8,8 @@ Think Clerk, but you own the code.
 
 This is a complete, production-ready auth starter for anyone, including enterprise.
 
+Check out [mazeway.dev](https://mazeway.dev/) if you want!
+
 ### The philosophy
 
 People like [Shadcn UI](ui.shadcn.com) because:

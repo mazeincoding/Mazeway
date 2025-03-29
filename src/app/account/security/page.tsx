@@ -364,6 +364,7 @@ export default function Security() {
                                 show
                               )
                             }
+                            autoComplete="current-password"
                             {...field}
                           />
                         </FormControl>
@@ -386,6 +387,7 @@ export default function Security() {
                           onShowPasswordChange={(show) =>
                             handlePasswordVisibilityChange("newPassword", show)
                           }
+                          autoComplete="new-password"
                           {...field}
                         />
                       </FormControl>

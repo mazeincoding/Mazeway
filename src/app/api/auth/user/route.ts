@@ -8,6 +8,7 @@ import {
   getUserVerificationMethods,
   getAuthenticatorAssuranceLevel,
 } from "@/utils/auth";
+import { AuthError } from "@supabase/supabase-js";
 
 export async function GET(request: NextRequest) {
   console.log("GET request received");
@@ -29,8 +30,10 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = await createClient({ useServiceRole: true });
     const { user, error } = await getUser({ supabase });
 
-    // Handle no user or auth error
-    if (error || !user) {
+    // Handle auth errors by logging out
+    if (error instanceof AuthError || !user) {
+      console.log("Auth error or no user found:", error);
+
       // Call logout endpoint to clear session
       const logoutRes = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
@@ -59,12 +62,21 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
+    // Handle other errors without logging out
+    if (error) {
+      console.error("Non-auth error getting user:", error);
+      return NextResponse.json(
+        { error: "An error occurred. Please try again." },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
     // Get device session ID
     const deviceSessionId = getDeviceSessionId(request);
     if (!deviceSessionId) {
-      console.log("No device session ID found");
+      console.log("No device session found");
 
-      // Call logout endpoint to clear session
+      // This is a legitimate auth error, so we should log out
       const logoutRes = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
         headers: {
@@ -100,21 +112,27 @@ export async function GET(request: NextRequest) {
       .eq("user_id", user.id)
       .gt("expires_at", new Date().toISOString());
 
-    if (sessionError || count === 0) {
-      console.log("Session error or count is 0");
+    // Handle database errors without logging out
+    if (sessionError) {
+      console.error("Error checking device session:", sessionError);
+      return NextResponse.json(
+        { error: "Failed to validate session. Please try again." },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
 
-      // Call logout endpoint to clear session
-      const logoutRes = await fetch(`${origin}/api/auth/logout`, {
+    // Handle invalid or expired sessions by logging out
+    if (count === 0) {
+      console.log("No valid session found");
+
+      const logoutResult = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
         headers: {
           cookie: request.headers.get("cookie") || "",
         },
       });
 
-      // Get set-cookie header from logout response
-      const setCookie = logoutRes.headers.get("set-cookie");
-
-      // Return JSON error response with 401 status
+      const setCookie = logoutResult.headers.get("set-cookie");
       const response = NextResponse.json(
         {
           error: "Authentication failed",
@@ -132,35 +150,50 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has 2FA enabled and validate AAL level
-    const { has2FA } = await getUserVerificationMethods({
-      supabase,
-      supabaseAdmin,
-    });
-    if (has2FA) {
-      const currentAAL = await getAuthenticatorAssuranceLevel(
+    try {
+      const { has2FA } = await getUserVerificationMethods({
         supabase,
-        deviceSessionId
-      );
-      if (currentAAL !== "aal2") {
-        // User has 2FA but hasn't completed it - redirect to 2FA verification
-        const { factors } = await getUserVerificationMethods({
-          supabase,
-          supabaseAdmin,
-        });
-        const availableMethods = encodeURIComponent(JSON.stringify(factors));
-        const factorId = factors[0]?.factorId;
+        supabaseAdmin,
+      });
 
-        return NextResponse.redirect(
-          `${origin}/auth/login?requires_2fa=true&factor_id=${factorId}&available_methods=${availableMethods}&next=${request.nextUrl.pathname}`
+      if (has2FA) {
+        const currentAAL = await getAuthenticatorAssuranceLevel(
+          supabase,
+          deviceSessionId
         );
+        if (currentAAL !== "aal2") {
+          // User has 2FA but hasn't completed it - redirect to 2FA verification
+          const { factors, methods } = await getUserVerificationMethods({
+            supabase,
+            supabaseAdmin,
+          });
+          const availableMethods = encodeURIComponent(JSON.stringify(methods));
+
+          return NextResponse.json(
+            {
+              error: "2FA required",
+              redirect: `/auth/login?requires_2fa=true&factor_id=${factors[0].factorId}&available_methods=${availableMethods}&next=${request.nextUrl.pathname}`,
+            },
+            { status: 401 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
       }
+    } catch (error) {
+      // Handle 2FA check errors without logging out
+      console.error("Error checking 2FA status:", error);
+      return NextResponse.json(
+        { error: "Failed to validate 2FA. Please try again." },
+        { status: 500 }
+      ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    return NextResponse.json({
-      user,
-    }) satisfies NextResponse<TGetUserResponse>;
+    // All checks passed - return user data
+    return NextResponse.json(
+      { user },
+      { status: 200 }
+    ) satisfies NextResponse<TGetUserResponse>;
   } catch (error) {
-    console.error("Error in get user:", error);
+    console.error("Unexpected error in user route:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

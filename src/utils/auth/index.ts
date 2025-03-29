@@ -1,6 +1,6 @@
 // This is a utility for generic auth related functions
 
-import { SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient, AuthError } from "@supabase/supabase-js";
 import { AUTH_CONFIG } from "@/config/auth";
 import {
   TDeviceInfo,
@@ -576,7 +576,7 @@ export async function getUser({
 }: {
   supabase: SupabaseClient;
   requireProfile?: boolean;
-}): Promise<{ user: TUserWithAuth | null; error: string | null }> {
+}): Promise<{ user: TUserWithAuth | null; error: AuthError | Error | null }> {
   try {
     // Get auth user first since we need the ID
     const {
@@ -589,7 +589,7 @@ export async function getUser({
         error: userError,
         hasUser: !!authUser,
       });
-      return { user: null, error: "Unauthorized" };
+      return { user: null, error: userError || new Error("No user found") };
     }
 
     // If we don't need profile data (special cases), return minimal user object
@@ -635,7 +635,7 @@ export async function getUser({
       ]);
 
     if (profileError) {
-      return { user: null, error: "Failed to fetch user profile" };
+      return { user: null, error: new Error("Failed to fetch user profile") };
     }
 
     // Process MFA data
@@ -669,7 +669,11 @@ export async function getUser({
 
     return { user: userWithAuth, error: null };
   } catch (error) {
-    return { user: null, error: "Failed to get user data" };
+    return {
+      user: null,
+      error:
+        error instanceof Error ? error : new Error("Failed to get user data"),
+    };
   }
 }
 

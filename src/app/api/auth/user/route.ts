@@ -8,10 +8,9 @@ import {
   getUserVerificationMethods,
   getAuthenticatorAssuranceLevel,
 } from "@/utils/auth";
-import { AuthError } from "@supabase/supabase-js";
+import { AuthError, AuthRetryableFetchError } from "@supabase/supabase-js";
 
 export async function GET(request: NextRequest) {
-  console.log("GET request received");
   try {
     if (apiRateLimit) {
       const ip = getClientIp(request);
@@ -30,53 +29,28 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = await createClient({ useServiceRole: true });
     const { user, error } = await getUser({ supabase });
 
-    // Handle auth errors by logging out
-    if (error instanceof AuthError || !user) {
-      console.log("Auth error or no user found:", error);
-
-      // Call logout endpoint to clear session
-      const logoutRes = await fetch(`${origin}/api/auth/logout`, {
-        method: "POST",
-        headers: {
-          cookie: request.headers.get("cookie") || "",
-        },
-      });
-
-      // Get set-cookie header from logout response
-      const setCookie = logoutRes.headers.get("set-cookie");
-
-      // Return JSON error response with 401 status
-      const response = NextResponse.json(
-        {
-          error: "Authentication failed",
-          redirect: `${origin}/auth/login?message=${encodeURIComponent("Please log in to continue")}`,
-        },
-        { status: 401 }
-      );
-
-      // Apply cookies from logout response
-      if (setCookie) {
-        response.headers.set("Set-Cookie", setCookie);
+    if (error || !user) {
+      // Temporary errors
+      if (error instanceof AuthRetryableFetchError) {
+        console.error("[USER ROUTE] Temporary error getting user:", error);
+        return NextResponse.json(
+          {
+            error:
+              "Unable to connect. Please check your internet connection and try again.",
+          },
+          { status: 500 }
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
-
-      return response;
-    }
-
-    // Handle other errors without logging out
-    if (error) {
-      console.error("Non-auth error getting user:", error);
+      console.error("[USER ROUTE] Error getting user:", error);
       return NextResponse.json(
         { error: "An error occurred. Please try again." },
         { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get device session ID
+    // Validate device session
     const deviceSessionId = getDeviceSessionId(request);
     if (!deviceSessionId) {
-      console.log("No device session found");
-
-      // This is a legitimate auth error, so we should log out
       const logoutRes = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
         headers: {
@@ -84,10 +58,7 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      // Get set-cookie header from logout response
       const setCookie = logoutRes.headers.get("set-cookie");
-
-      // Return JSON error response with 401 status
       const response = NextResponse.json(
         {
           error: "Authentication failed",
@@ -96,7 +67,6 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
 
-      // Apply cookies from logout response
       if (setCookie) {
         response.headers.set("Set-Cookie", setCookie);
       }
@@ -109,22 +79,21 @@ export async function GET(request: NextRequest) {
       .from("device_sessions")
       .select("*", { count: "exact", head: true })
       .eq("id", deviceSessionId)
-      .eq("user_id", user.id)
+      .eq("user_id", user?.id || "")
       .gt("expires_at", new Date().toISOString());
 
-    // Handle database errors without logging out
     if (sessionError) {
-      console.error("Error checking device session:", sessionError);
+      console.error(
+        "[USER ROUTE] Error checking device session:",
+        sessionError
+      );
       return NextResponse.json(
         { error: "Failed to validate session. Please try again." },
         { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Handle invalid or expired sessions by logging out
     if (count === 0) {
-      console.log("No valid session found");
-
       const logoutResult = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
         headers: {
@@ -141,7 +110,6 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
 
-      // Apply cookies from logout response
       if (setCookie) {
         response.headers.set("Set-Cookie", setCookie);
       }
@@ -180,20 +148,19 @@ export async function GET(request: NextRequest) {
       }
     } catch (error) {
       // Handle 2FA check errors without logging out
-      console.error("Error checking 2FA status:", error);
+      console.error("[USER ROUTE] Error checking 2FA status:", error);
       return NextResponse.json(
         { error: "Failed to validate 2FA. Please try again." },
         { status: 500 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // All checks passed - return user data
     return NextResponse.json(
-      { user },
+      { user: user },
       { status: 200 }
     ) satisfies NextResponse<TGetUserResponse>;
   } catch (error) {
-    console.error("Unexpected error in user route:", error);
+    console.error("[USER ROUTE] Unexpected error in user route:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

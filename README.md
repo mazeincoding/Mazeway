@@ -1466,10 +1466,17 @@ In case you did, you'll need to:
    - Which means you can't add custom security checks
    - Like checking if they have a valid device session
    - Yes, Supabase does have something called "Auth hooks"
-   - But it's only available on the paid tier
+   - But it's only available on the ~~paid tier~~
    - So instead of forcing devs into use it, I thought it'd be better to document it here
    - But to be fair, they don't have that many. Maybe 3 or 4. Not enough at all
-   - If you're already on the Pro tier, I recommend setting some Auth hooks up though!
+   - If you're already on the ~~Pro tier~~, I recommend setting some Auth hooks up though!
+   > Update:
+   > 
+   > So the Pro tier has like... 2 hooks
+   >
+   > And if you want 2 more hooks, you gotta get the team or enterprise plans
+   >
+   > For security?
 
 ## Pro tips + note for Supabase
 

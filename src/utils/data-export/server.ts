@@ -183,22 +183,36 @@ export async function updateDataExportStatus(
  * Clean up a data export file after it has been downloaded
  * This is a security measure to prevent unauthorized access to the file
  */
-export async function cleanupDataExportFile(
-  adminClient: SupabaseClient,
-  userId: string,
-  exportId: string
-): Promise<void> {
+export async function cleanupDataExportFile({
+  adminClient,
+  userId,
+  exportId,
+}: {
+  adminClient: SupabaseClient;
+  userId: string;
+  exportId: string;
+}): Promise<void> {
   if (typeof window !== "undefined") {
     throw new Error(
       "Cleaning up data export file can only be done on the server"
     );
   }
 
+  console.log("[Cleanup] Cleaning up data export file:", {
+    userId,
+    exportId,
+  });
+
   const filePath = getDataExportStoragePath(userId, exportId);
+  // Remove the bucket name from the path since it's specified in .from()
+  const storageFilePath = filePath.replace(/^exports\//, "");
+
+  console.log("[Cleanup] File path:", filePath);
+  console.log("[Cleanup] Storage file path for removal:", storageFilePath);
 
   const { error } = await adminClient.storage
     .from("exports")
-    .remove([filePath]);
+    .remove([storageFilePath]);
 
   if (error) {
     console.error("Failed to clean up data export file:", error);

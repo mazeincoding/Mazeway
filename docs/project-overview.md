@@ -95,7 +95,6 @@ The open-source auth foundation that lives in your project, not a node_modules f
 - Security alerts
 - Verification emails
 - Activity notifications
-- Marketing (optional)
 
 ### Data Protection
 - GDPR compliance

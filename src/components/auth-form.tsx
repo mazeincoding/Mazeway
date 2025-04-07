@@ -314,7 +314,9 @@ export function AuthForm({
                   )}
                 </Button>
                 {determinedType !== "signup" && !loginData && (
-                  <Link href="/auth/login-help">
+                  <Link
+                    href={`/auth/login-help?email=${encodeURIComponent(email)}`}
+                  >
                     <Button
                       variant="outline"
                       type="button"

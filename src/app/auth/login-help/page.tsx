@@ -1,7 +1,10 @@
+"use client";
+
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { FaKey } from "react-icons/fa";
+import { useSearchParams } from "next/navigation";
 
 interface HelpOption {
   icon: React.ReactNode;
@@ -10,16 +13,19 @@ interface HelpOption {
   href: string;
 }
 
-const helpOptions: HelpOption[] = [
-  {
-    icon: <FaKey className="flex-shrink-0" />,
-    title: "Reset your password",
-    description: "We'll send you a link to create a new password",
-    href: "/auth/forgot-password",
-  },
-];
-
 export default function LoginHelp() {
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email");
+
+  const helpOptions: HelpOption[] = [
+    {
+      icon: <FaKey className="flex-shrink-0" />,
+      title: "Reset your password",
+      description: "We'll send you a link to create a new password",
+      href: `/auth/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
+    },
+  ];
+
   return (
     <div className="flex flex-col">
       <Header isInitiallyLoggedIn={false} />

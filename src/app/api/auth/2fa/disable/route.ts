@@ -185,6 +185,17 @@ export async function POST(request: NextRequest) {
       // Log the error but don't fail the request since 2FA was successfully disabled
     }
 
+    // Update has_backup_codes flag to false since we deleted all backup codes
+    const { error: userUpdateError } = await supabaseAdmin
+      .from("users")
+      .update({ has_backup_codes: false })
+      .eq("id", user.id);
+
+    if (userUpdateError) {
+      console.error("Failed to update has_backup_codes flag:", userUpdateError);
+      // Log the error but don't fail the request since 2FA was successfully disabled
+    }
+
     // Update all device sessions to AAL1 since 2FA is now disabled
     const { error: sessionUpdateError } = await supabaseAdmin
       .from("device_sessions")

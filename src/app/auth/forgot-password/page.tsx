@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { authSchema } from "@/validation/auth-validation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -24,6 +24,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import { useSearchParams } from "next/navigation";
 
 // We only need the email field for forgot password
 const forgotPasswordSchema = z.object({
@@ -35,13 +36,22 @@ type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>;
 export default function ForgotPassword() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const searchParams = useSearchParams();
+  const emailParam = searchParams.get("email");
 
   const form = useForm<ForgotPasswordSchema>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
-      email: "",
+      email: emailParam || "",
     },
   });
+
+  // Update the form value if the URL parameter changes
+  useEffect(() => {
+    if (emailParam) {
+      form.setValue("email", emailParam);
+    }
+  }, [emailParam, form]);
 
   async function onSubmit(values: ForgotPasswordSchema) {
     setIsLoading(true);

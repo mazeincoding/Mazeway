@@ -81,7 +81,7 @@
   },
   "devDependencies": {
     "@trigger.dev/build": "^3.3.17",
-    "@types/node": "^20",
+    "@types/bun": "^1.2.8",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "postcss": "^8",

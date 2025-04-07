@@ -1479,6 +1479,10 @@ In case you did, you'll need to:
    >
    > For security?
 
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 ## Pro tips + note for Supabase
 
 **Pro tip!** If you find yourself cloning this project a lot but changing same things, fork the repo, tweak what you need and clone your repo instead. That way, you can customize everything you want once and re-use whenever.

@@ -7,9 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup:cleanup": "tsx scripts/setup-cleanup.ts",
-    "deploy:cleanup": "tsx scripts/deploy-cleanup.ts",
-    "reset-project": "tsx scripts/reset-project.ts"
+    "reset-project": "bun scripts/reset-project.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -80,8 +78,8 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@types/bun": "^1.2.8",
     "@trigger.dev/build": "^3.3.17",
-    "@types/node": "^20",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "postcss": "^8",

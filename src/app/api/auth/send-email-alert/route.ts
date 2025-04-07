@@ -1,3 +1,8 @@
+// NOTE: This will throw an error in development
+// Nobody knows why. It's likely a bug with Next.js or Resend
+// Reason: if you set up Resend in a fresh Next.js project and follow their docs precisely...
+// ...You will see the same error in development
+
 import EmailAlertTemplate from "@emails/templates/email-alert";
 import { Resend } from "resend";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
@@ -6,7 +11,8 @@ import { TApiErrorResponse } from "@/types/api";
 import { TDeviceInfo } from "@/types/auth";
 import { createClient } from "@/utils/supabase/server";
 import { validateEmailAlert } from "@/validation/auth-validation";
-import { getDeviceSessionId, getUser } from "@/utils/auth";
+import { getUser } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 
 // Initialize Resend with API key if available
 const resend = process.env.RESEND_API_KEY
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
       console.log(`Device: ${deviceInfo.device_name} (${deviceInfo.browser})`);
 
       // 6. Get the current device session
-      const deviceSessionId = getDeviceSessionId(request);
+      const deviceSessionId = getCurrentDeviceSessionId(request);
 
       if (deviceSessionId) {
         // Get the device session and associated device

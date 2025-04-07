@@ -3,9 +3,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { AuthApiError } from "@supabase/supabase-js";
 import { logAccountEvent } from "@/utils/account-events/server";
-import { getDeviceSessionId } from "@/utils/auth";
 import { UAParser } from "ua-parser-js";
 import { getClientIp } from "@/utils/rate-limit";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 
 export async function GET(request: NextRequest) {
   console.log("[AUTH] /api/auth/confirm - Request received", {
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
 
   // Log email change event if this was an email change verification
   if (type === "email_change") {
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (deviceSessionId) {
       const parser = new UAParser(request.headers.get("user-agent") || "");
       await logAccountEvent({

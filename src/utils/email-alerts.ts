@@ -1,24 +1,5 @@
 import { NextRequest } from "next/server";
 import { TSendEmailAlertRequest } from "@/types/api";
-import { UAParser } from "ua-parser-js";
-
-type TSendEmailAlertOptions = {
-  request: NextRequest;
-  origin: string;
-  user: { id: string; email: string };
-  title: string;
-  message: string;
-  // Optional params for different alert types
-  method?: string; // For 2FA alerts
-  oldEmail?: string; // For email change alerts
-  newEmail?: string; // For email change alerts
-  revokedDevice?: {
-    device_name: string;
-    browser?: string;
-    os?: string;
-    ip_address?: string;
-  };
-};
 
 /**
  * Sends an email alert for security-related actions.
@@ -42,37 +23,23 @@ export async function sendEmailAlert({
   oldEmail,
   newEmail,
   revokedDevice,
-}: TSendEmailAlertOptions) {
+  device,
+}: TSendEmailAlertRequest & {
+  request: NextRequest;
+  origin: string;
+  user: { id: string; email: string };
+}) {
   try {
-    const parser = new UAParser(request.headers.get("user-agent") || "");
-    const deviceName = parser.getDevice().model || "Unknown Device";
-    const browser = parser.getBrowser().name || "Unknown Browser";
-    const os = parser.getOS().name || "Unknown OS";
-
-    console.log("Sending email alert");
-    console.log("Device name", deviceName);
-    console.log("Browser", browser);
-    console.log("OS", os);
-    console.log("IP address", request.headers.get("x-forwarded-for"));
-
     const body: TSendEmailAlertRequest = {
       email: user.email,
       title,
       message,
-      device: {
-        user_id: user.id,
-        device_name: deviceName,
-        browser,
-        os,
-        ip_address: request.headers.get("x-forwarded-for") || "::1",
-      },
+      device,
       // Only include optional fields if they exist
       ...(method ? { method } : {}),
       ...(oldEmail && newEmail ? { oldEmail, newEmail } : {}),
       ...(revokedDevice ? { revokedDevice } : {}),
     };
-
-    console.log("Email alert body", body);
 
     const emailAlertResponse = await fetch(
       `${origin}/api/auth/send-email-alert`,

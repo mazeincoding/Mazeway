@@ -6,7 +6,8 @@ import EmailVerificationTemplate from "@emails/templates/email-verification";
 import { AUTH_CONFIG } from "@/config/auth";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import { generateVerificationCode } from "@/utils/auth/verification-codes";
-import { getDeviceSessionId, getUser } from "@/utils/auth";
+import { getUser } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 
 export async function POST(request: NextRequest) {
   if (authRateLimit) {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID from cookie
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },

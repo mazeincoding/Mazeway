@@ -13,9 +13,19 @@ import {
 } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
 import { twoFactorEnrollmentSchema } from "@/validation/auth-validation";
-import { getUser } from "@/utils/auth";
+import {
+  getUser,
+  getUserVerificationMethods,
+  hasGracePeriodExpired,
+} from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
+import { sendEmailAlert } from "@/utils/email-alerts";
+import { logAccountEvent } from "@/utils/account-events/server";
+import { UAParser } from "ua-parser-js";
 
 export async function POST(request: NextRequest) {
+  const { origin } = new URL(request.url);
+
   try {
     if (authRateLimit) {
       const ip = getClientIp(request);
@@ -32,10 +42,20 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const supabaseAdmin = await createClient({ useServiceRole: true });
     const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
+        { status: 401 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // Get device session ID
+    const deviceSessionId = getCurrentDeviceSessionId(request);
+    if (!deviceSessionId) {
+      return NextResponse.json(
+        { error: "No device session found" },
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
@@ -52,6 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TEnroll2FARequest = validation.data;
+    const { checkVerificationOnly = false } = body;
 
     // 3. Validate method configuration
     const methodConfig =
@@ -64,6 +85,140 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
+
+    // Check if verification is needed based on grace period
+    const needsVerification = await hasGracePeriodExpired({
+      deviceSessionId,
+      supabase,
+    });
+
+    if (needsVerification) {
+      // Get available verification methods
+      const { has2FA, factors, methods } = await getUserVerificationMethods({
+        supabase,
+        supabaseAdmin,
+      });
+
+      const parser = new UAParser(request.headers.get("user-agent") || "");
+
+      // Send alert for 2FA setup initiation if enabled
+      if (
+        !checkVerificationOnly &&
+        AUTH_CONFIG.emailAlerts.twoFactor.enabled &&
+        AUTH_CONFIG.emailAlerts.twoFactor.alertOnEnable
+      ) {
+        await sendEmailAlert({
+          request,
+          origin,
+          user,
+          title: "Two-factor authentication setup requested",
+          message:
+            "Someone has requested to enable two-factor authentication on your account. If this wasn't you, please secure your account immediately.",
+          method: body.method,
+          device: {
+            user_id: user.id,
+            device_name: parser.getDevice().model || "Unknown Device",
+            browser: parser.getBrowser().name || null,
+            os: parser.getOS().name || null,
+            ip_address: getClientIp(request),
+          },
+        });
+      }
+
+      // Return available methods for verification
+      if (has2FA) {
+        return NextResponse.json({
+          requiresVerification: true,
+          availableMethods: factors,
+        }) satisfies NextResponse<TEnroll2FAResponse>;
+      } else {
+        // Return available non-2FA methods
+        const availableMethods = methods.map((method) => ({
+          type: method,
+          factorId: method, // For non-2FA methods, use method name as factorId
+        }));
+
+        if (availableMethods.length === 0) {
+          return NextResponse.json(
+            { error: "No verification methods available" },
+            { status: 400 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
+
+        return NextResponse.json({
+          requiresVerification: true,
+          availableMethods,
+        }) satisfies NextResponse<TEnroll2FAResponse>;
+      }
+    }
+
+    // If we're just checking requirements, check verification status
+    if (checkVerificationOnly) {
+      const needsVerification = await hasGracePeriodExpired({
+        deviceSessionId,
+        supabase,
+      });
+
+      if (needsVerification) {
+        // Get available verification methods
+        const { has2FA, factors, methods } = await getUserVerificationMethods({
+          supabase,
+          supabaseAdmin,
+        });
+
+        // If user has 2FA, they must use it
+        if (has2FA) {
+          return NextResponse.json({
+            requiresVerification: true,
+            availableMethods: factors,
+            factor_id: "", // Just to satisfy the type
+          }) satisfies NextResponse<TEnroll2FAResponse>;
+        }
+
+        // Otherwise they can use basic verification methods
+        const availableMethods = methods.map((method) => ({
+          type: method,
+          factorId: method, // For non-2FA methods, use method name as factorId
+        }));
+
+        if (availableMethods.length === 0) {
+          return NextResponse.json(
+            { error: "No verification methods available" },
+            { status: 400 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
+
+        return NextResponse.json({
+          requiresVerification: true,
+          availableMethods,
+          factor_id: "", // Just to satisfy the type
+        }) satisfies NextResponse<TEnroll2FAResponse>;
+      }
+
+      return NextResponse.json({
+        requiresVerification: false,
+        factor_id: "", // Just to satisfy the type
+      }) satisfies NextResponse<TEnroll2FAResponse>;
+    }
+
+    // Log sensitive action verification
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "SENSITIVE_ACTION_VERIFIED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        device: {
+          device_name: parser.getDevice().model || "Unknown Device",
+          browser: parser.getBrowser().name || null,
+          os: parser.getOS().name || null,
+          ip_address: getClientIp(request),
+        },
+        action: "ENABLE_2FA",
+        category: "warning",
+        description: `Two-factor authentication setup verified for ${body.method} method`,
+      },
+    });
 
     // 4. Get client IP securely
     const clientIp = getClientIp(request);

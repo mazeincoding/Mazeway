@@ -16,7 +16,6 @@ import {
   verificationSchema,
   type VerificationSchema,
 } from "@/validation/auth-validation";
-import { useUser } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { getDefaultVerificationMethod } from "@/utils/auth";
 import {
@@ -36,28 +35,19 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface VerifyFormProps {
   availableMethods: TVerificationFactor[];
-  onVerify: (code: string, factorId: string) => Promise<void>;
-  isVerifying?: boolean;
-  error?: string | null;
-  setError: (error: string | null) => void;
+  onVerifyComplete: () => void;
 }
 
 export function VerifyForm({
   availableMethods,
-  onVerify,
-  isVerifying = false,
-  error,
-  setError,
+  onVerifyComplete,
 }: VerifyFormProps) {
-  console.log("VerifyForm rendered:", {
-    availableMethods,
-  });
-
-  const { refresh: refreshUser } = useUser();
+  const [isVerifying, setIsVerifying] = useState(false);
   const [showOtherMethods, setShowOtherMethods] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [emailCodeSent, setEmailCodeSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(false);
 
   useEffect(() => {
@@ -69,7 +59,6 @@ export function VerifyForm({
   const defaultMethod = getDefaultVerificationMethod(
     availableMethods.map((m) => m.type)
   );
-  console.log("Default method:", defaultMethod);
 
   const [currentMethod, setCurrentMethod] =
     useState<TVerificationMethod | null>(defaultMethod);
@@ -87,8 +76,6 @@ export function VerifyForm({
     defaultValues: {
       code: "",
       method: currentMethod ?? "authenticator",
-      factorId:
-        availableMethods.find((m) => m.type === currentMethod)?.factorId ?? "",
     },
     mode: "onSubmit",
     reValidateMode: "onBlur",
@@ -102,7 +89,6 @@ export function VerifyForm({
       );
       if (selectedMethod) {
         form.setValue("method", currentMethod);
-        form.setValue("factorId", selectedMethod.factorId);
       }
     }
   }, [currentMethod, availableMethods, form]);
@@ -196,21 +182,7 @@ export function VerifyForm({
         );
         break;
       case "backup_codes":
-        if (AUTH_CONFIG.backupCodes.format === "alphanumeric") {
-          sanitizedValue = value.slice(
-            0,
-            AUTH_CONFIG.backupCodes.alphanumericLength
-          );
-        } else {
-          // For word-based backup codes:
-          // 1. Convert multiple spaces/hyphens to single hyphens
-          // 2. Remove any non-word characters except hyphens
-          sanitizedValue = value
-            .toLowerCase()
-            .replace(/[^a-z\-\s]/g, "")
-            .replace(/[\s\-]+/g, "-")
-            .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
-        }
+        sanitizedValue = value;
         break;
       case "password":
         sanitizedValue = value;
@@ -232,7 +204,6 @@ export function VerifyForm({
     setCurrentMethod(value);
     form.setValue("code", "");
     form.setValue("method", value);
-    form.setValue("factorId", method.factorId);
 
     // Reset email sent state when changing methods
     if (value === "email") {
@@ -255,23 +226,43 @@ export function VerifyForm({
     }
   };
 
+  // Form submission handler
   const onSubmit = form.handleSubmit(async (data) => {
+    if (!currentMethod) {
+      setError("Please select a verification method");
+      return;
+    }
+
+    const methodToUse = availableMethods.find((m) => m.type === currentMethod);
+    if (!methodToUse) {
+      setError("No verification method selected");
+      return;
+    }
+
     try {
-      const selectedMethod = availableMethods.find(
-        (m) => m.type === currentMethod
-      );
-      if (!selectedMethod) {
-        throw new Error("No verification method selected");
-      }
-      await onVerify(data.code, selectedMethod.factorId);
-      await refreshUser();
-    } catch (error) {
-      console.error("Error in verification:", error);
+      setIsVerifying(true);
+      setError(null);
+
+      await api.auth.verify({
+        code: data.code,
+        method: methodToUse.type,
+      });
+
+      onVerifyComplete();
+    } catch (err) {
+      console.error("Error in verification form submission:", err);
+
+      // Standardize how we handle the error message
+      const errorMessage =
+        err instanceof Error ? err.message : "Verification failed";
+
+      setError(errorMessage);
       form.setError("code", {
         type: "manual",
-        message: error instanceof Error ? error.message : "Verification failed",
+        message: errorMessage,
       });
-      return false;
+    } finally {
+      setIsVerifying(false);
     }
   });
 

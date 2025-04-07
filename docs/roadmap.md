@@ -84,10 +84,10 @@
 - [x] Email alerts for security actions
 - [x] Account deletion functionality
 - [ ] Re-design settings UI to focus on simplicity
-- [ ] Maybe clean up all my GitHub issues I created and left there
+- [x] Maybe clean up all my GitHub issues I created and left there
 - [x] User data exports (GDPR Compliance)
 - [x] Provider management
-- [ ] role-based access control
+- [ ] Role-based access control
 
 **CLI direction**
 - [ ] Create a CLI for adding auth to existing projects

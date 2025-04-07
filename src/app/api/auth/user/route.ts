@@ -4,11 +4,11 @@ import { TApiErrorResponse, TGetUserResponse } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
   getUser,
-  getDeviceSessionId,
   getUserVerificationMethods,
   getAuthenticatorAssuranceLevel,
 } from "@/utils/auth";
-import { AuthError, AuthRetryableFetchError } from "@supabase/supabase-js";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate device session
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (!deviceSessionId) {
       const logoutRes = await fetch(`${origin}/api/auth/logout`, {
         method: "POST",
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json(
             {
               error: "2FA required",
-              redirect: `/auth/login?requires_2fa=true&factor_id=${factors[0].factorId}&available_methods=${availableMethods}&next=${request.nextUrl.pathname}`,
+              redirect: `/auth/login?requires_2fa=true&available_methods=${availableMethods}&next=${request.nextUrl.pathname}`,
             },
             { status: 401 }
           ) satisfies NextResponse<TApiErrorResponse>;

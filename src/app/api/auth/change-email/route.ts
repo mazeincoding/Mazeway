@@ -6,8 +6,8 @@ import {
   getUserVerificationMethods,
   hasGracePeriodExpired,
   getUser,
-  getDeviceSessionId,
 } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 import { emailChangeSchema } from "@/validation/auth-validation";
 import { SupabaseClient, AuthError } from "@supabase/supabase-js";
 import { AUTH_CONFIG } from "@/config/auth";
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { newEmail } = validation.data;
+    const { newEmail, checkVerificationOnly = false } = validation.data;
 
     // Get user data including has_password
     const { data: dbUser, error: dbError } = await supabase
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID from cookie
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },
@@ -124,10 +124,11 @@ export async function POST(request: NextRequest) {
       });
 
       if (gracePeriodExpired && has2FA) {
-        // Send alert for email change initiation if enabled
+        // Send alert for email change initiation if enabled and not just checking
         if (
-          AUTH_CONFIG.emailAlerts.email.enabled &&
-          AUTH_CONFIG.emailAlerts.email.alertOnInitiate
+          !checkVerificationOnly &&
+          AUTH_CONFIG.emailAlerts.emailChange.enabled &&
+          AUTH_CONFIG.emailAlerts.emailChange.alertOnInitiate
         ) {
           await sendEmailAlert({
             request,
@@ -145,6 +146,56 @@ export async function POST(request: NextRequest) {
           requiresVerification: true,
           availableMethods: factors,
           newEmail,
+        }) satisfies NextResponse<TChangeEmailResponse>;
+      }
+
+      // If we're just checking requirements, check verification status
+      if (checkVerificationOnly) {
+        const needsVerification = await hasGracePeriodExpired({
+          deviceSessionId,
+          supabase,
+        });
+
+        if (needsVerification) {
+          // Get available verification methods
+          const { has2FA, factors, methods } = await getUserVerificationMethods(
+            {
+              supabase,
+              supabaseAdmin,
+            }
+          );
+
+          // If user has 2FA, they must use it
+          if (has2FA) {
+            return NextResponse.json({
+              requiresVerification: true,
+              availableMethods: factors,
+              newEmail,
+            }) satisfies NextResponse<TChangeEmailResponse>;
+          }
+
+          // Otherwise they can use basic verification methods
+          const availableMethods = methods.map((method) => ({
+            type: method,
+            factorId: method, // For non-2FA methods, use method name as factorId
+          }));
+
+          if (availableMethods.length === 0) {
+            return NextResponse.json(
+              { error: "No verification methods available" },
+              { status: 400 }
+            ) satisfies NextResponse<TApiErrorResponse>;
+          }
+
+          return NextResponse.json({
+            requiresVerification: true,
+            availableMethods,
+            newEmail,
+          }) satisfies NextResponse<TChangeEmailResponse>;
+        }
+
+        return NextResponse.json({
+          requiresVerification: false,
         }) satisfies NextResponse<TChangeEmailResponse>;
       }
 
@@ -196,8 +247,8 @@ export async function POST(request: NextRequest) {
 
         // Send alert for completed email change if enabled
         if (
-          AUTH_CONFIG.emailAlerts.email.enabled &&
-          AUTH_CONFIG.emailAlerts.email.alertOnComplete
+          AUTH_CONFIG.emailAlerts.emailChange.enabled &&
+          AUTH_CONFIG.emailAlerts.emailChange.alertOnComplete
         ) {
           // Send to old email
           await sendEmailAlert({
@@ -232,8 +283,8 @@ export async function POST(request: NextRequest) {
       // If we get here, verification is required
       // Send alert for email change initiation if enabled
       if (
-        AUTH_CONFIG.emailAlerts.email.enabled &&
-        AUTH_CONFIG.emailAlerts.email.alertOnInitiate
+        AUTH_CONFIG.emailAlerts.emailChange.enabled &&
+        AUTH_CONFIG.emailAlerts.emailChange.alertOnInitiate
       ) {
         await sendEmailAlert({
           request,

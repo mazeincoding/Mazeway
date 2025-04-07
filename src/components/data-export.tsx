@@ -5,6 +5,14 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { TDataExportStatus } from "@/types/auth";
 import { format } from "date-fns";
 import { useDataExports } from "@/hooks/use-data-exports";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function getStatusBadgeColor(status: TDataExportStatus) {
   switch (status) {
@@ -23,6 +31,7 @@ function getStatusBadgeColor(status: TDataExportStatus) {
 
 export function DataExport() {
   const [isRequesting, setIsRequesting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const { exports, isLoading, error, requestExport } = useDataExports();
 
   // If data exports are disabled, don't render anything
@@ -37,6 +46,7 @@ export function DataExport() {
       toast.success("Export requested", {
         description: "We'll email you when your data is ready to download.",
       });
+      setShowConfirmDialog(false);
     } catch (error) {
       console.error("Failed to request export:", error);
       toast.error("Export failed", {
@@ -58,13 +68,32 @@ export function DataExport() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Button
-        onClick={handleExportRequest}
-        disabled={isRequesting}
-        className="w-fit"
-      >
-        {isRequesting ? "Requesting..." : "Export my data"}
-      </Button>
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <Button onClick={() => setShowConfirmDialog(true)} className="w-fit">
+          Export my data
+        </Button>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export your data</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to export your data? This can take a while
+              to complete. You can close the browser while it's exporting.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={isRequesting}
+            >
+              Cancel
+            </Button>
+            <Button disabled={isRequesting} onClick={handleExportRequest}>
+              {isRequesting ? "Requesting..." : "Confirm Export"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="text-muted-foreground text-sm">

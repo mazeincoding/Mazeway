@@ -11,8 +11,8 @@ import {
   getUser,
   getUserVerificationMethods,
   hasGracePeriodExpired,
-  getDeviceSessionId,
 } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { socialProviderSchema } from "@/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       const { success } = await authRateLimit.limit(ip);
 
       if (!success) {
+        console.log("❌ Rate limit exceeded for IP:", ip);
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
@@ -39,7 +40,10 @@ export async function POST(request: NextRequest) {
     // 2. Get and validate user
     const supabase = await createClient();
     const supabaseAdmin = await createClient({ useServiceRole: true });
+
     const { user, error } = await getUser({ supabase });
+    if (error) console.error("⚠️ User validation error:", error);
+
     if (error || !user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -59,11 +63,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TDisconnectSocialProviderRequest = validation.data;
-    const { provider } = body;
+    const { provider, checkVerificationOnly = false } = body;
 
     // 4. Get device session ID
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
+
     if (!deviceSessionId) {
+      console.log("❌ No device session found");
       return NextResponse.json(
         { error: "No device session found" },
         { status: 401 }
@@ -73,8 +79,9 @@ export async function POST(request: NextRequest) {
     // 5. Get user identities
     const { data, error: identitiesError } =
       await supabase.auth.getUserIdentities();
+
     if (identitiesError || !data?.identities) {
-      console.error("Failed to get user identities:", identitiesError);
+      console.error("❌ Failed to get user identities:", identitiesError);
       return NextResponse.json(
         { error: identitiesError?.message || "Failed to get user identities" },
         { status: 400 }
@@ -87,15 +94,18 @@ export async function POST(request: NextRequest) {
     const identity = identities.find(
       (i: UserIdentity) => i.provider === provider
     );
+
     if (!identity) {
+      console.log(`❌ No ${provider} identity found`);
       return NextResponse.json(
         { error: `No ${provider} identity found` },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 7. Check if user has at least 2 identities (prevent lockout)
+    // 7. Check if user has at least 2 identities
     if (identities.length < 2) {
+      console.log("❌ Cannot disconnect only identity");
       return NextResponse.json(
         {
           error:
@@ -105,28 +115,65 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 8. Check if verification is needed
-    const needsVerification =
-      AUTH_CONFIG.requireFreshVerification.disconnectProvider &&
-      (await hasGracePeriodExpired({
-        deviceSessionId,
-        supabase,
-      }));
+    // Check if verification is needed
+    const needsVerification = await hasGracePeriodExpired({
+      deviceSessionId,
+      supabase,
+    });
 
     if (needsVerification) {
-      // Get available verification methods
       const { has2FA, factors, methods } = await getUserVerificationMethods({
         supabase,
         supabaseAdmin,
       });
 
-      // If user has 2FA, they must use it
       if (has2FA) {
         return NextResponse.json({
           requiresVerification: true,
           availableMethods: factors,
         }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
       } else {
+        const availableMethods = methods.map((method) => ({
+          type: method,
+          factorId: method,
+        }));
+
+        if (availableMethods.length === 0) {
+          console.log("❌ No verification methods available");
+          return NextResponse.json(
+            { error: "No verification methods available" },
+            { status: 400 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
+
+        return NextResponse.json({
+          requiresVerification: true,
+          availableMethods,
+        }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
+      }
+    }
+
+    if (checkVerificationOnly) {
+      const needsVerification = await hasGracePeriodExpired({
+        deviceSessionId,
+        supabase,
+      });
+
+      if (needsVerification) {
+        // Get available verification methods
+        const { has2FA, factors, methods } = await getUserVerificationMethods({
+          supabase,
+          supabaseAdmin,
+        });
+
+        // If user has 2FA, they must use it
+        if (has2FA) {
+          return NextResponse.json({
+            requiresVerification: true,
+            availableMethods: factors,
+          }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
+        }
+
         // Otherwise they can use basic verification methods
         const availableMethods = methods.map((method) => ({
           type: method,
@@ -145,12 +192,17 @@ export async function POST(request: NextRequest) {
           availableMethods,
         }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
       }
+
+      return NextResponse.json({
+        requiresVerification: false,
+        success: true,
+      }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
     }
 
     // 9. Unlink identity
     const { error: unlinkError } = await supabase.auth.unlinkIdentity(identity);
     if (unlinkError) {
-      console.error("Failed to unlink identity:", unlinkError);
+      console.error("❌ Failed to unlink identity:", unlinkError);
       return NextResponse.json(
         { error: unlinkError.message },
         { status: 400 }
@@ -159,17 +211,19 @@ export async function POST(request: NextRequest) {
 
     // 10. Log sensitive action verification
     const parser = new UAParser(request.headers.get("user-agent") || "");
+    const deviceInfo = {
+      device_name: parser.getDevice().model || "Unknown Device",
+      browser: parser.getBrowser().name || null,
+      os: parser.getOS().name || null,
+      ip_address: getClientIp(request),
+    };
+
     await logAccountEvent({
       user_id: user.id,
       event_type: "SENSITIVE_ACTION_VERIFIED",
       device_session_id: deviceSessionId,
       metadata: {
-        device: {
-          device_name: parser.getDevice().model || "Unknown Device",
-          browser: parser.getBrowser().name || null,
-          os: parser.getOS().name || null,
-          ip_address: getClientIp(request),
-        },
+        device: deviceInfo,
         action: "disconnect_provider",
         category: "warning",
         description: `Social provider disconnection verified: ${provider}`,
@@ -205,9 +259,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      requiresVerification: false,
     }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
   } catch (error) {
-    console.error("Error in social provider disconnect:", error);
+    console.error("💥 Unexpected error in social provider disconnect:", error);
+    console.error("Stack trace:", (error as Error).stack);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

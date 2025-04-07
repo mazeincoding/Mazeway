@@ -17,16 +17,17 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
   TApiErrorResponse,
-  TEmptySuccessResponse,
-  TPasswordChangeResponse,
+  TChangePasswordRequest,
+  TChangePasswordResponse,
 } from "@/types/api";
 import { authRateLimit, getClientIp } from "@/utils/rate-limit";
 import {
   hasGracePeriodExpired,
   getUserVerificationMethods,
   getUser,
-  getDeviceSessionId,
+  verifyPassword,
 } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 import {
   passwordChangeSchema,
   addPasswordSchema,
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
-    const adminClient = await createClient({ useServiceRole: true });
+    const supabaseAdmin = await createClient({ useServiceRole: true });
 
     const { user, error } = await getUser({ supabase });
     if (error || !user) {
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const body = await request.json();
+    const body: TChangePasswordRequest = await request.json();
 
     // If not a 2FA request, validate password change data
     const validation = (
@@ -102,13 +103,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Type-safe way to handle both schemas
-    const { newPassword } = validation.data;
+    const { newPassword, checkVerificationOnly } = validation.data;
     const currentPassword = dbUser.has_password
       ? (validation.data as PasswordChangeSchema).currentPassword
       : undefined;
 
     // For users with password auth, verify current password
-    if (dbUser.has_password) {
+    if (dbUser.has_password && !checkVerificationOnly) {
       if (!currentPassword) {
         console.warn(
           "[Password Change] Current password missing for password change"
@@ -119,13 +120,25 @@ export async function POST(request: NextRequest) {
         ) satisfies NextResponse<TApiErrorResponse>;
       }
 
-      // Verify current password
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
+      // Verify password using our utility function
+      const { isValid, error: verifyError } = await verifyPassword({
+        supabase,
         password: currentPassword,
       });
 
-      if (signInError) {
+      if (verifyError) {
+        console.error(
+          "[Password Change] Error verifying password:",
+          verifyError
+        );
+        return NextResponse.json(
+          { error: "Failed to verify current password" },
+          { status: 500 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
+      if (!isValid) {
+        console.warn("[Password Change] Invalid current password");
         return NextResponse.json(
           { error: "Current password is incorrect" },
           { status: 400 }
@@ -134,7 +147,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID from cookie
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (!deviceSessionId) {
       console.error("[Password Change] No device session found in request");
       return NextResponse.json(
@@ -143,65 +156,89 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if verification is needed;
+    // Check if verification is needed
     const gracePeriodExpired = await hasGracePeriodExpired({
       supabase,
       deviceSessionId,
     });
 
-    // Skip verification for OAuth users adding a password for the first time
-    // Because they'll need to re-login anyway
-    if (gracePeriodExpired && dbUser.has_password) {
+    // Determine if verification is needed based on grace period
+    const needsVerification = gracePeriodExpired && dbUser.has_password;
+
+    if (needsVerification) {
       // Check if user has 2FA enabled
       const { has2FA, factors } = await getUserVerificationMethods({
         supabase,
-        supabaseAdmin: adminClient,
+        supabaseAdmin,
       });
 
       if (has2FA) {
         return NextResponse.json({
-          requiresVerification: true,
+          requiresTwoFactor: true,
           availableMethods: factors,
-          newPassword,
-        }) satisfies NextResponse<TPasswordChangeResponse>;
+          newPassword: checkVerificationOnly ? undefined : newPassword,
+        }) satisfies NextResponse<TChangePasswordResponse>;
       }
 
-      // Log sensitive action verification
-      const parser = new UAParser(request.headers.get("user-agent") || "");
-      await logAccountEvent({
-        user_id: user.id,
-        event_type: "SENSITIVE_ACTION_VERIFIED",
-        device_session_id: deviceSessionId,
-        metadata: {
-          device: {
-            device_name: parser.getDevice().model || "Unknown Device",
-            browser: parser.getBrowser().name || null,
-            os: parser.getOS().name || null,
-            ip_address: getClientIp(request),
+      // Log sensitive action verification if not just checking
+      if (!checkVerificationOnly) {
+        const parser = new UAParser(request.headers.get("user-agent") || "");
+        await logAccountEvent({
+          user_id: user.id,
+          event_type: "SENSITIVE_ACTION_VERIFIED",
+          device_session_id: deviceSessionId,
+          metadata: {
+            device: {
+              device_name: parser.getDevice().model || "Unknown Device",
+              browser: parser.getBrowser().name || null,
+              os: parser.getOS().name || null,
+              ip_address: getClientIp(request),
+            },
+            action: "change_password",
+            category: "info",
+            description: "Password change request verified",
           },
-          action: "change_password",
-          category: "info",
-          description: "Password change request verified",
-        },
-      });
+        });
+      }
+    }
+
+    // If we're just checking verification requirements, return early
+    if (checkVerificationOnly) {
+      return NextResponse.json({
+        requiresTwoFactor: needsVerification,
+      }) satisfies NextResponse<TChangePasswordResponse>;
     }
 
     // If no 2FA required or within grace period, update password
+
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
 
     if (updateError) {
+      console.error("[Password Change] Update error:", updateError);
+
+      // Check for AAL2 error specifically
+      if (updateError.code === "insufficient_aal") {
+        return NextResponse.json(
+          {
+            error:
+              "Your session security level is too low. Please log out and log back in with 2FA to change your password.",
+            code: "insufficient_aal",
+          },
+          { status: 403 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
+
       // Special handling for OAuth users
-      if (
-        dbUser.has_password &&
-        updateError.message.includes("identity_not_found")
-      ) {
+      if (dbUser.has_password && updateError.code === "identity_not_found") {
+        console.error("[Password Change] OAuth user password update failed");
         return NextResponse.json(
           { error: "Cannot add password. Please contact support." },
           { status: 400 }
         ) satisfies NextResponse<TApiErrorResponse>;
       }
+
       throw updateError;
     }
 
@@ -213,14 +250,12 @@ export async function POST(request: NextRequest) {
     let requiresRelogin = false;
     if (!dbUser.has_password) {
       // Force add the email identity using admin API
-      const { error: adminError } = await adminClient.auth.admin.updateUserById(
-        user.id,
-        {
+      const { error: adminError } =
+        await supabaseAdmin.auth.admin.updateUserById(user.id, {
           email: user.email,
           password: newPassword,
           email_confirm: true,
-        }
-      );
+        });
 
       if (adminError) {
         console.error(
@@ -237,7 +272,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update has_password flag
-    const { error: flagError } = await adminClient
+    const { error: flagError } = await supabaseAdmin
       .from("users")
       .update({ has_password: true })
       .eq("id", user.id);
@@ -247,7 +282,6 @@ export async function POST(request: NextRequest) {
         "[Password Change] Failed to update has_password flag:",
         flagError
       );
-      console.log("User:", user);
       // Don't throw - password was updated successfully
     }
 
@@ -273,8 +307,8 @@ export async function POST(request: NextRequest) {
 
     // Send email alert for password change
     if (
-      AUTH_CONFIG.emailAlerts.password.enabled &&
-      AUTH_CONFIG.emailAlerts.password.alertOnChange
+      AUTH_CONFIG.emailAlerts.passwordChange.enabled &&
+      AUTH_CONFIG.emailAlerts.passwordChange.alertOnChange
     ) {
       await sendEmailAlert({
         request,
@@ -284,6 +318,13 @@ export async function POST(request: NextRequest) {
         message: requiresRelogin
           ? "A password was added to your account. You can now sign in using your email and password."
           : "Your account password was just changed. If this wasn't you, please secure your account immediately.",
+        device: {
+          user_id: user.id,
+          device_name: parser.getDevice().model || "Unknown Device",
+          browser: parser.getBrowser().name || null,
+          os: parser.getOS().name || null,
+          ip_address: getClientIp(request),
+        },
       });
     }
 
@@ -294,11 +335,12 @@ export async function POST(request: NextRequest) {
             requiresRelogin: true,
             email: user.email,
             message:
-              "Password added successfully. Please log in again to use email/password authentication.",
+              "Password added successfully. Please log in again for security reasons.",
           }
         : {}
     );
   } catch (error) {
+    console.error("[Password Change] Unexpected error:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

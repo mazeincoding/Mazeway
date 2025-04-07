@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { basicRateLimit, getClientIp } from "@/utils/rate-limit";
 import { TApiErrorResponse } from "@/types/api";
-import { getDeviceSessionId } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       : NextResponse.json({ success: true });
 
     // Get device session ID using our utility
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
 
     // Clear device session cookie
     response.cookies.delete("device_session_id");

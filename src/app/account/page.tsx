@@ -31,7 +31,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import DeleteAccount from "@/components/delete-account";
+import { DeleteAccount } from "@/components/delete-account";
 import { api } from "@/utils/api";
 import { cn } from "@/lib/utils";
 import { AUTH_CONFIG } from "@/config/auth";
@@ -65,19 +65,14 @@ function getConnectedProvidersMessage(
 export default function Account() {
   const { user, isLoading: isUserLoading } = useUser();
   const [isUpdating, setIsUpdating] = useState(false);
-  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
-  const [twoFactorData, setTwoFactorData] = useState<{
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [emailChangeData, setEmailChangeData] = useState<{
     availableMethods: TVerificationFactor[];
     newEmail: string;
   } | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showEmailChangeInfoDialog, setShowEmailChangeInfoDialog] =
     useState(false);
   const [pendingEmailChange, setPendingEmailChange] = useState<string | null>(
-    null
-  );
-  const [pendingNameChange, setPendingNameChange] = useState<string | null>(
     null
   );
 
@@ -104,133 +99,40 @@ export default function Account() {
     }
   }, [user]);
 
-  const handleVerify2FA = async (code: string, factorId: string) => {
-    if (!twoFactorData) return;
-
-    try {
-      setIsVerifying(true);
-      setError(null);
-
-      // First verify using the centralized verify endpoint
-      await api.auth.verify({
-        factorId,
-        code,
-        method:
-          twoFactorData.availableMethods.find((m) => m.factorId === factorId)
-            ?.type || twoFactorData.availableMethods[0].type,
-      });
-
-      // After successful verification, change email
-      await api.auth.changeEmail({
-        newEmail: twoFactorData.newEmail,
-      });
-
-      // Success - email verification will be sent
-      toast.success("Verification emails sent", {
-        description:
-          "Please check both your current and new email addresses. You'll need to verify both to complete the change.",
-        duration: 5000,
-      });
-
-      setTwoFactorData(null);
-      setShowTwoFactorDialog(false);
-      form.setValue("email", user?.email || "");
-    } catch (err) {
-      if (err instanceof Error && err.message.includes("Too many requests")) {
-        toast.error("Too many attempts", {
-          description: "Please wait a moment before trying again.",
-          duration: 3000,
-        });
-        return;
-      }
-      console.error("Error verifying 2FA:", err);
-      setError("Failed to verify code. Please try again.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const onSubmit = async (values: ProfileSchema) => {
-    if (!user) return;
-    setIsUpdating(true);
-
-    try {
-      // Store all changes
-      const hasNameChange = values.name !== user.name;
-      const hasEmailChange = values.email !== user.email;
-
-      // Handle email change with dialog
-      if (hasEmailChange) {
-        // Store both changes for later
-        if (hasNameChange) {
-          setPendingNameChange(values.name);
-        }
-
-        setPendingEmailChange(values.email);
-        setShowEmailChangeInfoDialog(true);
-        setIsUpdating(false);
-        return;
-      }
-
-      // If only name change, process immediately
-      if (hasNameChange) {
-        try {
-          await api.user.update({ name: values.name });
-
-          toast.success("Profile updated", {
-            description: "Your profile has been updated successfully.",
-            duration: 3000,
-          });
-        } catch (error) {
-          toast.error("Error", {
-            description:
-              error instanceof Error ? error.message : "An error occurred",
-            duration: 3000,
-          });
-        }
-      }
-    } catch (error) {
-      toast.error("Error", {
-        description:
-          error instanceof Error ? error.message : "An error occurred",
-        duration: 3000,
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleProceedEmailChange = async () => {
+  const handleEmailChange = async ({
+    skipVerificationCheck = false,
+  }: {
+    skipVerificationCheck?: boolean;
+  } = {}) => {
     if (!pendingEmailChange || !user) return;
 
-    setIsUpdating(true);
-    setShowEmailChangeInfoDialog(false);
-
     try {
-      // Process email change
-      const data = await api.auth.changeEmail({ newEmail: pendingEmailChange });
+      setIsUpdating(true);
+      setShowEmailChangeInfoDialog(false);
 
-      // Process name change if pending
-      if (pendingNameChange) {
-        try {
-          await api.user.update({ name: pendingNameChange });
-        } catch (error) {
-          toast.error("Error updating name", {
-            description:
-              error instanceof Error ? error.message : "An error occurred",
-            duration: 3000,
+      if (!skipVerificationCheck) {
+        // Check if verification is needed
+        const data = await api.auth.changeEmail({
+          newEmail: pendingEmailChange,
+          checkVerificationOnly: true,
+        });
+
+        if (
+          data.requiresVerification &&
+          data.availableMethods &&
+          data.availableMethods.length > 0
+        ) {
+          setEmailChangeData({
+            availableMethods: data.availableMethods,
+            newEmail: pendingEmailChange,
           });
+          setNeedsVerification(true);
+          return;
         }
       }
 
-      if (data.requiresVerification && data.availableMethods) {
-        setTwoFactorData({
-          availableMethods: data.availableMethods,
-          newEmail: pendingEmailChange,
-        });
-        setShowTwoFactorDialog(true);
-        return;
-      }
+      // Verification completed/not needed ->
+      await api.auth.changeEmail({ newEmail: pendingEmailChange });
 
       // Success message for email
       toast.success("Verification emails sent", {
@@ -238,14 +140,6 @@ export default function Account() {
           "Please check both your current and new email addresses. You'll need to verify both to complete the change.",
         duration: 5000,
       });
-
-      // Success message for name if it was also updated
-      if (pendingNameChange) {
-        toast.success("Profile updated", {
-          description: "Your name has been updated successfully.",
-          duration: 3000,
-        });
-      }
 
       // Reset form fields
       form.setValue("email", user.email);
@@ -268,14 +162,59 @@ export default function Account() {
     } finally {
       setIsUpdating(false);
       setPendingEmailChange(null);
-      setPendingNameChange(null);
+      setNeedsVerification(false);
+      setEmailChangeData(null);
+    }
+  };
+
+  const onSubmit = async (values: ProfileSchema) => {
+    if (!user) return;
+    setIsUpdating(true);
+
+    try {
+      // Store all changes
+      const hasNameChange = values.name !== user.name;
+      const hasEmailChange = values.email !== user.email;
+
+      // Process name change immediately if it exists
+      if (hasNameChange) {
+        try {
+          await api.user.update({ name: values.name });
+          toast.success("Profile updated", {
+            description: "Your name has been updated successfully.",
+            duration: 3000,
+          });
+        } catch (error) {
+          toast.error("Error updating name", {
+            description:
+              error instanceof Error ? error.message : "An error occurred",
+            duration: 3000,
+          });
+
+          form.setValue("name", user.name || "");
+        }
+      }
+
+      if (hasEmailChange) {
+        setPendingEmailChange(values.email);
+        setShowEmailChangeInfoDialog(true);
+        setIsUpdating(false);
+        return;
+      }
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "An error occurred",
+        duration: 3000,
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const handleCancelEmailChange = () => {
     setShowEmailChangeInfoDialog(false);
     setPendingEmailChange(null);
-    setPendingNameChange(null);
     form.setValue("email", user?.email || "");
   };
 
@@ -430,16 +369,13 @@ export default function Account() {
             <Button variant="outline" onClick={handleCancelEmailChange}>
               Cancel
             </Button>
-            <Button onClick={handleProceedEmailChange}>Proceed</Button>
+            <Button onClick={() => handleEmailChange()}>Proceed</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {showTwoFactorDialog && twoFactorData && (
-        <Dialog
-          open={showTwoFactorDialog}
-          onOpenChange={setShowTwoFactorDialog}
-        >
+      {emailChangeData && emailChangeData.availableMethods && (
+        <Dialog open={needsVerification} onOpenChange={setNeedsVerification}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Verify your identity</DialogTitle>
@@ -449,11 +385,10 @@ export default function Account() {
               </DialogDescription>
             </DialogHeader>
             <VerifyForm
-              availableMethods={twoFactorData.availableMethods}
-              onVerify={handleVerify2FA}
-              isVerifying={isVerifying}
-              error={error}
-              setError={setError}
+              availableMethods={emailChangeData.availableMethods}
+              onVerifyComplete={() =>
+                handleEmailChange({ skipVerificationCheck: true })
+              }
             />
           </DialogContent>
         </Dialog>

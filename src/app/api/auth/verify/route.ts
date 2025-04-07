@@ -1,10 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  TApiErrorResponse,
-  TVerifyRequest,
-  TVerifyResponse,
-} from "@/types/api";
+import { TApiErrorResponse, TVerifyResponse } from "@/types/api";
 import { TTwoFactorMethod, TAAL } from "@/types/auth";
 import { authRateLimit, smsRateLimit, getClientIp } from "@/utils/rate-limit";
 import { verificationSchema } from "@/validation/auth-validation";
@@ -13,10 +9,11 @@ import {
   verifyVerificationCode,
   generateVerificationCodes,
 } from "@/utils/auth/verification-codes";
-import { getDeviceSessionId, getUser } from "@/utils/auth";
+import { getUser, getFactorForMethod } from "@/utils/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { UAParser } from "ua-parser-js";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
@@ -39,20 +36,68 @@ export async function POST(request: NextRequest) {
     const validation = verificationSchema.safeParse(rawBody);
 
     if (!validation.success) {
+      console.error("Validation errors:", validation.error.errors);
       return NextResponse.json(
         { error: validation.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const body: TVerifyRequest = validation.data;
-    const { factorId, code, method } = body;
+    const { code, method } = validation.data;
 
     // Get device session ID early since we'll need it for all methods
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },
+        { status: 400 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    console.log("Device session ID:", deviceSessionId);
+
+    // SECURITY CHECK: Verify if user has 2FA enabled and reject non-2FA methods
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const has2faEnabled = factors?.all?.some(
+      (factor) => factor.status === "verified"
+    );
+
+    // List of 2FA methods
+    const TWO_FACTOR_METHODS: TTwoFactorMethod[] = [
+      "authenticator",
+      "sms",
+      "backup_codes",
+    ];
+
+    if (
+      has2faEnabled &&
+      !TWO_FACTOR_METHODS.includes(method as TTwoFactorMethod)
+    ) {
+      return NextResponse.json(
+        { error: "Two-factor authentication is required for this account" },
+        { status: 403 }
+      ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // Get the correct factor ID for the method
+    const {
+      success,
+      factorId,
+      error: factorError,
+    } = await getFactorForMethod({
+      supabase,
+      method,
+      includeUnverified: true,
+    });
+
+    if (!success || !factorId) {
+      console.error(
+        "No matching factor found for method:",
+        method,
+        factorError
+      );
+      return NextResponse.json(
+        { error: factorError || `No ${method} factor found` },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
@@ -193,6 +238,8 @@ export async function POST(request: NextRequest) {
         const { data: challengeData, error: challengeError } =
           await supabase.auth.mfa.challenge({ factorId });
         if (challengeError) {
+          console.error("Challenge error:", challengeError);
+          console.log("Factor ID:", factorId);
           return NextResponse.json(
             { error: challengeError.message },
             { status: 400 }
@@ -353,7 +400,7 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (fetchError || !verificationCode) {
-          console.error("[Debug] Error or no verification code found:", {
+          console.error("Error or no verification code found:", {
             error: fetchError,
             foundCode: !!verificationCode,
           });
@@ -426,7 +473,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (updateError) {
-        console.error("[Debug] Error updating device session:", updateError);
+        console.error("Error updating device session:", updateError);
         return NextResponse.json(
           { error: "Failed to update session" },
           { status: 500 }

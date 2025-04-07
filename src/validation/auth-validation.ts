@@ -1,7 +1,23 @@
 import { z } from "zod";
 import { AUTH_CONFIG } from "@/config/auth";
 import { isValidVerificationCodeFormat } from "@/utils/auth/verification-codes";
-import { TSendEmailAlertRequest } from "@/types/api";
+import { TTwoFactorMethod, TVerificationMethod } from "@/types/auth";
+
+// Create a Zod enum from the TypeScript TTwoFactorMethod type
+const TwoFactorMethodEnum = z.enum([
+  "authenticator",
+  "sms",
+  "backup_codes",
+] as const satisfies readonly TTwoFactorMethod[]);
+
+// Create a Zod enum from the TVerificationMethod type
+const VerificationMethodEnum = z.enum([
+  "authenticator",
+  "sms",
+  "password",
+  "email",
+  "backup_codes",
+] as const satisfies readonly TVerificationMethod[]);
 
 export const authSchema = z.object({
   email: z
@@ -98,6 +114,7 @@ export type ProfileUpdateSchema = z.infer<typeof profileUpdateSchema>;
 
 export const emailChangeSchema = z.object({
   newEmail: authSchema.shape.email,
+  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type EmailChangeSchema = z.infer<typeof emailChangeSchema>;
@@ -105,10 +122,12 @@ export type EmailChangeSchema = z.infer<typeof emailChangeSchema>;
 export const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: authSchema.shape.password,
+  checkVerificationOnly: z.boolean().optional(),
 });
 
 export const addPasswordSchema = z.object({
   newPassword: authSchema.shape.password,
+  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;
@@ -116,7 +135,7 @@ export type AddPasswordSchema = z.infer<typeof addPasswordSchema>;
 
 export const twoFactorVerificationSchema = z.object({
   factorId: z.string().min(1, "Factor ID is required"),
-  method: z.enum(["authenticator", "sms"] as const),
+  method: TwoFactorMethodEnum,
   code: z
     .string()
     .min(6, "Code must be 6 digits")
@@ -138,12 +157,8 @@ export const validateTwoFactorCode = (code: string) => {
 };
 
 export const disable2FASchema = z.object({
-  method: z.enum(["authenticator", "sms"] as const),
-  code: z
-    .string()
-    .min(6, "Code must be 6 digits")
-    .max(6, "Code must be 6 digits")
-    .regex(/^\d+$/, "Code must contain only numbers"),
+  method: TwoFactorMethodEnum,
+  checkVerificationOnly: z.boolean().optional().default(false),
 });
 
 export type Disable2FASchema = z.infer<typeof disable2FASchema>;
@@ -161,11 +176,13 @@ export const phoneSchema = z
 export const smsEnrollmentSchema = z.object({
   method: z.literal("sms"),
   phone: phoneSchema,
+  checkVerificationOnly: z.boolean().optional(),
 });
 
 // Authenticator enrollment validation
 export const authenticatorEnrollmentSchema = z.object({
   method: z.literal("authenticator"),
+  checkVerificationOnly: z.boolean().optional(),
 });
 
 // Combined 2FA enrollment schema
@@ -210,14 +227,7 @@ export const getPasswordRequirements = (password: string) => {
 // Add new general verification schema
 export const verificationSchema = z
   .object({
-    factorId: z.string().min(1, "Factor ID is required"),
-    method: z.enum([
-      "authenticator",
-      "sms",
-      "password",
-      "email",
-      "backup_codes",
-    ] as const),
+    method: VerificationMethodEnum,
     code: z.string().min(1, "Verification code is required"),
   })
   .refine(
@@ -258,6 +268,8 @@ export const verificationSchema = z
     }
   );
 
+export type VerificationSchema = z.infer<typeof verificationSchema>;
+
 // Email alert validation schema - exactly matching TSendEmailAlertRequest
 export const emailAlertSchema = z.object({
   email: authSchema.shape.email,
@@ -294,11 +306,10 @@ export const validateEmailAlert = (
   };
 };
 
-export type VerificationSchema = z.infer<typeof verificationSchema>;
-
 // Add schema for device session revocation
 export const revokeDeviceSessionSchema = z.object({
   sessionId: z.string().min(1, "Session ID is required"),
+  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type RevokeDeviceSessionSchema = z.infer<
@@ -322,6 +333,7 @@ export const validateDataExportToken = (token: string) => {
 // Social provider validation schemas
 export const socialProviderSchema = z.object({
   provider: z.enum(["google", "github"] as const),
+  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type SocialProviderSchema = z.infer<typeof socialProviderSchema>;
@@ -333,3 +345,16 @@ export const validateSocialProvider = (provider: unknown) => {
     error: !result.success ? result.error.issues[0]?.message : undefined,
   };
 };
+
+// Reset password schema
+export const resetPasswordSchema = z
+  .object({
+    password: authSchema.shape.password,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;

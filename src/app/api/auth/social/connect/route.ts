@@ -10,8 +10,8 @@ import {
   getUser,
   getUserVerificationMethods,
   hasGracePeriodExpired,
-  getDeviceSessionId,
 } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { socialProviderSchema } from "@/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     // 2. Get and validate user
     const supabase = await createClient();
     const supabaseAdmin = await createClient({ useServiceRole: true });
+
     const { user, error } = await getUser({ supabase });
     if (error || !user) {
       return NextResponse.json(
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Get and validate request body
     const rawBody = await request.json();
+
     const validation = socialProviderSchema.safeParse(rawBody);
 
     if (!validation.success) {
@@ -58,10 +60,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TConnectSocialProviderRequest = validation.data;
-    const { provider } = body;
+    const { provider, checkVerificationOnly = false } = body;
 
     // 4. Get device session ID
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },
@@ -69,13 +71,57 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 5. Check if verification is needed
-    const needsVerification =
-      AUTH_CONFIG.requireFreshVerification.connectProvider &&
-      (await hasGracePeriodExpired({
+    // If we're just checking requirements, check and return early
+    if (checkVerificationOnly) {
+      const needsVerification = await hasGracePeriodExpired({
         deviceSessionId,
         supabase,
-      }));
+      });
+
+      if (needsVerification) {
+        // Get available verification methods
+        const { has2FA, factors, methods } = await getUserVerificationMethods({
+          supabase,
+          supabaseAdmin,
+        });
+
+        // If user has 2FA, they must use it
+        if (has2FA) {
+          return NextResponse.json({
+            requiresVerification: true,
+            availableMethods: factors,
+          }) satisfies NextResponse<TConnectSocialProviderResponse>;
+        }
+
+        // Otherwise they can use basic verification methods
+        const availableMethods = methods.map((method) => ({
+          type: method,
+          factorId: method, // For non-2FA methods, use method name as factorId
+        }));
+
+        if (availableMethods.length === 0) {
+          return NextResponse.json(
+            { error: "No verification methods available" },
+            { status: 400 }
+          ) satisfies NextResponse<TApiErrorResponse>;
+        }
+
+        return NextResponse.json({
+          requiresVerification: true,
+          availableMethods,
+        }) satisfies NextResponse<TConnectSocialProviderResponse>;
+      }
+
+      return NextResponse.json({
+        requiresVerification: false,
+      }) satisfies NextResponse<TConnectSocialProviderResponse>;
+    }
+
+    // 5. Check if verification is needed
+    const needsVerification = await hasGracePeriodExpired({
+      deviceSessionId,
+      supabase,
+    });
 
     if (needsVerification) {
       // Get available verification methods
@@ -110,12 +156,6 @@ export async function POST(request: NextRequest) {
         }) satisfies NextResponse<TConnectSocialProviderResponse>;
       }
     }
-
-    // 6. Link identity
-    console.log("[AUTH] Linking social provider", {
-      provider,
-      userId: user.id,
-    });
 
     // Get the referer to return to after OAuth
     const referer = request.headers.get("referer");

@@ -27,7 +27,6 @@ import Link from "next/link";
 
 type AuthFormProps = {
   requires2fa?: boolean;
-  initialFactorId?: string | null;
   nextUrl?: string;
   initialMethods?: Array<{ type: TTwoFactorMethod; factorId: string }>;
   initialEmail?: string | null;
@@ -35,7 +34,6 @@ type AuthFormProps = {
 
 export function AuthForm({
   requires2fa = false,
-  initialFactorId = null,
   nextUrl = "/dashboard",
   initialMethods = [],
   initialEmail = null,
@@ -44,41 +42,36 @@ export function AuthForm({
 
   const initialTwoFactorState = useMemo(() => {
     return {
-      requiresTwoFactor: requires2fa && !!initialFactorId,
-      factorId: initialFactorId || null,
+      requiresTwoFactor: requires2fa,
       redirectUrl: nextUrl,
       availableMethods: initialMethods,
     };
-  }, [requires2fa, initialFactorId, nextUrl, initialMethods]);
+  }, [requires2fa, nextUrl, initialMethods]);
 
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState(initialEmail || "");
   const [formError, setFormError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, setIsPending] = useState(false);
-  const [requiresTwoFactor, setRequiresTwoFactor] = useState(
-    initialTwoFactorState.requiresTwoFactor
-  );
-  const [factorId, setFactorId] = useState<string | null>(
-    initialTwoFactorState.factorId
-  );
-  const [availableMethods, setAvailableMethods] = useState<
-    TVerificationFactor[]
-  >(
-    initialTwoFactorState.availableMethods.map((m) => ({
-      ...m,
-      type: m.type as TTwoFactorMethod,
-    }))
-  );
-  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
-  const [redirectUrl, setRedirectUrl] = useState<string | null>(
-    initialTwoFactorState.redirectUrl
-  );
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [determinedType, setDeterminedType] = useState<
     "login" | "signup" | null
   >(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [loginData, setLoginData] = useState<{
+    availableMethods: TVerificationFactor[];
+    redirectUrl: string;
+  } | null>(
+    initialTwoFactorState.requiresTwoFactor
+      ? {
+          availableMethods: initialTwoFactorState.availableMethods.map((m) => ({
+            ...m,
+            type: m.type as TTwoFactorMethod,
+          })),
+          redirectUrl: initialTwoFactorState.redirectUrl,
+        }
+      : null
+  );
 
   async function handleEmailCheck(email: string) {
     try {
@@ -144,11 +137,11 @@ export function AuthForm({
         if (!result) return;
 
         // Handle 2FA
-        if (result.requiresTwoFactor) {
-          setRequiresTwoFactor(true);
-          setFactorId(result.availableMethods?.[0]?.factorId ?? null);
-          setAvailableMethods(result.availableMethods ?? []);
-          setRedirectUrl(result.redirectTo);
+        if (result.requiresTwoFactor && result.availableMethods) {
+          setLoginData({
+            availableMethods: result.availableMethods,
+            redirectUrl: result.redirectTo,
+          });
           return;
         }
       } else {
@@ -165,29 +158,10 @@ export function AuthForm({
     }
   }
 
-  async function handleVerify(code: string, factorId: string) {
-    if (!redirectUrl) return;
-
-    try {
-      setIsPending(true);
-      setTwoFactorError(null);
-
-      await api.auth.verify({
-        factorId,
-        code,
-        method:
-          availableMethods.find((m) => m.factorId === factorId)?.type ||
-          "authenticator",
-      });
-
-      // Redirect to stored URL after successful 2FA
-      router.push(redirectUrl);
-    } catch (error) {
-      setTwoFactorError(
-        error instanceof Error ? error.message : "An unexpected error occurred"
-      );
-    } finally {
-      setIsPending(false);
+  async function handleVerifyComplete() {
+    // If we have a redirect URL from 2FA, use it
+    if (loginData?.redirectUrl) {
+      router.push(loginData.redirectUrl);
     }
   }
 
@@ -212,7 +186,7 @@ export function AuthForm({
         <CardHeader className="text-center flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <CardTitle className="text-2xl font-bold">
-              {requiresTwoFactor
+              {loginData
                 ? "Two-factor authentication"
                 : showPasswordField
                   ? determinedType === "login"
@@ -221,22 +195,8 @@ export function AuthForm({
                   : "Sign up or log in"}
             </CardTitle>
             <CardDescription className="text-foreground/35">
-              {requiresTwoFactor
-                ? factorId &&
-                  availableMethods.find((m) => m.factorId === factorId)
-                    ?.type === "authenticator"
-                  ? "Enter the code from your authenticator app"
-                  : factorId &&
-                      availableMethods.find((m) => m.factorId === factorId)
-                        ?.type === "backup_codes"
-                    ? "Enter a backup code"
-                    : factorId &&
-                        availableMethods.find((m) => m.factorId === factorId)
-                          ?.type === "sms"
-                      ? "Enter the code sent to your phone"
-                      : availableMethods.length > 1
-                        ? "Choose a verification method"
-                        : "Enter verification code"
+              {loginData
+                ? "Please verify your identity to continue"
                 : showPasswordField
                   ? determinedType === "login"
                     ? "Enter your password to continue"
@@ -244,19 +204,14 @@ export function AuthForm({
                   : "Enter your email to continue"}
             </CardDescription>
           </div>
-          {!requiresTwoFactor && !showPasswordField && <SocialButtons />}
+          {!loginData && !showPasswordField && <SocialButtons />}
         </CardHeader>
         <CardContent>
-          {requiresTwoFactor ? (
-            factorId && (
-              <VerifyForm
-                availableMethods={availableMethods}
-                onVerify={handleVerify}
-                isVerifying={isPending}
-                error={twoFactorError}
-                setError={setTwoFactorError}
-              />
-            )
+          {loginData ? (
+            <VerifyForm
+              availableMethods={loginData.availableMethods}
+              onVerifyComplete={handleVerifyComplete}
+            />
           ) : (
             <form
               onSubmit={async (e) => {
@@ -327,7 +282,7 @@ export function AuthForm({
                 )}
               </div>
 
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
                 <Button
                   type="submit"
                   className="w-full"
@@ -358,24 +313,22 @@ export function AuthForm({
                     "Continue"
                   )}
                 </Button>
-                {determinedType === "login" &&
-                  showPasswordField &&
-                  !requiresTwoFactor && (
-                    <Link href="/auth/login-help">
-                      <Button
-                        variant="outline"
-                        type="button"
-                        className="w-full text-sm"
-                      >
-                        Can't log in?
-                      </Button>
-                    </Link>
-                  )}
+                {determinedType !== "signup" && !loginData && (
+                  <Link href="/auth/login-help">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full text-sm"
+                    >
+                      Can't log in?
+                    </Button>
+                  </Link>
+                )}
               </div>
             </form>
           )}
         </CardContent>
-        {!requiresTwoFactor && showPasswordField && (
+        {!loginData && showPasswordField && (
           <CardFooter className="flex flex-col gap-2 border-t p-5">
             <p className="text-sm text-foreground/35 flex gap-1">
               {determinedType === "login" ? (

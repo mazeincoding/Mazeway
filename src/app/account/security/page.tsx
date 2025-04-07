@@ -10,11 +10,7 @@ import {
   type AddPasswordSchema,
 } from "@/validation/auth-validation";
 import { toast } from "sonner";
-import {
-  TTwoFactorMethod,
-  TVerificationFactor,
-  TSocialProvider,
-} from "@/types/auth";
+import { TVerificationFactor, TSocialProvider } from "@/types/auth";
 import { TwoFactorMethods } from "@/components/2fa-methods";
 import { DeviceSessionsList } from "@/components/device-sessions-list";
 import { useForm } from "react-hook-form";
@@ -45,23 +41,17 @@ import Link from "next/link";
 
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState<{
+    availableMethods: TVerificationFactor[];
+  } | null>(null);
 
   const hasPasswordAuth = user?.has_password ?? false;
   const [showPasswords, setShowPasswords] = useState({
     currentPassword: false,
     newPassword: false,
   });
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [verificationMethods, setVerificationMethods] = useState<
-    TVerificationFactor[]
-  >([]);
-  const [qrCode, setQrCode] = useState<string>("");
-  const [secret, setSecret] = useState<string>("");
-  const [factorId, setFactorId] = useState<string>("");
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
   const form = useForm<PasswordChangeSchema | AddPasswordSchema>({
     resolver: zodResolver(
@@ -79,49 +69,75 @@ export default function Security() {
 
   const handlePasswordVisibilityChange = (field: string, show: boolean) => {
     setShowPasswords({
-      currentPassword: show,
-      newPassword: show,
+      ...showPasswords,
+      [field]: show,
     });
   };
 
-  const updatePassword = async (
-    values: PasswordChangeSchema | AddPasswordSchema,
-    verificationCode?: string
-  ) => {
-    console.log("updatePassword called with:", { values, verificationCode });
-    setError(null);
-    setIsChangingPassword(true);
-
+  const updatePassword = async () => {
     try {
-      // If we're in verification mode, verify first
-      if (verificationCode && verificationMethods) {
-        console.log("Verifying 2FA code...");
-        setIsVerifying(true);
-        await api.auth.verify({
-          factorId: verificationMethods[0].factorId,
-          code: verificationCode,
-          method: verificationMethods[0].type,
-        });
+      setIsChangingPassword(true);
+
+      // Get form values
+      const values = form.getValues();
+
+      // Prepare the password change request
+      const params: TChangePasswordRequest = {
+        currentPassword: hasPasswordAuth
+          ? (values as PasswordChangeSchema).currentPassword
+          : undefined,
+        newPassword: values.newPassword,
+        checkVerificationOnly: true,
+      };
+
+      const data = await api.auth.changePassword(params);
+
+      // Check if verification is required
+      if (
+        data.requiresTwoFactor &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setTwoFactorData({ availableMethods: data.availableMethods });
+        setNeedsVerification(true);
+        return;
       }
 
-      // After verification (or if no verification needed), change password
+      // Verification not needed, proceed with the actual password change
+      handleFinalPasswordChange();
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error("Error", {
+          description: error.message || "Failed to update password",
+          duration: 3000,
+        });
+      } else {
+        toast.error("Error", {
+          description: "Failed to update password",
+          duration: 3000,
+        });
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleFinalPasswordChange = async () => {
+    try {
+      setIsChangingPassword(true);
+
+      // Get form values
+      const values = form.getValues();
+
+      // Prepare the password change request without checkVerificationOnly
       const params: TChangePasswordRequest = {
         currentPassword: hasPasswordAuth
           ? (values as PasswordChangeSchema).currentPassword
           : undefined,
         newPassword: values.newPassword,
       };
-      console.log("Sending password change request with params:", params);
 
       const data = await api.auth.changePassword(params);
-      console.log("Password change response:", data);
-
-      // Check if verification is required
-      if (data.requiresVerification && data.availableMethods) {
-        setVerificationMethods(data.availableMethods);
-        setShowTwoFactorDialog(true);
-        return;
-      }
 
       // Check if re-login is required (for OAuth users adding password)
       if (data.requiresRelogin) {
@@ -134,7 +150,8 @@ export default function Security() {
         });
 
         // Reset form and dialog state
-        setShowTwoFactorDialog(false);
+        setNeedsVerification(false);
+        setTwoFactorData(null);
         form.reset();
 
         // Redirect to login with the email pre-filled
@@ -150,10 +167,10 @@ export default function Security() {
         duration: 3000,
       });
 
-      // Reset form and dialog state
-      setShowTwoFactorDialog(false);
+      // Reset verification state and form
+      setNeedsVerification(false);
+      setTwoFactorData(null);
       form.reset();
-
       await refreshUser();
     } catch (error) {
       if (error instanceof Error) {
@@ -176,150 +193,25 @@ export default function Security() {
           return;
         }
 
-        setError(error.message);
         toast.error("Error", {
           description: error.message || "Failed to update password",
           duration: 3000,
         });
       } else {
-        setError("An unexpected error occurred");
         toast.error("Error", {
           description: "Failed to update password",
           duration: 3000,
         });
       }
     } finally {
-      setIsVerifying(false);
       setIsChangingPassword(false);
+      setNeedsVerification(false);
     }
   };
 
   // Form submission handler
-  const onSubmit = async (values: PasswordChangeSchema | AddPasswordSchema) => {
-    console.log("Form submitted with values:", values);
-    try {
-      await updatePassword(values);
-    } catch (error) {
-      console.error("Error in form submission:", error);
-    }
-  };
-
-  // 2FA verification handler
-  const handleVerifyPasswordChange = (code: string) =>
-    updatePassword({} as PasswordChangeSchema, code);
-
-  const handleEnable2FA = async (method: TTwoFactorMethod, phone?: string) => {
-    try {
-      const result = await api.auth.setup2FA({ method, phone });
-
-      // Store data based on method
-      if (method === "authenticator") {
-        setQrCode(result.qr_code || "");
-        setSecret(result.secret || "");
-      } else {
-        // Clear authenticator-specific states if enrolling SMS
-        setQrCode("");
-        setSecret("");
-      }
-      // Store factor ID for both methods
-      setFactorId(result.factor_id || "");
-
-      setError(null);
-    } catch (err) {
-      // Clean up all states on error
-      setQrCode("");
-      setSecret("");
-      setFactorId("");
-      setBackupCodes([]);
-      setError("An unexpected error occurred");
-      console.error("Unexpected error in 2FA setup:", err);
-      toast.error("Error", {
-        description: "An unexpected error occurred",
-        duration: 3000,
-      });
-    }
-  };
-
-  const handleDisable2FA = async (method: TTwoFactorMethod, code: string) => {
-    try {
-      await api.auth.disable2FA({ method, code });
-
-      // Success
-      toast.success("2FA disabled", {
-        description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been disabled.`,
-        duration: 3000,
-      });
-
-      await refreshUser();
-    } catch (err) {
-      // Throw the error to be handled by the component
-      throw err;
-    }
-  };
-
-  const handleVerifyEnrollment = async (
-    method: TTwoFactorMethod,
-    code: string,
-    phone?: string
-  ) => {
-    try {
-      setIsVerifying(true);
-      setError(null);
-      console.log("Starting verification with:", { method, factorId });
-
-      // First try-catch block just for the verification API call
-      const response = await api.auth.verify({ factorId, method, code, phone });
-      console.log("Verification response:", response);
-
-      // If we got backup codes from verification, set them
-      if (response.backup_codes) {
-        console.log("Setting backup codes:", response.backup_codes);
-        setBackupCodes(response.backup_codes);
-      }
-
-      // Separate try-catch for post-verification operations
-      try {
-        if (response.backup_codes) {
-          // Only show success message after user has seen backup codes
-          // The TwoFactorMethods component should handle showing these and clearing state
-          setError(null);
-          await refreshUser();
-        } else {
-          console.log("No backup codes in response");
-          // If no backup codes (not first 2FA method), clear state immediately
-          toast.success("2FA enabled", {
-            description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been enabled successfully.`,
-            duration: 3000,
-          });
-
-          // Clear state
-          setQrCode("");
-          setSecret("");
-          setFactorId("");
-          setError(null);
-          await refreshUser();
-        }
-      } catch (postVerifyError) {
-        // If there's an error after verification (like during refreshUser),
-        // we don't want to clear backup codes if we received them
-        setError(
-          "2FA was enabled but there was an error refreshing the page. Please reload."
-        );
-      }
-    } catch (err) {
-      console.error("Unexpected error in 2FA verification:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to verify code. Please try again."
-      );
-      // Only clear backup codes if we haven't received them yet
-      if (!backupCodes.length) {
-        setBackupCodes([]);
-      }
-    } finally {
-      setIsVerifying(false);
-    }
+  const onSubmit = async () => {
+    await updatePassword();
   };
 
   return (
@@ -339,9 +231,7 @@ export default function Security() {
           <Form {...form}>
             <form
               id="password-form"
-              onSubmit={form.handleSubmit(onSubmit, (errors) => {
-                console.log("Form validation errors:", errors);
-              })}
+              onSubmit={form.handleSubmit(onSubmit)}
               className="flex flex-col gap-2"
               noValidate
             >
@@ -414,8 +304,7 @@ export default function Security() {
             {hasPasswordAuth ? "Change password" : "Add password"}
           </Button>
           <Button
-            type="submit"
-            form="password-form"
+            type="button"
             disabled={isLoading || isChangingPassword}
             variant="outline"
           >
@@ -433,16 +322,7 @@ export default function Security() {
         </SettingCard.Header>
         <SettingCard.Content>
           <TwoFactorMethods
-            enabledMethods={user?.auth?.enabled2faMethods ?? []}
-            onMethodSetup={handleEnable2FA}
-            onMethodDisable={handleDisable2FA}
-            onVerify={handleVerifyEnrollment}
-            qrCode={qrCode}
-            secret={secret}
-            backupCodes={backupCodes}
-            isVerifying={isVerifying}
-            verificationError={error}
-            setVerificationError={setError}
+            userEnabledMethods={user?.auth?.enabled2faMethods ?? []}
           />
         </SettingCard.Content>
       </SettingCard>
@@ -491,11 +371,8 @@ export default function Security() {
       </SettingCard>
 
       {/* 2FA Dialog for Password Change */}
-      {verificationMethods.length > 0 && (
-        <Dialog
-          open={showTwoFactorDialog}
-          onOpenChange={setShowTwoFactorDialog}
-        >
+      {twoFactorData && twoFactorData.availableMethods && (
+        <Dialog open={needsVerification} onOpenChange={setNeedsVerification}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Verify your identity</DialogTitle>
@@ -505,11 +382,8 @@ export default function Security() {
               </DialogDescription>
             </DialogHeader>
             <VerifyForm
-              availableMethods={verificationMethods}
-              onVerify={handleVerifyPasswordChange}
-              isVerifying={isVerifying}
-              error={error}
-              setError={setError}
+              availableMethods={twoFactorData.availableMethods}
+              onVerifyComplete={handleFinalPasswordChange}
             />
           </DialogContent>
         </Dialog>

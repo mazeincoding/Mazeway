@@ -30,41 +30,27 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { authSchema } from "@/validation/auth-validation";
+import {
+  resetPasswordSchema,
+  ResetPasswordSchema,
+} from "@/validation/auth-validation";
 import { toast } from "sonner";
-
-// Schema for reset password form
-const resetPasswordSchema = z
-  .object({
-    password: authSchema.shape.password,
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ["confirmPassword"],
-  });
-
-type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>;
+import { api } from "@/utils/api";
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [requires2FA, setRequires2FA] = useState(
     searchParams.get("requires_2fa") === "true"
   );
   const [showPassword, setShowPassword] = useState(false);
-  const [factorId, setFactorId] = useState<string | null>(
-    searchParams.get("factor_id")
-  );
-  const [availableMethods, setAvailableMethods] = useState<
-    TVerificationFactor[]
-  >(() => {
+  const [twoFactorData, setTwoFactorData] = useState<{
+    availableMethods: TVerificationFactor[];
+  } | null>(() => {
     const methods = searchParams.get("available_methods");
-    return methods ? JSON.parse(methods) : [];
+    return methods ? { availableMethods: JSON.parse(methods) } : null;
   });
-  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
   const [loginRequired, setLoginRequired] = useState(false);
   const [redirectTo, setRedirectTo] = useState("/dashboard");
 
@@ -74,78 +60,61 @@ function ResetPasswordContent() {
       password: "",
       confirmPassword: "",
     },
+    mode: "onChange",
   });
 
-  const handleVerify = async (code: string) => {
-    if (!factorId) return;
-
+  const handleResetPassword = async () => {
     try {
-      setLoading(true);
-      setTwoFactorError(null);
+      setIsLoading(true);
+      console.log("Resetting password");
 
-      const response = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          factorId,
-          code,
-          method:
-            availableMethods.find((m) => m.factorId === factorId)?.type ||
-            "authenticator",
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setTwoFactorError(data.error);
+      const isValid = await form.trigger();
+      if (!isValid) {
+        console.log("Invalid form");
+        setIsLoading(false);
         return;
       }
 
-      // After successful 2FA, show password form
-      setRequires2FA(false);
-    } catch (error) {
-      setTwoFactorError("An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
+      const values = form.getValues();
+      console.log("Values", values);
 
-  const onSubmit = async (values: ResetPasswordSchema) => {
-    setLoading(true);
-
-    try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: values.password }),
+      const data = await api.auth.resetPassword({
+        password: values.password,
       });
 
-      const data = await response.json();
+      console.log("Data", data);
 
-      if (!response.ok) {
-        if (data.requiresTwoFactor) {
-          setRequires2FA(true);
-          setFactorId(data.factorId);
-          setAvailableMethods(data.availableMethods || []);
-          return;
-        }
-
-        throw new Error(data.error || "Failed to reset password");
+      if (data.requiresTwoFactor && data.availableMethods) {
+        console.log("Requires 2FA", data);
+        setTwoFactorData({ availableMethods: data.availableMethods });
+        setRequires2FA(true);
+        return;
       }
 
+      console.log("Success", data);
       setIsSuccess(true);
-      setLoginRequired(data.loginRequired);
-      setRedirectTo(data.redirectTo);
+      setLoginRequired(data.loginRequired || false);
+      setRedirectTo(data.redirectTo || "/dashboard");
+      setRequires2FA(false);
+      setTwoFactorData(null);
     } catch (error) {
+      console.log("Error", error);
       toast.error("Error", {
         description:
           error instanceof Error ? error.message : "Something went wrong",
       });
     } finally {
-      setLoading(false);
+      console.log("Finally");
+      setIsLoading(false);
     }
+  };
+
+  const handleVerificationComplete = () => {
+    setRequires2FA(false);
+    form.reset({
+      password: "",
+      confirmPassword: "",
+    });
   };
 
   return (
@@ -178,30 +147,22 @@ function ResetPasswordContent() {
                 </Link>
               </CardContent>
             </>
-          ) : requires2FA ? (
+          ) : requires2FA && twoFactorData ? (
             <>
               <CardHeader>
                 <CardTitle className="text-2xl font-bold">
                   Two-factor authentication
                 </CardTitle>
                 <CardDescription>
-                  {availableMethods.length > 1
-                    ? "Choose a verification method"
-                    : availableMethods[0]?.type === "authenticator"
-                      ? "Enter the code from your authenticator app"
-                      : "Enter the code sent to your phone"}
+                  For your security, please verify your identity before
+                  resetting your password
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {factorId && (
-                  <VerifyForm
-                    availableMethods={availableMethods}
-                    onVerify={handleVerify}
-                    isVerifying={loading}
-                    error={twoFactorError}
-                    setError={setTwoFactorError}
-                  />
-                )}
+                <VerifyForm
+                  availableMethods={twoFactorData.availableMethods}
+                  onVerifyComplete={handleVerificationComplete}
+                />
               </CardContent>
             </>
           ) : (
@@ -217,7 +178,7 @@ function ResetPasswordContent() {
               <CardContent>
                 <Form {...form}>
                   <form
-                    onSubmit={form.handleSubmit(onSubmit)}
+                    onSubmit={form.handleSubmit(handleResetPassword)}
                     className="space-y-4"
                     noValidate
                   >
@@ -231,7 +192,7 @@ function ResetPasswordContent() {
                               type="password"
                               placeholder="New password"
                               {...field}
-                              disabled={loading}
+                              disabled={isLoading}
                               showPassword={showPassword}
                               onShowPasswordChange={setShowPassword}
                             />
@@ -250,7 +211,7 @@ function ResetPasswordContent() {
                               type="password"
                               placeholder="Confirm password"
                               {...field}
-                              disabled={loading}
+                              disabled={isLoading}
                               showPassword={showPassword}
                               onShowPasswordChange={setShowPassword}
                             />
@@ -259,8 +220,16 @@ function ResetPasswordContent() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Resetting password..." : "Reset password"}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={
+                        isLoading ||
+                        !form.formState.isValid ||
+                        Object.keys(form.formState.errors).length > 0
+                      }
+                    >
+                      {isLoading ? "Resetting password..." : "Reset password"}
                     </Button>
                   </form>
                 </Form>

@@ -11,7 +11,7 @@ import {
   getUserVerificationMethods,
   getUser,
 } from "@/utils/auth";
-import { TDeviceInfo, TDeviceSessionProvider } from "@/types/auth";
+import { TDeviceInfo } from "@/types/auth";
 import { createDeviceSession } from "@/utils/auth/device-sessions/server";
 import { AUTH_CONFIG } from "@/config/auth";
 import { AuthApiError } from "@supabase/supabase-js";
@@ -346,7 +346,6 @@ export async function GET(request: Request) {
       const verifyUrl = new URL(`${origin}/auth/login`);
       verifyUrl.searchParams.set("requires_2fa", "true");
       if (factors.length > 0) {
-        verifyUrl.searchParams.set("factor_id", factors[0].factorId);
         verifyUrl.searchParams.set(
           "available_methods",
           JSON.stringify(factors)

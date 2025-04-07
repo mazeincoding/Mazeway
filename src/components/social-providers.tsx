@@ -61,93 +61,125 @@ function SocialProvider({
   isLoading: parentLoading,
 }: SocialProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [showTwoFactorDialog, setShowTwoFactorDialog] = useState(false);
-  const [twoFactorData, setTwoFactorData] = useState<{
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationData, setVerificationData] = useState<{
     availableMethods: TVerificationFactor[];
   } | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState<string | null>(null);
   const { refresh } = useUser();
 
   useEffect(() => {
     setIsLoading(parentLoading ?? false);
   }, [parentLoading]);
 
-  const handleVerify = async (code: string, factorId: string) => {
-    try {
-      setIsVerifying(true);
-      setVerifyError(null);
-
-      if (isConnected) {
-        await api.auth.verify({
-          factorId,
-          code,
-          method: twoFactorData!.availableMethods[0].type,
-        });
-        await api.auth.disconnectSocialProvider(provider);
-        toast.success(`${provider} account disconnected`);
-      } else {
-        await api.auth.verify({
-          factorId,
-          code,
-          method: twoFactorData!.availableMethods[0].type,
-        });
-        const result = await api.auth.connectSocialProvider(provider);
-        if ("url" in result) {
-          window.location.href = result.url;
-        }
-      }
-
-      setShowTwoFactorDialog(false);
-      setTwoFactorData(null);
-      await refresh();
-    } catch (error) {
-      console.error("Error in verification:", error);
-      setVerifyError(
-        error instanceof Error ? error.message : "Verification failed"
-      );
-      throw error;
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const handleClick = async () => {
+  const handleSocialProviderAction = async ({
+    skipVerificationCheck = false,
+  }: {
+    skipVerificationCheck?: boolean;
+  } = {}) => {
     try {
       setIsLoading(true);
 
       if (isConnected) {
-        const result = await api.auth.disconnectSocialProvider(provider);
-        if ("requiresVerification" in result) {
-          setTwoFactorData({
-            availableMethods: result.availableMethods!,
-          });
-          setShowTwoFactorDialog(true);
-          return;
-        }
-        toast.success(`${provider} account disconnected`);
-        await refresh();
+        await handleDisconnect({ skipVerificationCheck });
       } else {
-        const result = await api.auth.connectSocialProvider(provider);
-        if ("requiresVerification" in result) {
-          setTwoFactorData({
-            availableMethods: result.availableMethods!,
-          });
-          setShowTwoFactorDialog(true);
-          return;
-        }
-        if ("url" in result) {
-          window.location.href = result.url;
-        }
+        await handleConnect({ skipVerificationCheck });
       }
     } catch (error) {
       toast.error("Error", {
         description:
           error instanceof Error ? error.message : "An error occurred",
+        duration: 3000,
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleConnect = async ({
+    skipVerificationCheck = false,
+  }: {
+    skipVerificationCheck?: boolean;
+  } = {}) => {
+    if (!skipVerificationCheck) {
+      const data = await api.auth.connectSocialProvider({
+        provider,
+        checkVerificationOnly: true,
+      });
+
+      console.log("Connect social provider", { data });
+
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({
+          availableMethods: data.availableMethods,
+        });
+        setNeedsVerification(true);
+        return;
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    }
+
+    const data = await api.auth.connectSocialProvider({
+      provider,
+    });
+    if (data.url) {
+      window.location.href = data.url;
+    }
+  };
+
+  const handleDisconnect = async ({
+    skipVerificationCheck = false,
+  }: {
+    skipVerificationCheck?: boolean;
+  } = {}) => {
+    if (!skipVerificationCheck) {
+      console.log("Checking verification only");
+      const data = await api.auth.disconnectSocialProvider({
+        provider,
+        checkVerificationOnly: true,
+      });
+
+      console.log("Verification check complete", { data });
+
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({
+          availableMethods: data.availableMethods,
+        });
+        setNeedsVerification(true);
+        return;
+      }
+    }
+
+    console.log("Disconnecting social provider");
+
+    const result = await api.auth.disconnectSocialProvider({
+      provider,
+    });
+
+    const providerTitle = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+    console.log("Disconnection complete", { result });
+
+    toast.success(`${providerTitle} account disconnected`);
+
+    await refresh();
+  };
+
+  const handleVerifyComplete = () => {
+    handleSocialProviderAction({ skipVerificationCheck: true });
+    setVerificationData(null);
+    setNeedsVerification(false);
   };
 
   const Icon = provider === "google" ? FaGoogle : FaGithub;
@@ -171,17 +203,14 @@ function SocialProvider({
           variant={isConnected ? "destructive" : "outline"}
           size="sm"
           disabled={isLoading}
-          onClick={handleClick}
+          onClick={() => handleSocialProviderAction()}
         >
           {isLoading ? "Loading..." : isConnected ? "Disconnect" : "Connect"}
         </Button>
       </div>
 
-      {showTwoFactorDialog && twoFactorData && (
-        <Dialog
-          open={showTwoFactorDialog}
-          onOpenChange={setShowTwoFactorDialog}
-        >
+      {needsVerification && verificationData && (
+        <Dialog open={needsVerification} onOpenChange={setNeedsVerification}>
           <DialogContent className="space-y-4">
             <DialogHeader>
               <DialogTitle>Verify your identity</DialogTitle>
@@ -191,11 +220,8 @@ function SocialProvider({
               </DialogDescription>
             </DialogHeader>
             <VerifyForm
-              availableMethods={twoFactorData.availableMethods}
-              onVerify={handleVerify}
-              isVerifying={isVerifying}
-              error={verifyError}
-              setError={setVerifyError}
+              availableMethods={verificationData.availableMethods}
+              onVerifyComplete={handleVerifyComplete}
             />
           </DialogContent>
         </Dialog>

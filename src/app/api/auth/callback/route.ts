@@ -280,7 +280,6 @@ export async function GET(request: Request) {
       if (has2FA) {
         // Add 2FA requirements to URL
         resetUrl.searchParams.set("requires_2fa", "true");
-        resetUrl.searchParams.set("factor_id", factors[0].factorId);
         resetUrl.searchParams.set("available_methods", JSON.stringify(factors));
         console.log(
           "[AUTH] /api/auth/callback - Adding 2FA params to reset URL"

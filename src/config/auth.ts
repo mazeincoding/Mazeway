@@ -71,17 +71,6 @@ export const AUTH_CONFIG = {
   // This is PER DEVICE SESSION to prevent attacks even if one device is compromised
   sensitiveActionGracePeriod: 5, // In minutes
 
-  // Which operations need fresh verification
-  // The verification method depends on account's security level:
-  // - If account has 2FA: must use 2FA (or backup codes)
-  // - If no 2FA: can use basic verification (email/password)
-  requireFreshVerification: {
-    revokeDevices: false,
-    deleteAccount: true,
-    connectProvider: true,
-    disconnectProvider: true,
-  },
-
   // Device verification (for unknown device login)
   deviceVerification: {
     codeExpirationTime: 10, // minutes
@@ -95,12 +84,12 @@ export const AUTH_CONFIG = {
       alertMode: "unknown_only" as "all" | "unknown_only", // "all" = send for every login, "unknown_only" = only for new/unknown devices
       confidenceThreshold: 70, // Only send alerts for devices with confidence score below this threshold when in "unknown_only" mode
     },
-    password: {
+    passwordChange: {
       enabled: true, // Send alerts for password changes/resets
       alertOnChange: true, // Alert when password is changed by logged-in user
       alertOnReset: true, // Alert when password is reset via forgot-password flow
     },
-    email: {
+    emailChange: {
       // Disabled because Supabase already sends verification emails to both addresses during email changes by default
       // Which makes the email alert redundant since the user is getting a confirmation email on the original email
       // It can be changed here though: https://supabase.com/dashboard/project/_/auth/providers?provider=Email

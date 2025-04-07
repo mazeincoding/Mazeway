@@ -19,11 +19,12 @@ import type {
   TGithubSignInResponse,
   TChangeEmailRequest,
   TForgotPasswordRequest,
-  TPasswordChangeResponse,
+  TChangePasswordResponse,
   TResetPasswordResponse,
   TEmptySuccessResponse,
   TChangeEmailResponse,
   TDeleteAccountResponse,
+  TDeleteAccountRequest,
   TGetDeviceSessionsResponse,
   TGetTrustedDeviceSessionsResponse,
   TRevokeDeviceSessionResponse,
@@ -36,15 +37,14 @@ import type {
   TCreateDataExportResponse,
   TGetDataExportStatusResponse,
   TGetDataExportsResponse,
-  TGetUserIdentitiesResponse,
   TConnectSocialProviderResponse,
   TDisconnectSocialProviderResponse,
+  TDisable2FAResponse,
+  TDisconnectSocialProviderRequest,
+  TConnectSocialProviderRequest,
 } from "@/types/api";
-import { TSocialProvider } from "@/types/auth";
 import type { ProfileSchema } from "@/validation/auth-validation";
 import { mutate } from "swr";
-import { createClient } from "@/utils/supabase/client";
-import type { UserIdentity } from "@supabase/supabase-js";
 
 async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
@@ -84,7 +84,7 @@ export const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
       });
-      return handleResponse<TEmptySuccessResponse>(response);
+      return handleResponse<TDisable2FAResponse>(response);
     },
 
     login: async (params: TEmailLoginRequest) => {
@@ -94,7 +94,11 @@ export const api = {
         body: JSON.stringify(params),
       });
 
-      if (response.status === 303) {
+      if (
+        response.redirected ||
+        response.status === 302 ||
+        response.status === 303
+      ) {
         window.location.href = response.url;
         return null;
       }
@@ -156,7 +160,7 @@ export const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
       });
-      return handleResponse<TPasswordChangeResponse>(response);
+      return handleResponse<TChangePasswordResponse>(response);
     },
 
     resetPassword: async (params: TResetPasswordRequest) => {
@@ -219,11 +223,11 @@ export const api = {
       return handleResponse<TEmptySuccessResponse>(response);
     },
 
-    deleteAccount: async () => {
+    deleteAccount: async (params?: TDeleteAccountRequest) => {
       const response = await fetch("/api/auth/user/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(params || {}),
       });
       return handleResponse<TDeleteAccountResponse>(response);
     },
@@ -260,9 +264,8 @@ export const api = {
             body: JSON.stringify(params),
           }
         );
-        const data = await handleResponse<
-          TEmptySuccessResponse | TRevokeDeviceSessionResponse
-        >(response);
+        const data =
+          await handleResponse<TRevokeDeviceSessionResponse>(response);
         return data;
       },
     },
@@ -295,27 +298,22 @@ export const api = {
       },
     },
 
-    getUserIdentities: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.getUserIdentities();
-      if (error) throw error;
-      return data as TGetUserIdentitiesResponse;
-    },
-
-    connectSocialProvider: async (provider: TSocialProvider) => {
+    connectSocialProvider: async (params: TConnectSocialProviderRequest) => {
       const response = await fetch("/api/auth/social/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider }),
+        body: JSON.stringify(params),
       });
       return handleResponse<TConnectSocialProviderResponse>(response);
     },
 
-    disconnectSocialProvider: async (provider: TSocialProvider) => {
+    disconnectSocialProvider: async (
+      params: TDisconnectSocialProviderRequest
+    ) => {
       const response = await fetch("/api/auth/social/disconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider }),
+        body: JSON.stringify(params),
       });
       return handleResponse<TDisconnectSocialProviderResponse>(response);
     },

@@ -7,7 +7,8 @@ import {
   TUpdateUserRequest,
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
-import { getDeviceSessionId, getUser } from "@/utils/auth";
+import { getUser } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 import { logAccountEvent } from "@/utils/account-events/server";
 
 export async function POST(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get device session ID from cookie
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     if (!deviceSessionId) {
       return NextResponse.json(
         { error: "No device session found" },

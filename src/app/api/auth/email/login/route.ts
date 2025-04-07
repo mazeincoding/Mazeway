@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       const { success } = await authRateLimit.limit(ip);
 
       if (!success) {
+        console.warn("[AUTH] Rate limit exceeded for IP:", ip);
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
           { status: 429 }
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     const validation = authSchema.safeParse(rawBody);
 
     if (!validation.success) {
+      console.warn("[AUTH] Login validation failed:", validation.error.issues);
       return NextResponse.json(
         { error: validation.error.issues[0]?.message || "Invalid input" },
         { status: 400 }
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
+      console.warn("[AUTH] Login failed:", authError);
       // Generic error message for any auth failure
       return NextResponse.json(
         { error: "Invalid email or password" },
@@ -66,6 +69,9 @@ export async function POST(request: NextRequest) {
         // Get first available 2FA method and its factor
         const factor = factors.find((f) => methods.includes(f.type));
         if (!factor) {
+          console.error(
+            "[AUTH] No valid 2FA methods found for user with 2FA enabled"
+          );
           throw new Error("No valid 2FA methods found");
         }
 
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
         }) satisfies NextResponse<TEmailLoginResponse>;
       }
     } catch (error) {
-      console.error("Error checking 2FA status:", error);
+      console.error("[AUTH] Error checking 2FA status:", error);
       return NextResponse.json(
         { error: "Failed to check 2FA status" },
         { status: 500 }
@@ -84,9 +90,11 @@ export async function POST(request: NextRequest) {
     }
 
     // If no 2FA required or not configured, proceed with login
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(redirectUrl, {
+      status: 302, // Using 302 to ensure it's treated as a GET request
+    });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("[AUTH] Unexpected login error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

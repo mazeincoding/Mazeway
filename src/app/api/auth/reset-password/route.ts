@@ -20,12 +20,10 @@ import {
   getUserVerificationMethods,
   getAuthenticatorAssuranceLevel,
   getUser,
-  getDeviceSessionId,
 } from "@/utils/auth";
-import { createDeviceSession } from "@/utils/auth/device-sessions/server";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { UAParser } from "ua-parser-js";
-import { TDeviceInfo } from "@/types/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 
 export async function POST(request: NextRequest) {
   const { origin } = new URL(request.url);
@@ -79,7 +77,14 @@ export async function POST(request: NextRequest) {
 
     // Get and validate request body
     const rawBody = await request.json();
+
+    console.log("Raw body", rawBody);
+
+    // Validate using just the password field, not the full reset password schema
+    // because the API only receives password (not confirmPassword)
     const validation = authSchema.shape.password.safeParse(rawBody.password);
+
+    console.log("Validation", validation);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -88,11 +93,13 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const body: TResetPasswordRequest = { password: validation.data };
+    const body: TResetPasswordRequest = {
+      password: validation.data,
+    };
 
     // Check if 2FA is required - only if we're not requiring relogin
     if (!AUTH_CONFIG.passwordReset.requireReloginAfterReset) {
-      const currentSessionId = getDeviceSessionId(request);
+      const currentSessionId = getCurrentDeviceSessionId(request);
       if (!currentSessionId) {
         throw new Error("No device session found");
       }
@@ -149,8 +156,8 @@ export async function POST(request: NextRequest) {
 
     // Send alert for password reset if enabled
     if (
-      AUTH_CONFIG.emailAlerts.password.enabled &&
-      AUTH_CONFIG.emailAlerts.password.alertOnReset
+      AUTH_CONFIG.emailAlerts.passwordChange.enabled &&
+      AUTH_CONFIG.emailAlerts.passwordChange.alertOnReset
     ) {
       // Get user email since we only have ID
       const { data: userData } = await supabase
@@ -158,6 +165,8 @@ export async function POST(request: NextRequest) {
         .select("email")
         .eq("id", userId)
         .single();
+
+      const parser = new UAParser(request.headers.get("user-agent") || "");
 
       if (userData?.email) {
         await sendEmailAlert({
@@ -167,6 +176,13 @@ export async function POST(request: NextRequest) {
           title: "Your password has been reset",
           message:
             "Your account password has been reset through the forgot password flow. If this wasn't you, please secure your account immediately.",
+          device: {
+            user_id: userId,
+            device_name: parser.getDevice().model || "Unknown Device",
+            browser: parser.getBrowser().name || null,
+            os: parser.getOS().name || null,
+            ip_address: getClientIp(request),
+          },
         });
       }
     }

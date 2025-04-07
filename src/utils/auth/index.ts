@@ -434,36 +434,60 @@ export async function verifyTwoFactorCode({
 }
 
 /**
- * Gets the factor ID for a specific 2FA method with error handling
- * @param method The 2FA method to get the factor ID for
+ * Gets the factor ID for a specific verification method with error handling
+ * @param method The verification method to get the factor ID for
+ * @param includeUnverified Whether to include unverified factors
  * @returns Object containing success status and factor ID or error message
  */
 export async function getFactorForMethod({
   supabase,
   method,
+  includeUnverified = false,
 }: {
   supabase: SupabaseClient;
-  method: TTwoFactorMethod;
+  method: TVerificationMethod;
+  includeUnverified?: boolean;
 }): Promise<{ success: boolean; factorId?: string; error?: string }> {
   try {
-    const { data: factors } = await supabase.auth.mfa.listFactors();
-    const factor = factors?.all?.find(
-      (f) =>
-        f.status === "verified" &&
-        (f.factor_type === "totp"
-          ? method === "authenticator"
-          : method === "sms")
-    );
+    // Handle Supabase native 2FA methods
+    if (method === "authenticator" || method === "sms") {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const factor = factors?.all?.find(
+        (f) =>
+          (includeUnverified || f.status === "verified") &&
+          (f.factor_type === "totp"
+            ? method === "authenticator"
+            : method === "sms")
+      );
 
-    if (!factor?.id) {
-      return { success: false, error: "2FA method not found" };
+      if (!factor?.id) {
+        return {
+          success: false,
+          error: `${method} method not found${includeUnverified ? "" : " or not verified"}`,
+        };
+      }
+
+      return { success: true, factorId: factor.id };
     }
 
-    return { success: true, factorId: factor.id };
+    // If the method wasn't authenticator or SMS, this code gets reached
+    // Which means the method was a custom one like backup codes, password, etc
+    // The factor ID will just be the method's name
+    const methodConfig =
+      method === "backup_codes"
+        ? AUTH_CONFIG.verificationMethods.twoFactor.backupCodes
+        : AUTH_CONFIG.verificationMethods[method];
+
+    if (!methodConfig?.enabled) {
+      return { success: false, error: `${method} verification is not enabled` };
+    }
+
+    return { success: true, factorId: method };
   } catch (err) {
+    console.error("Error in getFactorForMethod:", err);
     return {
       success: false,
-      error: "Failed to get 2FA method",
+      error: "Failed to get verification method",
     };
   }
 }
@@ -495,10 +519,12 @@ export function getDefaultVerificationMethod(
     "email", // Least secure basic
   ];
 
-  // Find the most secure method that is enabled
-  return (
-    securityPreference.find((method) => enabledMethods.includes(method)) ?? null
-  );
+  // Find the first enabled method that appears in our security preference order
+  const selectedMethod =
+    enabledMethods.find((method) => securityPreference.includes(method)) ??
+    null;
+
+  return selectedMethod;
 }
 
 /**
@@ -678,32 +704,41 @@ export async function getUser({
 }
 
 /**
- * Gets the current device session ID from cookies
- * Works in both client and server contexts
- * @param request Optional Request object (server-side only)
- * @returns The device session ID or null if not found
+ * Verifies a user's password without affecting their session state
+ * Uses a secure database function that compares against the current user's password
+ *
+ * @param supabase Supabase client instance
+ * @param password The password to verify
+ * @returns Promise<{ isValid: boolean; error: Error | null }> Result object containing validation status and any error
  */
-export function getDeviceSessionId(request?: Request): string | null {
-  // Server-side: Use Request object if available
-  if (request) {
-    return (
-      request.headers
-        .get("cookie")
-        ?.split("; ")
-        .find((cookie) => cookie.startsWith("device_session_id="))
-        ?.split("=")[1] || null
+export async function verifyPassword({
+  supabase,
+  password,
+}: {
+  supabase: SupabaseClient;
+  password: string;
+}): Promise<{ isValid: boolean; error: Error | null }> {
+  try {
+    const { data: isValid, error: supabaseError } = await supabase.rpc(
+      "verify_user_password",
+      { password }
     );
-  }
 
-  // Client-side: Use document.cookie
-  if (typeof document !== "undefined") {
-    return (
-      document.cookie
-        .split("; ")
-        .find((cookie) => cookie.startsWith("device_session_id="))
-        ?.split("=")[1] || null
-    );
-  }
+    if (supabaseError) {
+      console.error(
+        "[verifyPassword] Error verifying password:",
+        supabaseError
+      );
+      return { isValid: false, error: supabaseError };
+    }
 
-  return null;
+    return { isValid: !!isValid, error: null };
+  } catch (err) {
+    console.error("[verifyPassword] Unexpected error:", err);
+    return {
+      isValid: false,
+      error:
+        err instanceof Error ? err : new Error("Failed to verify password"),
+    };
+  }
 }

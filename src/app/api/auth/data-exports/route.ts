@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { getUser, getDeviceSessionId } from "@/utils/auth";
+import { getUser } from "@/utils/auth";
+import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { dataExportRateLimit, getClientIp } from "@/utils/rate-limit";
 import { AUTH_CONFIG } from "@/config/auth";
@@ -53,7 +54,7 @@ export async function POST(
 
       if (!success) {
         return NextResponse.json(
-          { error: "Too many requests. Please try again later." },
+          { error: "You can only request 3 data exports per day." },
           { status: 429 }
         ) satisfies NextResponse<TApiErrorResponse>;
       }
@@ -71,7 +72,7 @@ export async function POST(
     }
 
     // Get device info for logging
-    const deviceSessionId = getDeviceSessionId(request);
+    const deviceSessionId = getCurrentDeviceSessionId(request);
     const userAgent = request.headers.get("user-agent") || "";
     const parser = new UAParser(userAgent);
     const deviceInfo: TDeviceInfo = {

@@ -1085,6 +1085,64 @@ The names look similar, but they serve entirely different purposes.
 - `/api/auth/change-password`: Used to change the password of authenticated users. It accepts a current and new password.
 - `/api/auth/reset-password`: Part of the forgot password flow: it takes a new password and a token, which it uses to update the password.
 
+### Why we use a custom function to verify passwords
+
+When you need to verify a user's password (like when changing it or doing sensitive stuff), your first thought is probably:
+
+```typescript
+const { error: signInError } = await supabase.auth.signInWithPassword({
+  email: user.email!,
+  password: currentPassword,
+});
+```
+
+Seems super simple, right? But it doesn't actually work.
+
+Here's the problem: If a user has 2FA enabled and they're at AAL2 (Authenticator Assurance Level 2), calling `signInWithPassword` will reset their session to AAL1. This means they'd need to verify 2FA again... just to verify their password. That's a terrible UX and creates an annoying security loop.
+
+So instead, we use a custom Postgres function wrapped in a simple utility:
+
+```typescript
+import { verifyPassword } from "@/utils/auth";
+
+const isValid = await verifyPassword(supabase, currentPassword);
+
+if (!isValid) {
+  // Handle invalid password...
+}
+```
+
+The Supabase RCP function the `verifyPassword` utility uses is actually pretty straightforward:
+- It takes a password and checks if it matches what's stored
+- Uses the same crypto as Supabase Auth (so it's secure)
+- Returns true/false without messing with the session
+- The user stays at AAL2 if they were already there
+
+### Custom device sessions VS Supabase auth sessions
+
+I'm not even gonna pretend like this is a feature. But look:
+- We have `public.device_sessions`
+- And Supabase manages `auth.sessions`
+
+**Are we basically reinventing the wheel with our custom solution?**
+
+Yes.
+
+**Why not just use Supabase's sessions?**
+
+You see, Supabase sessions are super limiting.
+
+We want to be able to:
+- Programmatically revoke sessions
+- Track sessions
+- Have a little control over the AAL (notice we have an aal column in the device sessions table)
+
+What Supabase sessions give us is everything but that.
+
+Thought important to note: we're not ditching Supabase auth sessions!
+
+They work great together. We're just adding custom stuff on top of their implementation.
+
 ### Getting the Authentication Assurance Level (AAL)
 
 > [!WARNING]

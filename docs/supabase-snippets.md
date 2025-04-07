@@ -211,3 +211,30 @@ USING (user_id = auth.uid());
 CREATE INDEX idx_account_events_user_id_created_at 
 ON account_events(user_id, created_at DESC);
 ```
+
+**Create a function to verify the user password**
+
+> Why don't we just verify it like this:
+> ```typescript
+> const { error: signInError } = await supabase.auth.signInWithPassword({
+>   email: user.email!,
+>   password: currentPassword,
+> });
+> ```
+> Seems super simple? But it doesn't actually work
+>
+> If the user has 2FA enabled and they have AAL2 (Authenticator Assurance Level 2), calling `signInWithPassword` will reset their session to AAL1. We obviously don't want that. So our workaround is this function that can verify a user's password without resetting their session to AAL1
+
+```sql
+CREATE OR REPLACE FUNCTION verify_user_password(password text)
+RETURNS BOOLEAN SECURITY DEFINER AS
+$$
+BEGIN
+  RETURN EXISTS (
+    SELECT id 
+    FROM auth.users 
+    WHERE id = auth.uid() AND encrypted_password = crypt(password::text, auth.users.encrypted_password)
+  );
+END;
+$$ LANGUAGE plpgsql;
+```

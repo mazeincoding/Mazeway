@@ -1,171 +1,217 @@
-"use client";
-import { useState } from "react";
 import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
-import { QrCodeIcon, MessageCircleIcon } from "lucide-react";
-import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+import { getConfigured2FAMethods } from "@/utils/auth";
+import { MessageCircleIcon, QrCodeIcon } from "lucide-react";
+import { Switch } from "./ui/switch";
+import { useState } from "react";
+import { api } from "@/utils/api";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { VerifyForm } from "./verify-form";
-import {
-  getConfigured2FAMethods,
-  getUserVerificationMethods,
-} from "@/utils/auth";
 import { TwoFactorSetupDialog } from "./2fa-setup-dialog";
-import { createClient } from "@/utils/supabase/client";
+import { useUser } from "@/hooks/use-auth";
+import { toast } from "sonner";
 
 interface TwoFactorMethodsProps {
-  enabledMethods: TTwoFactorMethod[];
-  onMethodSetup: (method: TTwoFactorMethod, phone?: string) => Promise<void>;
-  onMethodDisable: (method: TTwoFactorMethod, code: string) => Promise<void>;
-  onVerify: (
-    method: TTwoFactorMethod,
-    code: string,
-    phone?: string
-  ) => Promise<void>;
-  qrCode?: string;
-  secret?: string;
-  backupCodes?: string[];
-  isVerifying?: boolean;
-  verificationError?: string | null;
-  setVerificationError: (error: string | null) => void;
-  verificationMethods?: TVerificationFactor[];
-}
-
-// State for disabling a 2FA method
-interface DisableMethodState {
-  methodToDisable: TTwoFactorMethod;
-  userEnabledMethods: TVerificationFactor[];
-  currentMethod: TVerificationFactor;
+  userEnabledMethods: TTwoFactorMethod[];
 }
 
 export function TwoFactorMethods({
-  enabledMethods,
-  onMethodSetup,
-  onMethodDisable,
-  onVerify,
-  qrCode,
-  secret,
-  backupCodes,
-  isVerifying = false,
-  verificationError = null,
-  setVerificationError = () => {},
-  verificationMethods = [],
+  userEnabledMethods,
 }: TwoFactorMethodsProps) {
-  // Core states
-  const [selectedMethod, setSelectedMethod] = useState<TTwoFactorMethod | null>(
-    null
-  );
-  const [showSetupDialog, setShowSetupDialog] = useState(false);
-  const [showDisableDialog, setShowDisableDialog] = useState(false);
-  const [disableState, setDisableState] = useState<DisableMethodState | null>(
-    null
-  );
-  const supabase = createClient();
-
-  // Loading states
+  const availableConfiguredMethods = getConfigured2FAMethods();
+  const { user, refresh: refreshUser } = useUser();
   const [isMethodLoading, setIsMethodLoading] = useState<
     Record<string, boolean>
   >({});
-  const [isDisableVerifying, setIsDisableVerifying] = useState(false);
-  const [disableError, setDisableError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationData, setVerificationData] = useState<{
+    availableMethods: TVerificationFactor[];
+    toggleAction: {
+      method: TTwoFactorMethod;
+      shouldEnable: boolean;
+    };
+  } | null>(null);
+  const [showSetupDialog, setShowSetupDialog] = useState(false);
+  const [setup2FAData, setSetup2FAData] = useState<{
+    qrCode: string;
+    secret: string;
+    phone?: string;
+  } | null>(null);
+  const [activeMethod, setActiveMethod] = useState<TTwoFactorMethod | null>(
+    null
+  );
 
-  // Get available 2FA methods from config
-  const availableConfiguredMethods = getConfigured2FAMethods();
-
-  const handleMethodToggle = async (
-    method: TTwoFactorMethod,
-    shouldEnable: boolean
-  ) => {
+  // Handle toggling a 2FA method (enable or disable)
+  const handleMethodToggle = async ({
+    method,
+    shouldEnable,
+  }: {
+    method: TTwoFactorMethod;
+    shouldEnable: boolean;
+  }) => {
     try {
       setIsMethodLoading((prev) => ({ ...prev, [method]: true }));
+      const loadingToast = toast.loading(
+        `${shouldEnable ? "Enabling" : "Disabling"} ${method}...`
+      );
 
       if (shouldEnable) {
-        // Set selected method first, but don't show dialog yet
-        setSelectedMethod(method);
-
-        // For authenticator setup, we need to generate a QR code first
-        if (method === "authenticator") {
-          // This might return verification requirements, which will be handled by the parent
-          await onMethodSetup(method);
-
-          // If we reach here, no verification was needed (or it was handled by the parent)
-          // Now we can show the setup dialog
-          setShowSetupDialog(true);
-        } else {
-          // For SMS, we can show the dialog first as it collects the phone number
-          setShowSetupDialog(true);
-        }
+        await enableMethod(method);
       } else {
-        // Get all available verification methods
-        const { factors: userEnabledMethods } =
-          await getUserVerificationMethods({
-            supabase,
-          });
-
-        if (userEnabledMethods.length === 0) {
-          toast.error("Error", {
-            description: "No verification methods available",
-          });
-          return;
-        }
-
-        setDisableState({
-          methodToDisable: method,
-          userEnabledMethods,
-          currentMethod: userEnabledMethods[0],
-        });
-        setShowDisableDialog(true);
+        await disableMethod(method);
       }
+
+      toast.dismiss(loadingToast);
     } catch (error) {
-      console.error("Error in method toggle:", error);
+      console.error("Error toggling method:", error);
       toast.error("Error", {
-        description: "Failed to update 2FA method. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An error occurred while updating 2FA settings",
+        duration: 3000,
       });
     } finally {
       setIsMethodLoading((prev) => ({ ...prev, [method]: false }));
     }
   };
 
-  const handleDisableVerify = async (code: string) => {
-    if (!disableState) return;
-
+  // Handle enabling a 2FA method
+  const enableMethod = async (
+    method: TTwoFactorMethod,
+    { skipVerificationCheck = false }: { skipVerificationCheck?: boolean } = {}
+  ) => {
     try {
-      setIsDisableVerifying(true);
-      setDisableError(null);
-      await onMethodDisable(disableState.methodToDisable, code);
-      setShowDisableDialog(false);
-      setDisableState(null);
+      // Step 1: Check if verification is needed before enabling (only if not skipping verification check)
+      if (!skipVerificationCheck) {
+        const data = await api.auth.setup2FA({
+          method,
+          checkVerificationOnly: true,
+        });
+
+        // If verification is needed, show verification dialog
+        if (
+          data.requiresVerification &&
+          data.availableMethods &&
+          data.availableMethods.length > 0
+        ) {
+          setVerificationData({
+            availableMethods: data.availableMethods,
+            toggleAction: { method, shouldEnable: true },
+          });
+          setNeedsVerification(true);
+          return;
+        }
+      }
+
+      // Step 2: Verification completed or not needed, proceed with setup
+      const data = await api.auth.setup2FA({ method });
+
+      if (!data.requiresVerification) {
+        // Store setup data and show setup dialog
+        setActiveMethod(method);
+        setSetup2FAData({
+          qrCode: data.qr_code || "",
+          secret: data.secret || "",
+          phone: data.phone,
+        });
+        setShowSetupDialog(true);
+      }
+
+      // Clear verification state
+      setNeedsVerification(false);
+      setVerificationData(null);
     } catch (error) {
-      console.error("Error disabling 2FA:", error);
-      setDisableError(
-        error instanceof Error
-          ? error.message
-          : "Failed to disable 2FA. Please try again."
-      );
-    } finally {
-      setIsDisableVerifying(false);
+      console.error("Error setting up 2FA:", error);
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Failed to set up 2FA",
+        duration: 3000,
+      });
+      // Clear verification state on error
+      setNeedsVerification(false);
+      setVerificationData(null);
     }
   };
 
-  // Handle verification complete
-  const handleVerificationComplete = async () => {
-    if (!selectedMethod) return;
-
-    // After verification, start the actual 2FA setup
+  // Handle disabling a 2FA method
+  const disableMethod = async (
+    method: TTwoFactorMethod,
+    { skipVerificationCheck = false }: { skipVerificationCheck?: boolean } = {}
+  ) => {
     try {
-      await onMethodSetup(selectedMethod);
-    } catch (error) {
-      console.error("Error in onMethodSetup after verification:", error);
-      toast.error("Error", {
-        description: "Failed to setup 2FA method after verification.",
+      // Step 1: Check if verification is needed before disabling
+      if (!skipVerificationCheck) {
+        const data = await api.auth.disable2FA({
+          method,
+          checkVerificationOnly: true,
+        });
+
+        // If verification is needed, show verification dialog
+        if (
+          data.requiresVerification &&
+          data.availableMethods &&
+          data.availableMethods.length > 0
+        ) {
+          setVerificationData({
+            availableMethods: data.availableMethods,
+            toggleAction: { method, shouldEnable: false },
+          });
+          setNeedsVerification(true);
+          return;
+        }
+      }
+
+      // Step 2: If no verification needed or verification skipped, proceed with disable
+      await api.auth.disable2FA({ method });
+
+      // Show success message
+      toast.success("2FA disabled", {
+        description: `${method === "authenticator" ? "Authenticator app" : "SMS"} has been disabled.`,
+        duration: 3000,
       });
+
+      // Clear verification state and refresh user data
+      setNeedsVerification(false);
+      setVerificationData(null);
+      await refreshUser();
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Failed to disable 2FA",
+        duration: 3000,
+      });
+      // Clear verification state on error
+      setNeedsVerification(false);
+      setVerificationData(null);
     }
+  };
+
+  // Handle verification completion
+  const handleVerificationComplete = async () => {
+    if (!verificationData) return;
+
+    const { method, shouldEnable } = verificationData.toggleAction;
+
+    if (shouldEnable) {
+      await enableMethod(method, { skipVerificationCheck: true });
+    } else {
+      await disableMethod(method, { skipVerificationCheck: true });
+    }
+  };
+
+  // Handle setup dialog close - refresh user data
+  const handleSetupComplete = async () => {
+    await refreshUser();
+    setShowSetupDialog(false);
+    setSetup2FAData(null);
+    setActiveMethod(null);
   };
 
   return (
@@ -174,61 +220,55 @@ export function TwoFactorMethods({
         {availableConfiguredMethods
           .filter((method) => method.type !== "backup_codes")
           .map((method) => {
-            const isEnabled = enabledMethods.includes(method.type);
+            const isEnabled = userEnabledMethods.includes(method.type);
+
             return (
               <MethodCard
                 key={method.type}
                 method={method}
                 isEnabled={isEnabled}
                 isLoading={isMethodLoading[method.type]}
-                onToggle={handleMethodToggle}
+                onToggle={(method, shouldEnable) =>
+                  handleMethodToggle({ method, shouldEnable })
+                }
               />
             );
           })}
       </div>
 
-      {selectedMethod && (
-        <TwoFactorSetupDialog
-          open={showSetupDialog}
-          onOpenChange={setShowSetupDialog}
-          method={selectedMethod}
-          onSetup={onMethodSetup}
-          onVerify={onVerify}
-          qrCode={qrCode}
-          secret={secret}
-          backupCodes={backupCodes}
-          isVerifying={isVerifying}
-          verificationError={verificationError}
-          setVerificationError={setVerificationError}
-          requiresVerification={verificationMethods.length > 0}
-          verificationMethods={verificationMethods}
-          onVerificationComplete={handleVerificationComplete}
-        />
+      {/* Verification Dialog */}
+      {verificationData && verificationData.availableMethods && (
+        <Dialog open={needsVerification} onOpenChange={setNeedsVerification}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify your identity</DialogTitle>
+              <DialogDescription>
+                Please confirm your identity to{" "}
+                {verificationData.toggleAction.shouldEnable
+                  ? "enable"
+                  : "disable"}{" "}
+                two-factor authentication
+              </DialogDescription>
+            </DialogHeader>
+            <VerifyForm
+              availableMethods={verificationData.availableMethods}
+              onVerifyComplete={handleVerificationComplete}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
-      <Dialog open={showDisableDialog} onOpenChange={setShowDisableDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
-            <DialogDescription>
-              Please verify your identity to disable{" "}
-              {disableState?.methodToDisable === "authenticator"
-                ? "authenticator app"
-                : "SMS"}{" "}
-              authentication.
-            </DialogDescription>
-          </DialogHeader>
-          {disableState && (
-            <VerifyForm
-              availableMethods={disableState.userEnabledMethods}
-              onVerify={handleDisableVerify}
-              isVerifying={isDisableVerifying}
-              error={disableError}
-              setError={setDisableError}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Setup Dialog */}
+      {showSetupDialog && activeMethod && setup2FAData && (
+        <TwoFactorSetupDialog
+          isOpen={showSetupDialog}
+          onClose={handleSetupComplete}
+          method={activeMethod}
+          qrCode={setup2FAData.qrCode}
+          secret={setup2FAData.secret}
+          phone={setup2FAData.phone}
+        />
+      )}
     </>
   );
 }

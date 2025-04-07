@@ -12,13 +12,16 @@ import {
 } from "./auth";
 import type { ProfileSchema } from "@/validation/auth-validation";
 
-// For API routes where the user is authenticating
+// For API routes where the user already did basic verification naturally, like login
 export interface TTwoFactorVerificationRequirement {
   requiresTwoFactor?: boolean;
   availableMethods?: TVerificationFactor[];
 }
 
-// For API routes where the user is already authenticated and doing a sensitive action
+// For API routes where the user is:
+// - Authenticated
+// - Doing a sensitive action
+// - That doesn't naturally require verification (like login, change password, etc)
 export interface TGeneralVerificationRequirement {
   requiresVerification?: boolean;
   availableMethods?: TVerificationFactor[];
@@ -55,19 +58,14 @@ export interface TResendConfirmationRequest {
 
 // /api/auth/send-email-alert
 export interface TSendEmailAlertRequest {
-  email: string;
+  email?: string;
   title: string;
   message: string;
   device?: TDeviceInfo;
   oldEmail?: string;
   newEmail?: string;
   method?: string;
-  revokedDevice?: {
-    device_name: string;
-    browser?: string;
-    os?: string;
-    ip_address?: string;
-  };
+  revokedDevice?: TDeviceInfo;
 }
 
 // /api/auth/verify-device/send-code
@@ -86,6 +84,7 @@ export interface TVerifyDeviceRequest {
 export interface TChangePasswordRequest {
   currentPassword?: string;
   newPassword: string;
+  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/reset-password
@@ -96,18 +95,18 @@ export interface TResetPasswordRequest {
 // /api/auth/2fa/disable
 export interface TDisable2FARequest {
   method: TTwoFactorMethod;
-  code: string;
+  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/2fa/enroll
 export interface TEnroll2FARequest {
   method: TTwoFactorMethod;
   phone?: string; // Only required for SMS method
+  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/verify
 export interface TVerifyRequest {
-  factorId: string;
   method: TVerificationMethod;
   code: string;
   phone?: string; // Only included for SMS verification
@@ -117,6 +116,7 @@ export interface TVerifyRequest {
 // /api/auth/change-email
 export interface TChangeEmailRequest {
   newEmail: string;
+  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/forgot-password
@@ -137,16 +137,24 @@ export interface TUpdateUserRequest {
 // /api/auth/device-sessions/[id]
 export interface TRevokeDeviceSessionRequest {
   sessionId: string;
+  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/social/connect
 export interface TConnectSocialProviderRequest {
   provider: TSocialProvider;
+  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/social/disconnect
 export interface TDisconnectSocialProviderRequest {
   provider: TSocialProvider;
+  checkVerificationOnly?: boolean;
+}
+
+// /api/auth/user/delete
+export interface TDeleteAccountRequest {
+  checkVerificationOnly?: boolean;
 }
 
 // ===== RESPONSE TYPES =====
@@ -167,14 +175,26 @@ export interface TGetTrustedDeviceSessionsResponse {
 }
 
 // /api/auth/2fa/enroll
-export interface TEnroll2FAResponse {
-  factor_id: string;
-  // For authenticator method only
-  qr_code?: string;
-  secret?: string;
-  // For SMS method only
-  phone?: string; // Masked phone number for display
-}
+export type TEnroll2FAResponse =
+  // If verification is needed
+  | {
+      requiresVerification: true;
+      availableMethods: TVerificationFactor[];
+      // We require verification, factor_id isn't needed
+      // To be clear, the top-level factor_id is the factor we're enrolling
+      // Not the factor ID used for verification
+    }
+  // If verification is completed/not needed
+  | {
+      requiresVerification?: false;
+      // The factor_id is the method we're enabling, NOT a method for verification
+      factor_id: string;
+      // For authenticator method only
+      qr_code?: string;
+      secret?: string;
+      // For SMS method only
+      phone?: string;
+    };
 
 // /api/auth/verify
 export interface TVerifyResponse {
@@ -182,7 +202,9 @@ export interface TVerifyResponse {
   backup_codes?: string[];
 }
 
-// /api/auth/email/login
+// /api/auth/2fa/disable
+export interface TDisable2FAResponse extends TGeneralVerificationRequirement {}
+
 // /api/auth/email/login
 export interface TEmailLoginResponse extends TTwoFactorVerificationRequirement {
   redirectTo: string;
@@ -192,11 +214,13 @@ export interface TEmailLoginResponse extends TTwoFactorVerificationRequirement {
 export interface TResetPasswordResponse
   extends TTwoFactorVerificationRequirement {
   newPassword?: string;
+  loginRequired?: boolean;
+  redirectTo?: string;
 }
 
 // /api/auth/change-password
-export interface TPasswordChangeResponse
-  extends TGeneralVerificationRequirement {
+export interface TChangePasswordResponse
+  extends TTwoFactorVerificationRequirement {
   newPassword?: string;
   requiresRelogin?: boolean;
   email?: string;
@@ -283,29 +307,12 @@ export interface TGetDataExportStatusResponse extends TDataExportResponseItem {}
 export interface TEmptySuccessResponse {}
 
 // /api/auth/social/connect
-export type TConnectSocialProviderResponse =
-  | {
-      url: string;
-    }
-  | {
-      success: true;
-    }
-  | (TGeneralVerificationRequirement & {
-      requiresVerification: true;
-    });
+export interface TConnectSocialProviderResponse
+  extends TGeneralVerificationRequirement {
+  url?: string;
+  success?: true;
+}
 
 // /api/auth/social/disconnect
-export type TDisconnectSocialProviderResponse =
-  | {
-      success: true;
-    }
-  | (TGeneralVerificationRequirement & {
-      requiresVerification: true;
-    });
-
-export type TGetUserIdentitiesResponse = {
-  identities: Array<{
-    id: string;
-    provider: TSocialProvider;
-  }>;
-};
+export interface TDisconnectSocialProviderResponse
+  extends TGeneralVerificationRequirement {}

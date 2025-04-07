@@ -4,6 +4,8 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { logAccountEvent } from "@/utils/account-events/server";
 import { getUser } from "@/utils/auth";
 
+// Function to get the current device session ID
+
 async function createDevice({ device }: { device: TDeviceInfo }) {
   if (typeof window !== "undefined") {
     throw new Error("Creating a device can only be done on the server");

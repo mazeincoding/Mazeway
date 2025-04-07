@@ -123,11 +123,13 @@ export async function GET(request: NextRequest) {
     await markTokenAsUsed(adminClient, exportId);
 
     // Clean up the file after successful download
-    cleanupDataExportFile(adminClient, exportRequest.user_id, exportId).catch(
-      (error) => {
-        console.error("Error cleaning up export file:", error);
-      }
-    );
+    cleanupDataExportFile({
+      adminClient,
+      userId: exportRequest.user_id,
+      exportId,
+    }).catch((error) => {
+      console.error("Error cleaning up export file:", error);
+    });
 
     // Return the file
     const headers = new Headers();

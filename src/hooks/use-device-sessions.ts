@@ -11,7 +11,7 @@ export function useDeviceSessions() {
   );
 
   return {
-    sessions: data?.data ?? [],
+    deviceSessions: data?.data ?? [],
     isLoading,
     error,
     refresh: mutate,

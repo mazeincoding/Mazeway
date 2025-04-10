@@ -28,11 +28,13 @@ import type {
   TGetDeviceSessionsResponse,
   TGetTrustedDeviceSessionsResponse,
   TRevokeDeviceSessionResponse,
+  TRevokeAllDeviceSessionsResponse,
   TGetUserResponse,
   TGetDeviceSessionResponse,
   TGeolocationResponse,
   TUpdateUserRequest,
   TRevokeDeviceSessionRequest,
+  TRevokeAllDeviceSessionsRequest,
   TGetEventsResponse,
   TCreateDataExportResponse,
   TGetDataExportStatusResponse,
@@ -266,6 +268,17 @@ export const api = {
         );
         const data =
           await handleResponse<TRevokeDeviceSessionResponse>(response);
+        return data;
+      },
+
+      revokeAllSessions: async (params?: TRevokeAllDeviceSessionsRequest) => {
+        const response = await fetch(`/api/auth/device-sessions/revoke-all`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params || {}),
+        });
+        const data =
+          await handleResponse<TRevokeAllDeviceSessionsResponse>(response);
         return data;
       },
     },

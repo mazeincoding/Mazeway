@@ -140,6 +140,11 @@ export interface TRevokeDeviceSessionRequest {
   checkVerificationOnly?: boolean;
 }
 
+// /api/auth/device-sessions/revoke-all
+export interface TRevokeAllDeviceSessionsRequest {
+  checkVerificationOnly?: boolean;
+}
+
 // /api/auth/social/connect
 export interface TConnectSocialProviderRequest {
   provider: TSocialProvider;
@@ -236,6 +241,12 @@ export interface TChangeEmailResponse extends TGeneralVerificationRequirement {
 export interface TRevokeDeviceSessionResponse
   extends TGeneralVerificationRequirement {
   sessionId: string;
+}
+
+// /api/auth/device-sessions/revoke-all
+export interface TRevokeAllDeviceSessionsResponse
+  extends TGeneralVerificationRequirement {
+  revokedCount?: number;
 }
 
 // /api/auth/user

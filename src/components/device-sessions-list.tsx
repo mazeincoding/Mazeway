@@ -20,10 +20,11 @@ import { TGeolocationResponse } from "@/types/api";
 import { isLocalIP } from "@/lib/utils";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { VerifyForm } from "./verify-form";
+import { RevokeAllDevicesButton } from "./revoke-all-devices-button";
 import { api } from "@/utils/api";
 
 export function DeviceSessionsList() {
-  const { sessions, isLoading, error, refresh } = useDeviceSessions();
+  const { deviceSessions, isLoading, error, refresh } = useDeviceSessions();
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(
     null
   );
@@ -44,7 +45,7 @@ export function DeviceSessionsList() {
     fetchCurrentSession();
   }, []);
 
-  const sortedSessions = [...sessions].sort((a, b) => {
+  const sortedSessions = [...deviceSessions].sort((a, b) => {
     if (a.id === currentSession?.id) return -1;
     if (b.id === currentSession?.id) return 1;
     return 0;
@@ -89,7 +90,7 @@ export function DeviceSessionsList() {
     );
   }
 
-  if (sessions.length === 0) {
+  if (deviceSessions.length === 0) {
     return (
       <div className="text-center text-muted-foreground">No devices found</div>
     );
@@ -97,6 +98,11 @@ export function DeviceSessionsList() {
 
   return (
     <div className="flex flex-col gap-6">
+      <RevokeAllDevicesButton
+        deviceSessions={deviceSessions}
+        onSuccess={refresh}
+      />
+
       {sortedSessions.map((session) => (
         <DeviceItem
           key={session.id}

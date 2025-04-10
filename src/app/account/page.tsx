@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-auth";
-import { InfoIcon, Trash2Icon, UserIcon } from "lucide-react";
-import { SettingCard } from "@/components/setting-card";
 import {
   profileSchema,
   type ProfileSchema,
@@ -33,8 +31,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { DeleteAccount } from "@/components/delete-account";
 import { api } from "@/utils/api";
-import { cn } from "@/lib/utils";
 import { AUTH_CONFIG } from "@/config/auth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Check, X } from "lucide-react";
 
 function getConnectedProvidersMessage(
   identities: Array<{ provider: string }> | undefined
@@ -62,6 +63,11 @@ function getConnectedProvidersMessage(
   return `When signing in with ${providerList}, you'll still use the same account${isPlural ? "s" : ""} (this won't change ${isPlural ? "them" : "it"})`;
 }
 
+// Helper function to get first letter for avatar fallback
+function getFirstLetter(name: string): string {
+  return name.charAt(0).toUpperCase();
+}
+
 export default function Account() {
   const { user, isLoading: isUserLoading } = useUser();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -75,6 +81,10 @@ export default function Account() {
   const [pendingEmailChange, setPendingEmailChange] = useState<string | null>(
     null
   );
+
+  // New state for inline editing
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
 
   const form = useForm<ProfileSchema>({
     resolver: zodResolver(profileSchema),
@@ -109,6 +119,7 @@ export default function Account() {
     try {
       setIsUpdating(true);
       setShowEmailChangeInfoDialog(false);
+      setIsEditingEmail(false);
 
       if (!skipVerificationCheck) {
         // Check if verification is needed
@@ -167,169 +178,240 @@ export default function Account() {
     }
   };
 
-  const onSubmit = async (values: ProfileSchema) => {
+  const handleNameUpdate = async () => {
     if (!user) return;
-    setIsUpdating(true);
 
     try {
-      // Store all changes
-      const hasNameChange = values.name !== user.name;
-      const hasEmailChange = values.email !== user.email;
+      setIsUpdating(true);
+      const values = form.getValues();
 
-      // Process name change immediately if it exists
-      if (hasNameChange) {
-        try {
-          await api.user.update({ name: values.name });
-          toast.success("Profile updated", {
-            description: "Your name has been updated successfully.",
-            duration: 3000,
-          });
-        } catch (error) {
-          toast.error("Error updating name", {
-            description:
-              error instanceof Error ? error.message : "An error occurred",
-            duration: 3000,
-          });
-
-          form.setValue("name", user.name || "");
-        }
-      }
-
-      if (hasEmailChange) {
-        setPendingEmailChange(values.email);
-        setShowEmailChangeInfoDialog(true);
-        setIsUpdating(false);
-        return;
+      if (values.name !== user.name) {
+        await api.user.update({ name: values.name });
+        toast.success("Profile updated", {
+          description: "Your name has been updated successfully.",
+          duration: 3000,
+        });
       }
     } catch (error) {
-      toast.error("Error", {
+      toast.error("Error updating name", {
         description:
           error instanceof Error ? error.message : "An error occurred",
         duration: 3000,
       });
+
+      form.setValue("name", user.name || "");
     } finally {
       setIsUpdating(false);
+      setIsEditingName(false);
     }
+  };
+
+  const handleEmailEdit = () => {
+    if (!user?.has_password) {
+      toast.error("Password required", {
+        description:
+          "Before you can change your email, you'll need to set up a password for your account first",
+        duration: 3000,
+      });
+      return;
+    }
+    setIsEditingEmail(true);
+  };
+
+  const handleEmailSubmit = async () => {
+    if (!user) return;
+
+    const values = form.getValues();
+    if (values.email !== user.email) {
+      setPendingEmailChange(values.email);
+      setShowEmailChangeInfoDialog(true);
+    }
+    setIsEditingEmail(false);
   };
 
   const handleCancelEmailChange = () => {
     setShowEmailChangeInfoDialog(false);
+    setIsEditingEmail(false);
     setPendingEmailChange(null);
     form.setValue("email", user?.email || "");
   };
 
   return (
-    <div className="flex flex-col gap-8">
-      <SettingCard icon={UserIcon}>
-        <SettingCard.Header>
-          <SettingCard.Title>Basic information</SettingCard.Title>
-          <SettingCard.Description>
-            Manage your basic information.
-          </SettingCard.Description>
-        </SettingCard.Header>
-        <SettingCard.Content>
-          <Form {...form}>
-            <form
-              id="account-form"
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="flex flex-col gap-6"
-            >
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="John Doe"
-                        disabled={isUpdating || isUserLoading}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel
-                      className={cn(
-                        !user?.has_password && "text-muted-foreground"
-                      )}
-                    >
-                      Email
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="john.doe@example.com"
-                        disabled={
-                          isUpdating || isUserLoading || !user?.has_password
-                        }
-                        {...field}
-                      />
-                    </FormControl>
-                    {user?.has_password ? (
-                      <FormMessage />
-                    ) : (
-                      <p className="flex gap-2 items-center text-muted-foreground text-sm pt-2 ml-1">
-                        <InfoIcon className="w-4 h-4" />
-                        Before you can change your email, you'll need to set up
-                        a password for your account first
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-            </form>
-          </Form>
-        </SettingCard.Content>
-        <SettingCard.Footer>
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto py-2">
+      <h1 className="text-3xl font-bold">Account</h1>
+
+      {/* Profile section */}
+      <div className="flex items-center gap-6">
+        <Avatar className="h-20 w-20">
+          <AvatarImage src={user?.avatar_url} alt="User avatar" />
+          <AvatarFallback className="text-lg">
+            {getFirstLetter(user?.name || "U")}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-2xl font-semibold">{user?.name}</h3>
+          <p className="text-muted-foreground">{user?.email}</p>
+        </div>
+      </div>
+
+      <Separator className="my-2" />
+
+      {/* Display name section */}
+      <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-1.5 flex-1 mr-4">
+          <Label className="font-bold text-base">Display name</Label>
+          {isEditingName ? (
+            <div className="flex gap-2 items-center">
+              <Form {...form}>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="flex-1 space-y-0">
+                      <FormControl>
+                        <Input
+                          autoFocus
+                          {...field}
+                          disabled={isUpdating}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleNameUpdate();
+                            } else if (e.key === "Escape") {
+                              setIsEditingName(false);
+                              form.setValue("name", user?.name || "");
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </Form>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => {
+                  setIsEditingName(false);
+                  form.setValue("name", user?.name || "");
+                }}
+                disabled={isUpdating}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleNameUpdate}
+                disabled={isUpdating}
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <span className="text-base text-muted-foreground">
+              {user?.name || "Not set"}
+            </span>
+          )}
+        </div>
+        {!isEditingName && (
           <Button
-            type="submit"
-            form="account-form"
+            variant="outline"
+            onClick={() => setIsEditingName(true)}
             disabled={isUpdating || isUserLoading}
           >
-            Save
+            Edit
           </Button>
-        </SettingCard.Footer>
-      </SettingCard>
+        )}
+      </div>
 
-      <SettingCard icon={Trash2Icon}>
-        <SettingCard.Header>
-          <SettingCard.Title>Delete account</SettingCard.Title>
-          <SettingCard.Description>
-            Permanently delete your account and all associated data.
-          </SettingCard.Description>
-        </SettingCard.Header>
-        <SettingCard.Content>
-          <div className="space-y-4">
-            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-              <h4 className="mb-2 font-medium text-destructive">
-                Important Information
-              </h4>
-              <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
-                <li>
-                  All your personal information and settings will be permanently
-                  erased
-                </li>
-                <li>Your account cannot be recovered once deleted</li>
-                <li>All your data will be removed from our servers</li>
-              </ul>
-            </div>
-            <DeleteAccount>
-              <Button variant="destructive" className="w-full sm:w-auto">
-                I understand, delete my account
+      {/* Email address section */}
+      <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-1.5 flex-1 mr-4">
+          <Label className="font-bold text-base">Email address</Label>
+          {isEditingEmail ? (
+            <div className="flex gap-2 items-center">
+              <Form {...form}>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="flex-1 space-y-0">
+                      <FormControl>
+                        <Input
+                          type="email"
+                          autoFocus
+                          {...field}
+                          disabled={isUpdating}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleEmailSubmit();
+                            } else if (e.key === "Escape") {
+                              setIsEditingEmail(false);
+                              form.setValue("email", user?.email || "");
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </Form>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => {
+                  setIsEditingEmail(false);
+                  form.setValue("email", user?.email || "");
+                }}
+                disabled={isUpdating}
+              >
+                <X className="h-4 w-4" />
               </Button>
-            </DeleteAccount>
-          </div>
-        </SettingCard.Content>
-      </SettingCard>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleEmailSubmit}
+                disabled={isUpdating}
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <span className="text-base text-muted-foreground">
+              {user?.email || "Not set"}
+            </span>
+          )}
+        </div>
+        {!isEditingEmail && (
+          <Button
+            variant="outline"
+            onClick={handleEmailEdit}
+            disabled={isUpdating || isUserLoading || !user?.has_password}
+          >
+            Edit
+          </Button>
+        )}
+      </div>
 
+      <Separator className="my-2" />
+
+      {/* Delete account section */}
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col gap-1.5 max-w-[70%]">
+          <Label className="font-bold text-base">Delete account</Label>
+          <p className="text-sm text-muted-foreground">
+            Once your account is deleted, all your personal information and
+            settings will be permanently erased. Your account cannot be
+            recovered, and all your data will be completely removed from our
+            servers.
+          </p>
+        </div>
+        <DeleteAccount>
+          <Button variant="destructive">Delete</Button>
+        </DeleteAccount>
+      </div>
+
+      {/* Email Change Info Dialog */}
       <Dialog
         open={showEmailChangeInfoDialog}
         onOpenChange={setShowEmailChangeInfoDialog}
@@ -359,9 +441,11 @@ export default function Account() {
                 When signing in with email and password, you'll need to use your
                 new email
               </li>
-              {user?.auth.identities?.some((i) => i.provider !== "email") &&
-                getConnectedProvidersMessage(user?.auth.identities) && (
-                  <li>{getConnectedProvidersMessage(user?.auth.identities)}</li>
+              {user?.auth?.identities?.some((i) => i.provider !== "email") &&
+                getConnectedProvidersMessage(user?.auth?.identities) && (
+                  <li>
+                    {getConnectedProvidersMessage(user?.auth?.identities)}
+                  </li>
                 )}
             </ul>
           </div>
@@ -374,6 +458,7 @@ export default function Account() {
         </DialogContent>
       </Dialog>
 
+      {/* Verification Dialog */}
       {emailChangeData && emailChangeData.availableMethods && (
         <Dialog open={needsVerification} onOpenChange={setNeedsVerification}>
           <DialogContent>

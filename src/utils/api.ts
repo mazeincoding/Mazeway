@@ -42,6 +42,8 @@ import type {
   TDisable2FAResponse,
   TDisconnectSocialProviderRequest,
   TConnectSocialProviderRequest,
+  TRevokeAllDeviceSessionsRequest,
+  TRevokeAllDeviceSessionsResponse,
 } from "@/types/api";
 import type { ProfileSchema } from "@/validation/auth-validation";
 import { mutate } from "swr";
@@ -266,6 +268,19 @@ export const api = {
         );
         const data =
           await handleResponse<TRevokeDeviceSessionResponse>(response);
+        return data;
+      },
+
+      revokeAllDeviceSessions: async (
+        params: TRevokeAllDeviceSessionsRequest
+      ) => {
+        const response = await fetch(`/api/auth/device-sessions/revoke-all`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+        });
+        const data =
+          await handleResponse<TRevokeAllDeviceSessionsResponse>(response);
         return data;
       },
     },

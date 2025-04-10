@@ -157,6 +157,11 @@ export interface TDeleteAccountRequest {
   checkVerificationOnly?: boolean;
 }
 
+// /api/auth/device-sessions/revoke-all
+export interface TRevokeAllDeviceSessionsRequest {
+  checkVerificationOnly?: boolean;
+}
+
 // ===== RESPONSE TYPES =====
 
 // Shared response type for error cases
@@ -315,4 +320,8 @@ export interface TConnectSocialProviderResponse
 
 // /api/auth/social/disconnect
 export interface TDisconnectSocialProviderResponse
+  extends TGeneralVerificationRequirement {}
+
+// /api/auth/device-sessions/revoke-all
+export interface TRevokeAllDeviceSessionsResponse
   extends TGeneralVerificationRequirement {}

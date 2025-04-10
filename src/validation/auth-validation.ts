@@ -316,6 +316,15 @@ export type RevokeDeviceSessionSchema = z.infer<
   typeof revokeDeviceSessionSchema
 >;
 
+// Schema for revoking all device sessions
+export const revokeAllDeviceSessionsSchema = z.object({
+  checkVerificationOnly: z.boolean().optional(),
+});
+
+export type RevokeAllDeviceSessionsSchema = z.infer<
+  typeof revokeAllDeviceSessionsSchema
+>;
+
 export const dataExportTokenSchema = z.object({
   token: z.string().min(1, "Token is required"),
 });

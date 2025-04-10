@@ -39,7 +39,7 @@ import { SocialProviders } from "@/components/social-providers";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
-
+import { LogoutAllDevices } from "@/components/logout-all-devices";
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -322,7 +322,10 @@ export default function Security() {
 
       {/* Device management section */}
       <section className="flex flex-col flex-1">
-        <h2 className="font-bold text-xl">Device management</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-bold text-xl">Device management</h2>
+          <LogoutAllDevices />
+        </div>
         <div className="mt-4">
           <DeviceSessionsList />
         </div>

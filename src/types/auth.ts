@@ -106,6 +106,7 @@ export type TEventType =
   | "DEVICE_TRUSTED"
   | "DEVICE_TRUSTED_AUTO"
   | "DEVICE_REVOKED"
+  | "DEVICE_REVOKED_ALL"
   | "SENSITIVE_ACTION_VERIFIED"
   // Account events
   | "ACCOUNT_CREATED"
@@ -164,6 +165,9 @@ export type TEventMetadata = {
     reason: "new_account" | "oauth";
   };
   DEVICE_REVOKED: TBaseEventMetadata & {
+    device: TEventDeviceInfo;
+  };
+  DEVICE_REVOKED_ALL: TBaseEventMetadata & {
     device: TEventDeviceInfo;
   };
   SENSITIVE_ACTION_VERIFIED: TBaseEventMetadata & {

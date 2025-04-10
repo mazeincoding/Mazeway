@@ -221,7 +221,7 @@ export default function Security() {
 
       {/* Password section */}
       <section className="flex justify-between items-center">
-        <div className="flex flex-col gap-1.5 flex-1 mr-4">
+        <div className="flex flex-col gap-1.5 flex-1">
           <Form {...form}>
             <form
               id="password-form"

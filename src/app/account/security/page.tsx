@@ -40,6 +40,8 @@ import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { LogoutAllDevices } from "@/components/logout-all-devices";
+import { useDeviceSessions } from "@/hooks/use-device-sessions";
+
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -47,6 +49,7 @@ export default function Security() {
   const [twoFactorData, setTwoFactorData] = useState<{
     availableMethods: TVerificationFactor[];
   } | null>(null);
+  const { sessions } = useDeviceSessions();
 
   const hasPasswordAuth = user?.has_password ?? false;
   const [showPasswords, setShowPasswords] = useState({
@@ -324,7 +327,7 @@ export default function Security() {
       <section className="flex flex-col flex-1">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-xl">Device management</h2>
-          <LogoutAllDevices />
+          {sessions.length > 1 && <LogoutAllDevices />}
         </div>
         <div className="mt-4">
           <DeviceSessionsList />

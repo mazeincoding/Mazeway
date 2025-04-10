@@ -331,14 +331,13 @@ export default function Security() {
 
       <Separator className="my-2" />
 
-      <SettingCard icon={ShieldIcon}>
-        <SettingCard.Header>
-          <SettingCard.Title>Connections</SettingCard.Title>
-          <SettingCard.Description>
-            Manage your connected social accounts.
-          </SettingCard.Description>
-        </SettingCard.Header>
-        <SettingCard.Content>
+      {/* Connections section */}
+      <section className="flex flex-col flex-1">
+        <h2 className="font-bold text-xl">Connections</h2>
+        <p className="text-muted-foreground mt-1">
+          Manage your connected social accounts.
+        </p>
+        <div className="mt-4">
           <SocialProviders
             identities={
               user?.auth?.identities?.map(
@@ -347,8 +346,10 @@ export default function Security() {
             }
             isLoading={isLoading}
           />
-        </SettingCard.Content>
-      </SettingCard>
+        </div>
+      </section>
+
+      <Separator className="my-2" />
 
       <SettingCard icon={ScrollText} className="!p-0">
         <SettingCard.Header>

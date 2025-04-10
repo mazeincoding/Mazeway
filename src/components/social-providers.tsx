@@ -187,7 +187,7 @@ function SocialProvider({
 
   return (
     <>
-      <div className="flex items-center justify-between border p-4 px-6 rounded-lg">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex-shrink-0 flex items-center justify-center">
             <Icon className="h-6 w-6" />

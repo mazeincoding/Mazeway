@@ -181,7 +181,7 @@ function EventItem({ event }: { event: TAccountEvent }) {
   const colors = EVENT_COLORS[category];
 
   return (
-    <div className="rounded-lg border bg-card p-3 sm:p-4 hover:shadow-md transition-shadow">
+    <div className="rounded-lg border bg-card p-3 sm:p-4 transition-shadow">
       <div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-4">
         <div className="flex flex-col gap-1.5 w-full">
           <div className="flex flex-wrap items-center gap-1.5">

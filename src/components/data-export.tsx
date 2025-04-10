@@ -5,6 +5,7 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { TDataExportStatus } from "@/types/auth";
 import { format } from "date-fns";
 import { useDataExports } from "@/hooks/use-data-exports";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -14,18 +15,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-function getStatusBadgeColor(status: TDataExportStatus) {
+function getStatusColors(status: TDataExportStatus) {
   switch (status) {
     case "pending":
-      return "bg-yellow-500/15 text-yellow-500";
+      return { bg: "rgba(234, 179, 8, 0.15)", text: "rgb(234, 179, 8)" };
     case "processing":
-      return "bg-blue-500/15 text-blue-500";
+      return { bg: "rgba(59, 130, 246, 0.15)", text: "rgb(59, 130, 246)" };
     case "completed":
-      return "bg-green-500/15 text-green-500";
+      return { bg: "rgba(34, 197, 94, 0.15)", text: "rgb(34, 197, 94)" };
     case "failed":
-      return "bg-red-500/15 text-red-500";
+      return { bg: "rgba(239, 68, 68, 0.15)", text: "rgb(239, 68, 68)" };
     default:
-      return "bg-accent text-foreground";
+      return { bg: "var(--accent)", text: "var(--foreground)" };
   }
 }
 
@@ -68,6 +69,50 @@ export function DataExport() {
 
   return (
     <div className="flex flex-col gap-6">
+      {isLoading ? (
+        <div className="text-muted-foreground text-sm">Loading exports...</div>
+      ) : exports.length > 0 ? (
+        <div className="space-y-3">
+          {exports.map((exportItem) => (
+            <div
+              key={exportItem.id}
+              className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
+            >
+              <div className="flex flex-col gap-1">
+                <div className="text-sm text-card-foreground">
+                  Requested{" "}
+                  {format(
+                    new Date(exportItem.created_at),
+                    "MMM d, yyyy h:mm a"
+                  )}
+                </div>
+                {exportItem.completed_at && (
+                  <div className="text-xs text-muted-foreground">
+                    Completed{" "}
+                    {format(
+                      new Date(exportItem.completed_at),
+                      "MMM d, yyyy h:mm a"
+                    )}
+                  </div>
+                )}
+              </div>
+              <Badge
+                variant="outline"
+                style={{
+                  backgroundColor: getStatusColors(exportItem.status).bg,
+                  color: getStatusColors(exportItem.status).text,
+                  borderColor: "transparent",
+                }}
+              >
+                {exportItem.status}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-sm text-muted-foreground">No exports yet</div>
+      )}
+
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <Button onClick={() => setShowConfirmDialog(true)} className="w-fit">
           Export my data
@@ -94,54 +139,6 @@ export function DataExport() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {isLoading ? (
-        <div className="text-muted-foreground text-sm">
-          Loading previous exports...
-        </div>
-      ) : exports.length > 0 ? (
-        <div className="flex flex-col gap-4">
-          <h3 className="text-sm font-medium text-foreground">
-            Previous exports
-          </h3>
-          <div className="space-y-3">
-            {exports.map((exportItem) => (
-              <div
-                key={exportItem.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
-              >
-                <div className="flex flex-col gap-1">
-                  <div className="text-sm text-card-foreground">
-                    Requested{" "}
-                    {format(
-                      new Date(exportItem.created_at),
-                      "MMM d, yyyy h:mm a"
-                    )}
-                  </div>
-                  {exportItem.completed_at && (
-                    <div className="text-xs text-muted-foreground">
-                      Completed{" "}
-                      {format(
-                        new Date(exportItem.completed_at),
-                        "MMM d, yyyy h:mm a"
-                      )}
-                    </div>
-                  )}
-                </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeColor(
-                    exportItem.status
-                  )}`}
-                >
-                  {exportItem.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground">No previous exports</div>
-      )}
     </div>
   );
 }

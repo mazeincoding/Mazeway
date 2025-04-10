@@ -258,78 +258,76 @@ function DeviceItem({
       </div>
       <div className="flex items-center gap-2">
         {!isCurrentDevice && (
-          <>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleLogoutClick}
-              disabled={isLoading}
-            >
-              {isRevoking ? "Logging out..." : "Log out"}
-            </Button>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" type="button">
-                  <InfoIcon className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="grid gap-4">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium">Device details</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Information about this device session
-                    </p>
-                  </div>
-                  <div className="grid gap-2">
-                    <div className="grid grid-cols-3 items-center gap-4">
-                      <Label className="text-sm text-muted-foreground">
-                        Device
-                      </Label>
-                      <span className="col-span-2 text-sm">{deviceName}</span>
-                    </div>
-                    <div className="grid grid-cols-3 items-center gap-4">
-                      <Label className="text-sm text-muted-foreground">
-                        Browser
-                      </Label>
-                      <span className="col-span-2 text-sm">{browser}</span>
-                    </div>
-                    {os && (
-                      <div className="grid grid-cols-3 items-center gap-4">
-                        <Label className="text-sm text-muted-foreground">
-                          OS
-                        </Label>
-                        <span className="col-span-2 text-sm">{os}</span>
-                      </div>
-                    )}
-                    {location && (
-                      <div className="grid grid-cols-3 items-center gap-4">
-                        <Label className="text-sm text-muted-foreground">
-                          Location
-                        </Label>
-                        <span className="col-span-2 text-sm">
-                          {[location.city, location.region, location.country]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </span>
-                      </div>
-                    )}
-                    {isLoadingLocation && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Loading location...
-                      </div>
-                    )}
-                    {locationError && (
-                      <p className="text-sm text-muted-foreground">
-                        {locationError}
-                      </p>
-                    )}
-                  </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" type="button">
+                <InfoIcon className="h-5 w-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium">Device details</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Information about this device session
+                  </p>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </>
+                <div className="grid gap-2">
+                  <div className="grid grid-cols-3 items-center gap-4">
+                    <Label className="text-sm text-muted-foreground">
+                      Device
+                    </Label>
+                    <span className="col-span-2 text-sm">{deviceName}</span>
+                  </div>
+                  <div className="grid grid-cols-3 items-center gap-4">
+                    <Label className="text-sm text-muted-foreground">
+                      Browser
+                    </Label>
+                    <span className="col-span-2 text-sm">{browser}</span>
+                  </div>
+                  {os && (
+                    <div className="grid grid-cols-3 items-center gap-4">
+                      <Label className="text-sm text-muted-foreground">
+                        OS
+                      </Label>
+                      <span className="col-span-2 text-sm">{os}</span>
+                    </div>
+                  )}
+                  {location && (
+                    <div className="grid grid-cols-3 items-center gap-4">
+                      <Label className="text-sm text-muted-foreground">
+                        Location
+                      </Label>
+                      <span className="col-span-2 text-sm">
+                        {[location.city, location.region, location.country]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {isLoadingLocation && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading location...
+                    </div>
+                  )}
+                  {locationError && (
+                    <p className="text-sm text-muted-foreground">
+                      {locationError}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleLogoutClick}
+                  disabled={isLoading}
+                >
+                  {isRevoking ? "Logging out..." : "Log out"}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     </div>
@@ -368,14 +366,5 @@ function DeviceItem({
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <Label className="text-sm text-muted-foreground">{label}</Label>
-      <p className="text-xl font-semibold">{value}</p>
-    </div>
   );
 }

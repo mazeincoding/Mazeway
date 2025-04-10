@@ -1,8 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { KeyRound, ShieldIcon, ScrollText, InfoIcon } from "lucide-react";
-import { SettingCard } from "@/components/setting-card";
+import { InfoIcon } from "lucide-react";
 import {
   passwordChangeSchema,
   addPasswordSchema,
@@ -351,17 +350,16 @@ export default function Security() {
 
       <Separator className="my-2" />
 
-      <SettingCard icon={ScrollText} className="!p-0">
-        <SettingCard.Header>
-          <SettingCard.Title>Recent activity</SettingCard.Title>
-          <SettingCard.Description>
-            Review recent security events and changes to your account.
-          </SettingCard.Description>
-        </SettingCard.Header>
-        <SettingCard.Content>
+      {/* Recent activity section */}
+      <section className="flex flex-col flex-1">
+        <h2 className="font-bold text-xl">Recent activity</h2>
+        <p className="text-muted-foreground mt-1">
+          Review recent security events and changes to your account.
+        </p>
+        <div className="mt-4">
           <EventLog />
-        </SettingCard.Content>
-      </SettingCard>
+        </div>
+      </section>
 
       {/* 2FA Dialog for Password Change */}
       {twoFactorData && twoFactorData.availableMethods && (

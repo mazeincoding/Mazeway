@@ -241,7 +241,7 @@ export default function Account() {
       <h1 className="text-3xl font-bold">Account</h1>
 
       {/* Profile section */}
-      <div className="flex items-center gap-6">
+      <section className="flex items-center gap-6">
         <Avatar className="h-20 w-20">
           <AvatarImage src={user?.avatar_url} alt="User avatar" />
           <AvatarFallback className="text-lg">
@@ -252,12 +252,12 @@ export default function Account() {
           <h3 className="text-2xl font-semibold">{user?.name}</h3>
           <p className="text-muted-foreground">{user?.email}</p>
         </div>
-      </div>
+      </section>
 
       <Separator className="my-2" />
 
       {/* Display name section */}
-      <div className="flex justify-between items-center">
+      <section className="flex justify-between items-center">
         <div className="flex flex-col gap-1.5 flex-1 mr-4">
           <Label className="font-bold text-base">Display name</Label>
           {isEditingName ? (
@@ -322,10 +322,10 @@ export default function Account() {
             Edit
           </Button>
         )}
-      </div>
+      </section>
 
       {/* Email address section */}
-      <div className="flex justify-between items-center">
+      <section className="flex justify-between items-center">
         <div className="flex flex-col gap-1.5 flex-1 mr-4">
           <Label className="font-bold text-base">Email address</Label>
           {isEditingEmail ? (
@@ -391,12 +391,12 @@ export default function Account() {
             Edit
           </Button>
         )}
-      </div>
+      </section>
 
       <Separator className="my-2" />
 
       {/* Delete account section */}
-      <div className="flex justify-between items-start">
+      <section className="flex justify-between items-start">
         <div className="flex flex-col gap-1.5 max-w-[70%]">
           <Label className="font-bold text-base">Delete account</Label>
           <p className="text-sm text-muted-foreground">
@@ -409,7 +409,7 @@ export default function Account() {
         <DeleteAccount>
           <Button variant="destructive">Delete</Button>
         </DeleteAccount>
-      </div>
+      </section>
 
       {/* Email Change Info Dialog */}
       <Dialog

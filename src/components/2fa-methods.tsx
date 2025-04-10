@@ -285,18 +285,18 @@ function MethodCard({
   onToggle: (method: TTwoFactorMethod, shouldEnable: boolean) => Promise<void>;
 }) {
   const methodIcons: Partial<Record<TTwoFactorMethod, React.ReactNode>> = {
-    authenticator: <QrCodeIcon className="h-6 w-6" />,
-    sms: <MessageCircleIcon className="h-6 w-6" />,
+    authenticator: <QrCodeIcon className="h-7 w-7" />,
+    sms: <MessageCircleIcon className="h-7 w-7" />,
   };
 
   return (
-    <div className="flex items-center justify-between border p-4 px-6 rounded-lg">
+    <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
           {methodIcons[method.type]}
         </div>
         <div className="flex flex-col">
-          <h3 className="text-lg font-semibold">{method.title}</h3>
+          <h3 className="font-semibold">{method.title}</h3>
           <p className="text-sm text-muted-foreground">{method.description}</p>
         </div>
       </div>

@@ -38,6 +38,8 @@ import { VerifyForm } from "@/components/verify-form";
 import { EventLog } from "@/components/event-log";
 import { SocialProviders } from "@/components/social-providers";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 
 export default function Security() {
   const { user, isLoading, refresh: refreshUser } = useUser();
@@ -219,7 +221,7 @@ export default function Security() {
       <h1 className="text-3xl font-bold">Security</h1>
 
       {/* Password section */}
-      <div className="flex justify-between items-start">
+      <section className="flex justify-between items-center">
         <div className="flex flex-col gap-1.5 flex-1 mr-4">
           <Form {...form}>
             <form
@@ -303,33 +305,31 @@ export default function Security() {
             </form>
           </Form>
         </div>
-      </div>
+      </section>
 
-      <SettingCard icon={ShieldIcon}>
-        <SettingCard.Header>
-          <SettingCard.Title>Two-factor authentication</SettingCard.Title>
-          <SettingCard.Description>
-            Add an extra layer of security to your account.
-          </SettingCard.Description>
-        </SettingCard.Header>
-        <SettingCard.Content>
+      <Separator className="my-2" />
+
+      {/* Two-factor authentication section */}
+      <section className="flex flex-col flex-1">
+        <h2 className="font-bold text-xl">Two-factor authentication</h2>
+        <div className="mt-4">
           <TwoFactorMethods
             userEnabledMethods={user?.auth?.enabled2faMethods ?? []}
           />
-        </SettingCard.Content>
-      </SettingCard>
+        </div>
+      </section>
 
-      <SettingCard icon={ShieldIcon}>
-        <SettingCard.Header>
-          <SettingCard.Title>Manage devices</SettingCard.Title>
-          <SettingCard.Description>
-            Manage the devices you're logged into.
-          </SettingCard.Description>
-        </SettingCard.Header>
-        <SettingCard.Content>
+      <Separator className="my-2" />
+
+      {/* Device management section */}
+      <section className="flex flex-col flex-1">
+        <h2 className="font-bold text-xl">Device management</h2>
+        <div className="mt-4">
           <DeviceSessionsList />
-        </SettingCard.Content>
-      </SettingCard>
+        </div>
+      </section>
+
+      <Separator className="my-2" />
 
       <SettingCard icon={ShieldIcon}>
         <SettingCard.Header>

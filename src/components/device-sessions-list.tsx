@@ -1,6 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { SmartphoneIcon, LaptopMinimalIcon, Loader2 } from "lucide-react";
+import {
+  SmartphoneIcon,
+  LaptopMinimalIcon,
+  Loader2,
+  InfoIcon,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +26,11 @@ import { isLocalIP } from "@/lib/utils";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 import { VerifyForm } from "./verify-form";
 import { api } from "@/utils/api";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export function DeviceSessionsList() {
   const { sessions, isLoading, error, refresh } = useDeviceSessions();
@@ -229,20 +239,98 @@ function DeviceItem({
   };
 
   const content = (
-    <div
-      className={`flex items-center justify-between border p-4 px-6 rounded-lg ${
-        !isCurrentDevice && "cursor-pointer hover:bg-accent"
-      }`}
-    >
+    <div className="flex items-center justify-between gap-4">
       <div className="flex items-center gap-4">
         <div className="flex-shrink-0">{deviceIcon}</div>
         <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold">{deviceName}</h3>
-            {isCurrentDevice && <Badge>Current device</Badge>}
-          </div>
-          <p className="text-sm text-muted-foreground">{browser}</p>
+          <h3 className="text-lg font-semibold">
+            {deviceName}
+            {isCurrentDevice && (
+              <Badge variant="outline" className="ml-2">
+                Current device
+              </Badge>
+            )}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {[browser, os].filter(Boolean).join(" • ")}
+          </p>
         </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {!isCurrentDevice && (
+          <>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleLogoutClick}
+              disabled={isLoading}
+            >
+              {isRevoking ? "Logging out..." : "Log out"}
+            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" type="button">
+                  <InfoIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium">Device details</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Information about this device session
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <div className="grid grid-cols-3 items-center gap-4">
+                      <Label className="text-sm text-muted-foreground">
+                        Device
+                      </Label>
+                      <span className="col-span-2 text-sm">{deviceName}</span>
+                    </div>
+                    <div className="grid grid-cols-3 items-center gap-4">
+                      <Label className="text-sm text-muted-foreground">
+                        Browser
+                      </Label>
+                      <span className="col-span-2 text-sm">{browser}</span>
+                    </div>
+                    {os && (
+                      <div className="grid grid-cols-3 items-center gap-4">
+                        <Label className="text-sm text-muted-foreground">
+                          OS
+                        </Label>
+                        <span className="col-span-2 text-sm">{os}</span>
+                      </div>
+                    )}
+                    {location && (
+                      <div className="grid grid-cols-3 items-center gap-4">
+                        <Label className="text-sm text-muted-foreground">
+                          Location
+                        </Label>
+                        <span className="col-span-2 text-sm">
+                          {[location.city, location.region, location.country]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
+                      </div>
+                    )}
+                    {isLoadingLocation && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Loading location...
+                      </div>
+                    )}
+                    {locationError && (
+                      <p className="text-sm text-muted-foreground">
+                        {locationError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
       </div>
     </div>
   );
@@ -252,75 +340,34 @@ function DeviceItem({
   }
 
   return (
-    <Dialog
-      open={dialogOpen}
-      onOpenChange={(open) => {
-        setDialogOpen(open);
-        if (!open) {
-          setIsVerifying(false);
-        }
-      }}
-    >
-      <DialogTrigger asChild>{content}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {verificationData ? "Verify your identity" : "Device details"}
-          </DialogTitle>
-          <DialogDescription>
-            {verificationData
-              ? "To log out this device, please verify your identity"
-              : "View details about this device and log out"}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {content}
+      <Dialog
+        open={!!verificationData}
+        onOpenChange={(open) => {
+          if (!open) {
+            setVerificationData(null);
+            setIsVerifying(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verify your identity</DialogTitle>
+            <DialogDescription>
+              To log out this device, please verify your identity
+            </DialogDescription>
+          </DialogHeader>
 
-        {!verificationData ? (
-          <>
-            <InfoItem label="Device name" value={deviceName} />
-            <InfoItem label="Browser" value={browser} />
-            {os && <InfoItem label="Operating System" value={os} />}
-            {location && (
-              <InfoItem
-                label="Location"
-                value={[location.city, location.region, location.country]
-                  .filter(Boolean)
-                  .join(", ")}
-              />
-            )}
-            {isLoadingLocation && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />{" "}
-                Loading location...
-              </div>
-            )}
-            {locationError && (
-              <div className="text-sm text-muted-foreground">
-                {locationError}
-              </div>
-            )}
-            <DialogFooter>
-              <Button
-                variant="destructive"
-                className="w-full"
-                onClick={handleLogoutClick}
-                disabled={isLoading}
-              >
-                {isRevoking
-                  ? "Logging out..."
-                  : isVerifying
-                    ? "Checking..."
-                    : "Log out from this device"}
-              </Button>
-            </DialogFooter>
-          </>
-        ) : (
-          <VerifyForm
-            availableMethods={verificationData.availableMethods}
-            onVerifyComplete={handleVerifyComplete}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+          {verificationData && (
+            <VerifyForm
+              availableMethods={verificationData.availableMethods}
+              onVerifyComplete={handleVerifyComplete}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

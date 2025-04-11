@@ -180,10 +180,13 @@ export async function getUserVerificationMethods({
         [];
       if (verifiedTOTP.length > 0) {
         methods.push("authenticator");
-        factors.push({
-          type: "authenticator",
-          factorId: verifiedTOTP[0].id,
-          friendly_name: verifiedTOTP[0].friendly_name,
+        // Push all verified TOTP factors
+        verifiedTOTP.forEach((factor) => {
+          factors.push({
+            type: "authenticator",
+            factorId: factor.id,
+            friendly_name: factor.friendly_name,
+          });
         });
       }
 
@@ -275,10 +278,13 @@ export async function getUserVerificationMethods({
         [];
       if (verifiedTOTP.length > 0) {
         methods.push("authenticator");
-        factors.push({
-          type: "authenticator",
-          factorId: verifiedTOTP[0].id,
-          friendly_name: verifiedTOTP[0].friendly_name,
+        // Push all verified TOTP factors
+        verifiedTOTP.forEach((factor) => {
+          factors.push({
+            type: "authenticator",
+            factorId: factor.id,
+            friendly_name: factor.friendly_name,
+          });
         });
       }
 

@@ -325,3 +325,8 @@ export interface TDisconnectSocialProviderResponse
 // /api/auth/device-sessions/revoke-all
 export interface TRevokeAllDeviceSessionsResponse
   extends TGeneralVerificationRequirement {}
+
+// /api/auth/user/avatar/update
+export interface TUpdateAvatarResponse {
+  avatarUrl: string;
+}

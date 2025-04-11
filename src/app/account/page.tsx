@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/hooks/use-auth";
 import {
@@ -35,7 +35,7 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
-import { Check, X } from "lucide-react";
+import { Check, X, Upload, Loader2 } from "lucide-react";
 
 function getConnectedProvidersMessage(
   identities: Array<{ provider: string }> | undefined
@@ -85,6 +85,10 @@ export default function Account() {
   // New state for inline editing
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
+
+  // Avatar upload state
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ProfileSchema>({
     resolver: zodResolver(profileSchema),
@@ -236,18 +240,95 @@ export default function Account() {
     form.setValue("email", user?.email || "");
   };
 
+  const handleAvatarClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleAvatarUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Invalid file type", {
+        description: "Please select an image file",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error("File too large", {
+        description: "Image must be less than 5MB",
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      await api.user.updateAvatar(file);
+      toast.success("Profile picture updated", {
+        duration: 3000,
+      });
+    } catch (error) {
+      toast.error("Upload failed", {
+        description:
+          error instanceof Error ? error.message : "Failed to upload image",
+        duration: 3000,
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  if (isUserLoading) {
+    return (
+      <div className="flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto py-2">
       <h1 className="text-3xl font-bold">Account</h1>
 
       {/* Profile section */}
       <section className="flex items-center gap-6">
-        <Avatar className="h-20 w-20">
-          <AvatarImage src={user?.avatar_url} alt="User avatar" />
-          <AvatarFallback className="text-lg">
-            {getFirstLetter(user?.name || "U")}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative group">
+          <Avatar
+            className="h-20 w-20 cursor-pointer transition-all relative"
+            onClick={handleAvatarClick}
+          >
+            <AvatarImage src={user?.avatar_url} alt="User avatar" />
+            <AvatarFallback className="text-lg">
+              {getFirstLetter(user?.name || "U")}
+            </AvatarFallback>
+            <div className="absolute inset-0 bg-black/10 opacity-0 hover:opacity-100 transition-opacity rounded-full">
+              {isUploadingAvatar && (
+                <Loader2 className="h-6 w-6 text-white animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              )}
+            </div>
+          </Avatar>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleAvatarUpload}
+            className="hidden"
+            accept="image/*"
+          />
+        </div>
         <div className="flex flex-col gap-1">
           <h3 className="text-2xl font-semibold">{user?.name}</h3>
           <p className="text-muted-foreground">{user?.email}</p>

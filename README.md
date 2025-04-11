@@ -176,18 +176,60 @@ npm run reset-project
    - It'll set up necessary functions and tables
    - Pro tip: look at what you're actually copying/pasting so you know what you're working with
 
-5. Change email templates
+5. Create a bucket for profile pictures
+   - Go to [Supabase Storage](https://supabase.com/dashboard/project/_/storage/buckets)
+   - Click "Create bucket"
+   - Name it "profile-pics"
+   - Make it public (major platforms do this, pfps are meant to be public)
+   - Under "Additional configuration":
+      - Turn on "Restrict file upload size for bucket"
+      - Set it to whatever you want (if you don't know, 5MB is good)
+      - Set "Allowed MIME types" to "image/webp"
+   - Click "Create bucket"
+   - Add RLS policies to this bucket (yes you can really do that):
+      - Go to [Supabase SQL Editor](https://supabase.com/dashboard/project/_/sql/new)
+      - Run this query:
+      ```sql
+      -- Allow users to upload their own profile pictures
+      CREATE POLICY "Allow users to upload their own profile pictures" 
+      ON storage.objects
+      FOR INSERT
+      WITH CHECK (
+        bucket_id = 'profile-pics' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+
+      -- Allow users to update/replace their own profile pictures
+      CREATE POLICY "Allow users to update their own profile pictures"
+      ON storage.objects
+      FOR UPDATE
+      USING (
+        bucket_id = 'profile-pics' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+
+      -- Allow users to delete their own profile pictures
+      CREATE POLICY "Allow users to delete their own profile pictures"
+      ON storage.objects
+      FOR DELETE
+      USING (
+        bucket_id = 'profile-pics' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+      ```
+      
+6. Change email templates
    - Go to [Supabase Email Templates](https://supabase.com/dashboard/project/_/auth/templates)
    - Copy and paste these [email templates](docs/supabase-email-templates.md)
 
-6. Add redirect URLs in Supabase
+7. Add redirect URLs in Supabase
    - Go [here](https://supabase.com/dashboard/project/_/auth/url-configuration)
    - Add these redirect URLs
       - `http://localhost:3000/api/auth/callback`
       - `http://localhost:3000/api/auth/confirm`
   - Ensures Supabase can actually redirect to these routes
 
-7. Syncing user email
+8. Syncing user email
 
    "Syncing user email? What? Why?"
    

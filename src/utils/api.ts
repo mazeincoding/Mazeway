@@ -44,6 +44,7 @@ import type {
   TConnectSocialProviderRequest,
   TRevokeAllDeviceSessionsRequest,
   TRevokeAllDeviceSessionsResponse,
+  TUpdateAvatarResponse,
 } from "@/types/api";
 import type { ProfileSchema } from "@/validation/auth-validation";
 import { mutate } from "swr";
@@ -352,6 +353,22 @@ export const api = {
       const result = await handleResponse<TEmptySuccessResponse>(response);
 
       // Refresh user data after successful update
+      await mutate("/api/auth/user");
+
+      return result;
+    },
+
+    updateAvatar: async (file: File): Promise<TUpdateAvatarResponse> => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/auth/user/avatar/update", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await handleResponse<TUpdateAvatarResponse>(response);
+
+      // Refresh user data after successful upload
       await mutate("/api/auth/user");
 
       return result;

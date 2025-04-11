@@ -1,8 +1,11 @@
 import { TTwoFactorMethod, TVerificationFactor } from "@/types/auth";
-import { getConfigured2FAMethods } from "@/utils/auth";
-import { MessageCircleIcon, QrCodeIcon } from "lucide-react";
+import {
+  getConfigured2FAMethods,
+  getUserVerificationMethods,
+} from "@/utils/auth";
+import { MessageCircleIcon, QrCodeIcon, TrashIcon } from "lucide-react";
 import { Switch } from "./ui/switch";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/utils/api";
 import {
   Dialog,
@@ -15,6 +18,14 @@ import { VerifyForm } from "./verify-form";
 import { TwoFactorSetupDialog } from "./2fa-setup-dialog";
 import { useUser } from "@/hooks/use-auth";
 import { toast } from "sonner";
+import { Button } from "./ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { createClient } from "@/utils/supabase/client";
 
 interface TwoFactorMethodsProps {
   userEnabledMethods: TTwoFactorMethod[];
@@ -24,7 +35,7 @@ export function TwoFactorMethods({
   userEnabledMethods,
 }: TwoFactorMethodsProps) {
   const availableConfiguredMethods = getConfigured2FAMethods();
-  const { user, refresh: refreshUser } = useUser();
+  const { refresh: refreshUser } = useUser();
   const [isMethodLoading, setIsMethodLoading] = useState<
     Record<string, boolean>
   >({});
@@ -231,6 +242,9 @@ export function TwoFactorMethods({
                 onToggle={(method, shouldEnable) =>
                   handleMethodToggle({ method, shouldEnable })
                 }
+                setActiveMethod={setActiveMethod}
+                setSetup2FAData={setSetup2FAData}
+                setShowSetupDialog={setShowSetupDialog}
               />
             );
           })}
@@ -278,33 +292,286 @@ function MethodCard({
   isEnabled,
   isLoading,
   onToggle,
+  setActiveMethod,
+  setSetup2FAData,
+  setShowSetupDialog,
 }: {
   method: ReturnType<typeof getConfigured2FAMethods>[number];
   isEnabled: boolean;
   isLoading: boolean;
   onToggle: (method: TTwoFactorMethod, shouldEnable: boolean) => Promise<void>;
+  setActiveMethod: (method: TTwoFactorMethod | null) => void;
+  setSetup2FAData: (
+    data: { qrCode: string; secret: string; phone?: string } | null
+  ) => void;
+  setShowSetupDialog: (show: boolean) => void;
 }) {
+  const [methodFactors, setMethodFactors] = useState<TVerificationFactor[]>([]);
+  const [isRemovingFactor, setIsRemovingFactor] = useState<string | null>(null);
+  const [isAddingBackup, setIsAddingBackup] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationData, setVerificationData] = useState<{
+    availableMethods: TVerificationFactor[];
+    pendingAction: {
+      type: "remove" | "add";
+      factorId?: string;
+    };
+  } | null>(null);
+  const { refresh: refreshUser } = useUser();
+
   const methodIcons: Partial<Record<TTwoFactorMethod, React.ReactNode>> = {
     authenticator: <QrCodeIcon className="h-7 w-7" />,
     sms: <MessageCircleIcon className="h-7 w-7" />,
   };
 
+  useEffect(() => {
+    getFactors();
+  }, [method.type, isEnabled]);
+
+  async function getFactors() {
+    const supabase = createClient();
+    const { factors } = await getUserVerificationMethods({
+      supabase,
+    });
+    const filteredFactors = factors.filter(
+      (factor) => factor.type === method.type
+    );
+    setMethodFactors(filteredFactors);
+  }
+
+  // Handle removing a specific factor
+  const handleRemoveFactor = async ({
+    factorId,
+    skipVerificationCheck = false,
+  }: {
+    factorId: string;
+    skipVerificationCheck?: boolean;
+  }) => {
+    try {
+      setIsRemovingFactor(factorId);
+
+      if (!skipVerificationCheck) {
+        const data = await api.auth.disable2FA({
+          method: method.type,
+          factorId,
+          checkVerificationOnly: true,
+        });
+
+        if (
+          data.requiresVerification &&
+          data.availableMethods &&
+          data.availableMethods.length > 0
+        ) {
+          setVerificationData({
+            availableMethods: data.availableMethods,
+            pendingAction: { type: "remove", factorId },
+          });
+          setNeedsVerification(true);
+          setIsRemovingFactor(null);
+          return;
+        }
+      }
+
+      const loadingToast = toast.loading("Removing factor...");
+      await api.auth.disable2FA({
+        method: method.type,
+        factorId,
+      });
+
+      toast.dismiss(loadingToast);
+      toast.success("Factor removed", {
+        description: "The authentication factor has been removed successfully.",
+      });
+
+      await getFactors();
+      await refreshUser();
+      setNeedsVerification(false);
+      setVerificationData(null);
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error ? error.message : "Failed to remove factor",
+      });
+      // Clear verification state on error
+      setNeedsVerification(false);
+      setVerificationData(null);
+    } finally {
+      // Only clear loading state here, NOT verification state
+      setIsRemovingFactor(null);
+    }
+  };
+
+  // Handle adding a backup method
+  const handleAddBackup = async ({
+    skipVerificationCheck = false,
+  }: {
+    skipVerificationCheck?: boolean;
+  } = {}) => {
+    try {
+      setIsAddingBackup(true);
+
+      if (!skipVerificationCheck) {
+        const data = await api.auth.setup2FA({
+          method: method.type,
+          checkVerificationOnly: true,
+        });
+
+        if (
+          data.requiresVerification &&
+          data.availableMethods &&
+          data.availableMethods.length > 0
+        ) {
+          setVerificationData({
+            availableMethods: data.availableMethods,
+            pendingAction: { type: "add" },
+          });
+          setNeedsVerification(true);
+          setIsAddingBackup(false);
+          return;
+        }
+      }
+
+      const loadingToast = toast.loading("Setting up backup method...");
+      const data = await api.auth.setup2FA({
+        method: method.type,
+      });
+
+      toast.dismiss(loadingToast);
+
+      if (!data.requiresVerification) {
+        setActiveMethod(method.type);
+        setSetup2FAData({
+          qrCode: data.qr_code || "",
+          secret: data.secret || "",
+          phone: data.phone,
+        });
+        setShowSetupDialog(true);
+      }
+
+      await getFactors();
+      await refreshUser();
+
+      // Only clear verification state if we actually completed the action
+      setNeedsVerification(false);
+      setVerificationData(null);
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to add backup method",
+      });
+      // Clear verification state on error
+      setNeedsVerification(false);
+      setVerificationData(null);
+    } finally {
+      // Only clear loading state here, NOT verification state
+      setIsAddingBackup(false);
+    }
+  };
+
+  // Handle verification completion
+  const handleVerificationComplete = async () => {
+    if (!verificationData) return;
+
+    const { type, factorId } = verificationData.pendingAction;
+
+    if (type === "remove" && factorId) {
+      await handleRemoveFactor({ factorId, skipVerificationCheck: true });
+    } else if (type === "add") {
+      await handleAddBackup({ skipVerificationCheck: true });
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
-          {methodIcons[method.type]}
+    <Accordion type="single" collapsible>
+      <AccordionItem value="item-1" className="border-none">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex-shrink-0 flex items-center justify-center text-muted-foreground">
+              {methodIcons[method.type]}
+            </div>
+            <div className="flex flex-col">
+              <h3 className="font-semibold">{method.title}</h3>
+              <p className="text-sm text-muted-foreground">
+                {method.description}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Switch
+              checked={isEnabled}
+              onCheckedChange={(checked) => onToggle(method.type, checked)}
+              disabled={isLoading}
+            />
+            {isEnabled && (
+              <AccordionTrigger className="h-9 w-9 p-0 hover:no-underline hover:bg-accent flex items-center justify-center rounded-full" />
+            )}
+          </div>
         </div>
-        <div className="flex flex-col">
-          <h3 className="font-semibold">{method.title}</h3>
-          <p className="text-sm text-muted-foreground">{method.description}</p>
-        </div>
-      </div>
-      <Switch
-        checked={isEnabled}
-        onCheckedChange={(checked) => onToggle(method.type, checked)}
-        disabled={isLoading}
-      />
-    </div>
+        {isEnabled && (
+          <AccordionContent className="pb-0">
+            <div className="pl-11 space-y-4 pt-4">
+              {methodFactors.map((factor) => (
+                <div
+                  key={factor.factorId}
+                  className="flex items-center justify-between py-2 px-4 rounded-lg border bg-accent"
+                >
+                  <span className="text-sm font-medium">
+                    {factor.friendly_name ||
+                      `${method.title} ${factor.factorId.slice(0, 4)}`}
+                  </span>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() =>
+                        handleRemoveFactor({ factorId: factor.factorId })
+                      }
+                      disabled={isRemovingFactor === factor.factorId}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button
+                className="justify-start text-sm"
+                onClick={() => handleAddBackup()}
+                disabled={isAddingBackup}
+              >
+                Add a backup{" "}
+                {method.type === "authenticator"
+                  ? "authenticator"
+                  : "phone number"}
+              </Button>
+            </div>
+          </AccordionContent>
+        )}
+      </AccordionItem>
+
+      {/* Verification Dialog */}
+      {verificationData && (
+        <Dialog open={needsVerification} onOpenChange={setNeedsVerification}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify your identity</DialogTitle>
+              <DialogDescription>
+                Please confirm your identity to{" "}
+                {verificationData.pendingAction.type === "remove"
+                  ? "remove this factor"
+                  : "add a backup method"}
+              </DialogDescription>
+            </DialogHeader>
+            <VerifyForm
+              availableMethods={verificationData.availableMethods}
+              onVerifyComplete={handleVerificationComplete}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </Accordion>
   );
 }

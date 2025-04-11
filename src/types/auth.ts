@@ -38,6 +38,7 @@ export type TTwoFactorMethod = Extract<
 export type TVerificationFactor = {
   type: TVerificationMethod;
   factorId: string;
+  friendly_name?: string;
 };
 
 export interface TDeviceSession {

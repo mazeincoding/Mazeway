@@ -159,6 +159,7 @@ export const validateTwoFactorCode = (code: string) => {
 export const disable2FASchema = z.object({
   method: TwoFactorMethodEnum,
   checkVerificationOnly: z.boolean().optional().default(false),
+  factorId: z.string().optional(),
 });
 
 export type Disable2FASchema = z.infer<typeof disable2FASchema>;

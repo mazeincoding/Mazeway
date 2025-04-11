@@ -263,12 +263,19 @@ export async function POST(request: NextRequest) {
 
     // 7. Handle SMS enrollment with validated phone number
     if (body.method === "sms") {
+      // Get existing factors to determine index
+      const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+      const smsFactors =
+        existingFactors?.all?.filter((f) => f.factor_type === "phone") || [];
+      const smsIndex = smsFactors.length + 1;
+
       // Type narrowing - we know phone exists when method is "sms"
       const { phone } = body as { phone: string };
       const { data: factorData, error: factorError } =
         await supabase.auth.mfa.enroll({
           factorType: "phone",
           phone,
+          friendlyName: `SMS ${smsIndex}`,
         });
 
       if (factorError) {
@@ -300,9 +307,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Count existing verified TOTP factors for naming
+    const totpFactors =
+      factors?.all?.filter(
+        (f) => f.factor_type === "totp" && f.status === "verified"
+      ) || [];
+    const totpIndex = totpFactors.length + 1;
+
     const { data: factorData, error: factorError } =
       await supabase.auth.mfa.enroll({
         factorType: "totp",
+        friendlyName: `Authenticator ${totpIndex}`,
       });
 
     if (factorError) {

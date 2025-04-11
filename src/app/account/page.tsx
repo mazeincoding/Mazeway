@@ -311,7 +311,11 @@ export default function Account() {
             className="h-20 w-20 cursor-pointer transition-all relative"
             onClick={handleAvatarClick}
           >
-            <AvatarImage src={user?.avatar_url} alt="User avatar" />
+            <AvatarImage
+              src={user?.avatar_url}
+              alt="User avatar"
+              className="object-cover"
+            />
             <AvatarFallback className="text-lg">
               {getFirstLetter(user?.name || "U")}
             </AvatarFallback>

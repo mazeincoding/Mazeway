@@ -67,7 +67,11 @@ export function UserDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Avatar className="h-8 w-8 cursor-pointer">
-          <AvatarImage src={user?.avatar_url} alt="User avatar" />
+          <AvatarImage
+            src={user?.avatar_url}
+            alt="User avatar"
+            className="object-cover"
+          />
           <AvatarFallback>{getFirstLetter(user?.name || "U")}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>

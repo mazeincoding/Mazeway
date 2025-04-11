@@ -183,6 +183,7 @@ export async function getUserVerificationMethods({
         factors.push({
           type: "authenticator",
           factorId: verifiedTOTP[0].id,
+          friendly_name: verifiedTOTP[0].friendly_name,
         });
       }
 
@@ -195,6 +196,7 @@ export async function getUserVerificationMethods({
         factors.push({
           type: "sms",
           factorId: verifiedSMS[0].id,
+          friendly_name: verifiedSMS[0].friendly_name,
         });
       }
 
@@ -276,6 +278,7 @@ export async function getUserVerificationMethods({
         factors.push({
           type: "authenticator",
           factorId: verifiedTOTP[0].id,
+          friendly_name: verifiedTOTP[0].friendly_name,
         });
       }
 
@@ -288,6 +291,7 @@ export async function getUserVerificationMethods({
         factors.push({
           type: "sms",
           factorId: verifiedSMS[0].id,
+          friendly_name: verifiedSMS[0].friendly_name,
         });
       }
 

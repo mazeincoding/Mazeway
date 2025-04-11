@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TDisable2FARequest = validation.data;
-    const { method, checkVerificationOnly = false } = body;
+    const { method, checkVerificationOnly = false, factorId } = body;
 
     // 3. Get factor ID for the method
     const factor = await getFactorForMethod({ supabase, method });
@@ -88,6 +88,23 @@ export async function POST(request: NextRequest) {
         { error: factor.error || "2FA method not found" },
         { status: 400 }
       ) satisfies NextResponse<TApiErrorResponse>;
+    }
+
+    // If factorId is provided, verify it belongs to the specified method
+    if (factorId) {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const methodFactors = factors?.all?.filter(
+        (f) =>
+          (f.factor_type === "totp" && method === "authenticator") ||
+          (f.factor_type === "phone" && method === "sms")
+      );
+
+      if (!methodFactors?.some((f) => f.id === factorId)) {
+        return NextResponse.json(
+          { error: "Invalid factor ID for the specified method" },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
+      }
     }
 
     // Check if verification is needed based on grace period
@@ -161,9 +178,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. Disable the method
+    // 5. Disable the method or specific factor
     const { error: unenrollError } = await supabase.auth.mfa.unenroll({
-      factorId: factor.factorId,
+      factorId: factorId || factor.factorId,
     });
 
     if (unenrollError) {
@@ -174,38 +191,52 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Delete all backup codes for the user since 2FA is now disabled
-    const { error: backupCodesDeleteError } = await supabaseAdmin
-      .from("backup_codes")
-      .delete()
-      .eq("user_id", user.id);
+    // Check if this was the last factor for this method
+    const { data: remainingFactors } = await supabase.auth.mfa.listFactors();
+    const hasRemainingFactors = remainingFactors?.all?.some(
+      (f) =>
+        (f.factor_type === "totp" && method === "authenticator") ||
+        (f.factor_type === "phone" && method === "sms")
+    );
 
-    if (backupCodesDeleteError) {
-      console.error("Failed to delete backup codes:", backupCodesDeleteError);
-      // Log the error but don't fail the request since 2FA was successfully disabled
-    }
+    // Only delete backup codes and update AAL if this was the last factor
+    if (!hasRemainingFactors) {
+      // Delete all backup codes for the user since 2FA is now disabled
+      const { error: backupCodesDeleteError } = await supabaseAdmin
+        .from("backup_codes")
+        .delete()
+        .eq("user_id", user.id);
 
-    // Update has_backup_codes flag to false since we deleted all backup codes
-    const { error: userUpdateError } = await supabaseAdmin
-      .from("users")
-      .update({ has_backup_codes: false })
-      .eq("id", user.id);
+      if (backupCodesDeleteError) {
+        console.error("Failed to delete backup codes:", backupCodesDeleteError);
+        // Log the error but don't fail the request since 2FA was successfully disabled
+      }
 
-    if (userUpdateError) {
-      console.error("Failed to update has_backup_codes flag:", userUpdateError);
-      // Log the error but don't fail the request since 2FA was successfully disabled
-    }
+      // Update has_backup_codes flag to false since we deleted all backup codes
+      const { error: userUpdateError } = await supabaseAdmin
+        .from("users")
+        .update({ has_backup_codes: false })
+        .eq("id", user.id);
 
-    // Update all device sessions to AAL1 since 2FA is now disabled
-    const { error: sessionUpdateError } = await supabaseAdmin
-      .from("device_sessions")
-      .update({ aal: "aal1" })
-      .eq("user_id", user.id)
-      .eq("aal", "aal2");
+      if (userUpdateError) {
+        console.error(
+          "Failed to update has_backup_codes flag:",
+          userUpdateError
+        );
+        // Log the error but don't fail the request since 2FA was successfully disabled
+      }
 
-    if (sessionUpdateError) {
-      console.error("Failed to update device sessions:", sessionUpdateError);
-      // Log the error but don't fail the request since 2FA was successfully disabled
+      // Update all device sessions to AAL1 since 2FA is now disabled
+      const { error: sessionUpdateError } = await supabaseAdmin
+        .from("device_sessions")
+        .update({ aal: "aal1" })
+        .eq("user_id", user.id)
+        .eq("aal", "aal2");
+
+      if (sessionUpdateError) {
+        console.error("Failed to update device sessions:", sessionUpdateError);
+        // Log the error but don't fail the request since 2FA was successfully disabled
+      }
     }
 
     // Log the 2FA disable event
@@ -216,7 +247,9 @@ export async function POST(request: NextRequest) {
       metadata: {
         method,
         category: "warning",
-        description: `Two-factor authentication disabled for ${method} method`,
+        description: factorId
+          ? `Two-factor authentication factor disabled for ${method} method`
+          : `Two-factor authentication disabled for ${method} method`,
       },
     });
 

@@ -273,7 +273,9 @@ export default function Account() {
 
     try {
       setIsUploadingAvatar(true);
+      const loadingToast = toast.loading("Updating profile picture...");
       await api.user.updateAvatar(file);
+      toast.dismiss(loadingToast);
       toast.success("Profile picture updated", {
         duration: 3000,
       });

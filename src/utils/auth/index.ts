@@ -180,8 +180,13 @@ export async function getUserVerificationMethods({
         [];
       if (verifiedTOTP.length > 0) {
         methods.push("authenticator");
-        // Push all verified TOTP factors
-        verifiedTOTP.forEach((factor) => {
+        // Push all verified TOTP factors and sort them by their numeric value
+        const sortedTOTP = verifiedTOTP.sort((a, b) => {
+          const numA = parseInt(a.friendly_name?.split(" ")[1] || "0");
+          const numB = parseInt(b.friendly_name?.split(" ")[1] || "0");
+          return numA - numB;
+        });
+        sortedTOTP.forEach((factor) => {
           factors.push({
             type: "authenticator",
             factorId: factor.id,
@@ -278,8 +283,13 @@ export async function getUserVerificationMethods({
         [];
       if (verifiedTOTP.length > 0) {
         methods.push("authenticator");
-        // Push all verified TOTP factors
-        verifiedTOTP.forEach((factor) => {
+        // Push all verified TOTP factors and sort them by their numeric value
+        const sortedTOTP = verifiedTOTP.sort((a, b) => {
+          const numA = parseInt(a.friendly_name?.split(" ")[1] || "0");
+          const numB = parseInt(b.friendly_name?.split(" ")[1] || "0");
+          return numA - numB;
+        });
+        sortedTOTP.forEach((factor) => {
           factors.push({
             type: "authenticator",
             factorId: factor.id,

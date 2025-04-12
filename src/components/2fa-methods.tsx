@@ -56,6 +56,23 @@ export function TwoFactorMethods({
   const [activeMethod, setActiveMethod] = useState<TTwoFactorMethod | null>(
     null
   );
+  const [methodsToRefresh, setMethodsToRefresh] = useState<
+    Set<TTwoFactorMethod>
+  >(new Set());
+
+  // Function to mark a method as needing refresh
+  const markMethodForRefresh = (method: TTwoFactorMethod) => {
+    setMethodsToRefresh((prev) => new Set(prev).add(method));
+  };
+
+  // Function to clear refresh flag for a method
+  const clearMethodRefresh = (method: TTwoFactorMethod) => {
+    setMethodsToRefresh((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(method);
+      return newSet;
+    });
+  };
 
   // Handle toggling a 2FA method (enable or disable)
   const handleMethodToggle = async ({
@@ -217,8 +234,11 @@ export function TwoFactorMethods({
     }
   };
 
-  // Handle setup dialog close - refresh user data
+  // Handle setup dialog close - refresh user data and trigger factor refresh
   const handleSetupComplete = async () => {
+    if (activeMethod) {
+      markMethodForRefresh(activeMethod);
+    }
     await refreshUser();
     setShowSetupDialog(false);
     setSetup2FAData(null);
@@ -232,6 +252,7 @@ export function TwoFactorMethods({
           .filter((method) => method.type !== "backup_codes")
           .map((method) => {
             const isEnabled = userEnabledMethods.includes(method.type);
+            const needsRefresh = methodsToRefresh.has(method.type);
 
             return (
               <MethodCard
@@ -245,6 +266,8 @@ export function TwoFactorMethods({
                 setActiveMethod={setActiveMethod}
                 setSetup2FAData={setSetup2FAData}
                 setShowSetupDialog={setShowSetupDialog}
+                needsRefresh={needsRefresh}
+                onRefreshComplete={() => clearMethodRefresh(method.type)}
               />
             );
           })}
@@ -295,6 +318,8 @@ function MethodCard({
   setActiveMethod,
   setSetup2FAData,
   setShowSetupDialog,
+  needsRefresh,
+  onRefreshComplete,
 }: {
   method: ReturnType<typeof getConfigured2FAMethods>[number];
   isEnabled: boolean;
@@ -305,6 +330,8 @@ function MethodCard({
     data: { qrCode: string; secret: string; phone?: string } | null
   ) => void;
   setShowSetupDialog: (show: boolean) => void;
+  needsRefresh: boolean;
+  onRefreshComplete: () => void;
 }) {
   const [methodFactors, setMethodFactors] = useState<TVerificationFactor[]>([]);
   const [isRemovingFactor, setIsRemovingFactor] = useState<string | null>(null);
@@ -327,6 +354,15 @@ function MethodCard({
   useEffect(() => {
     getFactors();
   }, [method.type, isEnabled]);
+
+  // Add new effect to handle refresh requests
+  useEffect(() => {
+    if (needsRefresh) {
+      getFactors().then(() => {
+        onRefreshComplete();
+      });
+    }
+  }, [needsRefresh, onRefreshComplete]);
 
   async function getFactors() {
     const supabase = createClient();

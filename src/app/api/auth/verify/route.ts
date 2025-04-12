@@ -249,13 +249,17 @@ export async function POST(request: NextRequest) {
         // Get the factor's status BEFORE we verify it
         const { data: preVerificationFactors } =
           await supabase.auth.mfa.listFactors();
-        const factorBeforeVerification = preVerificationFactors?.all?.find(
-          (f) => f.id === factorId
+
+        // Check if user had ANY verified 2FA factors before this one
+        const hadExistingVerifiedFactors = preVerificationFactors?.all?.some(
+          (f) =>
+            f.id !== factorId && // Exclude current factor
+            f.status === "verified" &&
+            (f.factor_type === "totp" || f.factor_type === "phone") // Only count actual 2FA methods
         );
 
-        // If this factor was already verified before, this is not initial setup
-        const isInitialTwoFactorSetup =
-          factorBeforeVerification?.status !== "verified";
+        // This is initial setup only if they had no other verified 2FA factors
+        const isInitialTwoFactorSetup = !hadExistingVerifiedFactors;
 
         // Verify the code
         const { error: verifyError } = await supabase.auth.mfa.verify({

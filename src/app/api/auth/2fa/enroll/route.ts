@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 2. Get and validate request body
+    // Get and validate request body
     const rawBody = await request.json();
     const validation = twoFactorEnrollmentSchema.safeParse(rawBody);
 
@@ -72,9 +72,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TEnroll2FARequest = validation.data;
-    const { checkVerificationOnly = false } = body;
 
-    // 3. Validate method configuration
+    // Validate method configuration
     const methodConfig =
       AUTH_CONFIG.verificationMethods.twoFactor[
         body.method as keyof typeof AUTH_CONFIG.verificationMethods.twoFactor
@@ -103,7 +102,6 @@ export async function POST(request: NextRequest) {
 
       // Send alert for 2FA setup initiation if enabled
       if (
-        !checkVerificationOnly &&
         AUTH_CONFIG.emailAlerts.twoFactor.enabled &&
         AUTH_CONFIG.emailAlerts.twoFactor.alertOnEnable
       ) {
@@ -152,55 +150,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If we're just checking requirements, check verification status
-    if (checkVerificationOnly) {
-      const needsVerification = await hasGracePeriodExpired({
-        deviceSessionId,
-        supabase,
-      });
-
-      if (needsVerification) {
-        // Get available verification methods
-        const { has2FA, factors, methods } = await getUserVerificationMethods({
-          supabase,
-          supabaseAdmin,
-        });
-
-        // If user has 2FA, they must use it
-        if (has2FA) {
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods: factors,
-            factor_id: "", // Just to satisfy the type
-          }) satisfies NextResponse<TEnroll2FAResponse>;
-        }
-
-        // Otherwise they can use basic verification methods
-        const availableMethods = methods.map((method) => ({
-          type: method,
-          factorId: method, // For non-2FA methods, use method name as factorId
-        }));
-
-        if (availableMethods.length === 0) {
-          return NextResponse.json(
-            { error: "No verification methods available" },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-
-        return NextResponse.json({
-          requiresVerification: true,
-          availableMethods,
-          factor_id: "", // Just to satisfy the type
-        }) satisfies NextResponse<TEnroll2FAResponse>;
-      }
-
-      return NextResponse.json({
-        requiresVerification: false,
-        factor_id: "", // Just to satisfy the type
-      }) satisfies NextResponse<TEnroll2FAResponse>;
-    }
-
     // Log sensitive action verification
     const parser = new UAParser(request.headers.get("user-agent") || "");
     await logAccountEvent({
@@ -220,10 +169,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 4. Get client IP securely
+    // Get client IP securely
     const clientIp = getClientIp(request);
 
-    // 5. Apply rate limits in order of most specific to least specific
+    // Apply rate limits in order of most specific to least specific
     if (body.method === "sms" && smsRateLimit) {
       // Check user-based rate limit first (most specific)
       const { success: userSuccess } = await smsRateLimit.user.limit(user.id);
@@ -250,7 +199,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 6. Apply general auth rate limit last (least specific)
+    // Apply general auth rate limit last (least specific)
     if (authRateLimit) {
       const { success } = await authRateLimit.limit(clientIp);
       if (!success) {
@@ -261,7 +210,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Handle SMS enrollment with validated phone number
+    // Handle SMS enrollment with validated phone number
     if (body.method === "sms") {
       // Get existing factors to determine index
       const { data: existingFactors } = await supabase.auth.mfa.listFactors();
@@ -292,7 +241,7 @@ export async function POST(request: NextRequest) {
       }) satisfies NextResponse<TEnroll2FAResponse>;
     }
 
-    // 8. Handle authenticator enrollment
+    // Handle authenticator enrollment
     const { data: factors } = await supabase.auth.mfa.listFactors();
 
     // Check for existing unverified TOTP factors and remove them

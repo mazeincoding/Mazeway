@@ -173,13 +173,11 @@ export const phoneSchema = z
 export const smsEnrollmentSchema = z.object({
   method: z.literal("sms"),
   phone: phoneSchema,
-  checkVerificationOnly: z.boolean().optional(),
 });
 
 // Authenticator enrollment validation
 export const authenticatorEnrollmentSchema = z.object({
   method: z.literal("authenticator"),
-  checkVerificationOnly: z.boolean().optional(),
 });
 
 // Combined 2FA enrollment schema

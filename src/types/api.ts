@@ -101,7 +101,6 @@ export interface TDisable2FARequest {
 export interface TEnroll2FARequest {
   method: TTwoFactorMethod;
   phone?: string; // Only required for SMS method
-  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/verify

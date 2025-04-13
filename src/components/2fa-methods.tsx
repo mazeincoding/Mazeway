@@ -115,41 +115,27 @@ export function TwoFactorMethods({
     { skipVerificationCheck = false }: { skipVerificationCheck?: boolean } = {}
   ) => {
     try {
-      // Step 1: Check if verification is needed before enabling (only if not skipping verification check)
-      if (!skipVerificationCheck) {
-        const data = await api.auth.setup2FA({
-          method,
-          checkVerificationOnly: true,
-        });
-
-        // If verification is needed, show verification dialog
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({
-            availableMethods: data.availableMethods,
-            toggleAction: { method, shouldEnable: true },
-          });
-          setNeedsVerification(true);
-          return;
-        }
-      }
-
-      // Step 2: Verification completed or not needed, proceed with setup
+      // Attempt to enable the method
       const data = await api.auth.setup2FA({ method });
 
-      if (!data.requiresVerification) {
-        // Store setup data and show setup dialog
-        setActiveMethod(method);
-        setSetup2FAData({
-          qrCode: data.qr_code || "",
-          secret: data.secret || "",
-          phone: data.phone,
+      // If verification is needed, show verification dialog
+      if (data.requiresVerification) {
+        setVerificationData({
+          availableMethods: data.availableMethods,
+          toggleAction: { method, shouldEnable: true },
         });
-        setShowSetupDialog(true);
+        setNeedsVerification(true);
+        return;
       }
+
+      // Store setup data and show setup dialog
+      setActiveMethod(method);
+      setSetup2FAData({
+        qrCode: data.qr_code || "",
+        secret: data.secret || "",
+        phone: data.phone,
+      });
+      setShowSetupDialog(true);
 
       // Clear verification state
       setNeedsVerification(false);
@@ -418,41 +404,29 @@ function MethodCard({
   };
 
   // Handle adding a backup method
-  const handleAddBackup = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
+  const handleAddBackup = async () => {
     try {
       setIsAddingBackup(true);
 
-      if (!skipVerificationCheck) {
-        const data = await api.auth.setup2FA({
-          method: method.type,
-          checkVerificationOnly: true,
-        });
-
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({
-            availableMethods: data.availableMethods,
-            pendingAction: { type: "add" },
-          });
-          setNeedsVerification(true);
-          setIsAddingBackup(false);
-          return;
-        }
-      }
-
-      const loadingToast = toast.loading("Setting up backup method...");
       const data = await api.auth.setup2FA({
         method: method.type,
       });
 
-      toast.dismiss(loadingToast);
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({
+          availableMethods: data.availableMethods,
+          pendingAction: { type: "add" },
+        });
+        setNeedsVerification(true);
+        setIsAddingBackup(false);
+        return;
+      }
+
+      const loadingToast = toast.loading("Setting up backup method...");
 
       if (!data.requiresVerification) {
         setActiveMethod(method.type);
@@ -464,6 +438,7 @@ function MethodCard({
         setShowSetupDialog(true);
       }
 
+      toast.dismiss(loadingToast);
       await getFactors();
       await refreshUser();
 
@@ -495,7 +470,7 @@ function MethodCard({
     if (type === "remove" && factorId) {
       await handleRemoveFactor(factorId);
     } else if (type === "add") {
-      await handleAddBackup({ skipVerificationCheck: true });
+      await handleAddBackup();
     }
   };
 
@@ -553,7 +528,7 @@ function MethodCard({
               ))}
               <Button
                 className="justify-start text-sm"
-                onClick={() => handleAddBackup({})}
+                onClick={() => handleAddBackup()}
                 disabled={isAddingBackup}
               >
                 Add a backup{" "}

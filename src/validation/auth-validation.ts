@@ -114,7 +114,6 @@ export type ProfileUpdateSchema = z.infer<typeof profileUpdateSchema>;
 
 export const emailChangeSchema = z.object({
   newEmail: authSchema.shape.email,
-  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type EmailChangeSchema = z.infer<typeof emailChangeSchema>;

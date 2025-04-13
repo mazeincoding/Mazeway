@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // 2. Get and validate request body
+    // Get and validate request body
     const rawBody = await request.json();
     const validation = emailChangeSchema.safeParse(rawBody);
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    const { newEmail, checkVerificationOnly = false } = validation.data;
+    const { newEmail } = validation.data;
 
     // Get user data including has_password
     const { data: dbUser, error: dbError } = await supabase
@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if verification is needed
     try {
+      // Check if verification is needed
       const gracePeriodExpired = await hasGracePeriodExpired({
         deviceSessionId,
         supabase,
@@ -123,10 +123,10 @@ export async function POST(request: NextRequest) {
         supabaseAdmin,
       });
 
+      // If 2FA is enabled and grace period expired, require verification
       if (gracePeriodExpired && has2FA) {
-        // Send alert for email change initiation if enabled and not just checking
+        // Send alert for email change initiation if enabled
         if (
-          !checkVerificationOnly &&
           AUTH_CONFIG.emailAlerts.emailChange.enabled &&
           AUTH_CONFIG.emailAlerts.emailChange.alertOnInitiate
         ) {
@@ -146,56 +146,6 @@ export async function POST(request: NextRequest) {
           requiresVerification: true,
           availableMethods: factors,
           newEmail,
-        }) satisfies NextResponse<TChangeEmailResponse>;
-      }
-
-      // If we're just checking requirements, check verification status
-      if (checkVerificationOnly) {
-        const needsVerification = await hasGracePeriodExpired({
-          deviceSessionId,
-          supabase,
-        });
-
-        if (needsVerification) {
-          // Get available verification methods
-          const { has2FA, factors, methods } = await getUserVerificationMethods(
-            {
-              supabase,
-              supabaseAdmin,
-            }
-          );
-
-          // If user has 2FA, they must use it
-          if (has2FA) {
-            return NextResponse.json({
-              requiresVerification: true,
-              availableMethods: factors,
-              newEmail,
-            }) satisfies NextResponse<TChangeEmailResponse>;
-          }
-
-          // Otherwise they can use basic verification methods
-          const availableMethods = methods.map((method) => ({
-            type: method,
-            factorId: method, // For non-2FA methods, use method name as factorId
-          }));
-
-          if (availableMethods.length === 0) {
-            return NextResponse.json(
-              { error: "No verification methods available" },
-              { status: 400 }
-            ) satisfies NextResponse<TApiErrorResponse>;
-          }
-
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods,
-            newEmail,
-          }) satisfies NextResponse<TChangeEmailResponse>;
-        }
-
-        return NextResponse.json({
-          requiresVerification: false,
         }) satisfies NextResponse<TChangeEmailResponse>;
       }
 
@@ -226,7 +176,6 @@ export async function POST(request: NextRequest) {
 
       if (!needsEmailConfirmation) {
         // Email was changed immediately, log the event
-        const parser = new UAParser(request.headers.get("user-agent") || "");
         await logAccountEvent({
           user_id: user.id,
           event_type: "EMAIL_CHANGED",

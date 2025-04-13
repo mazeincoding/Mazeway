@@ -113,11 +113,7 @@ export default function Account() {
     }
   }, [user]);
 
-  const handleEmailChange = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
+  const handleEmailChange = async () => {
     if (!pendingEmailChange || !user) return;
 
     try {
@@ -125,29 +121,24 @@ export default function Account() {
       setShowEmailChangeInfoDialog(false);
       setIsEditingEmail(false);
 
-      if (!skipVerificationCheck) {
-        // Check if verification is needed
-        const data = await api.auth.changeEmail({
+      // Attempt to change email
+      const data = await api.auth.changeEmail({
+        newEmail: pendingEmailChange,
+      });
+
+      // If verification is needed, show verification dialog
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setEmailChangeData({
+          availableMethods: data.availableMethods,
           newEmail: pendingEmailChange,
-          checkVerificationOnly: true,
         });
-
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setEmailChangeData({
-            availableMethods: data.availableMethods,
-            newEmail: pendingEmailChange,
-          });
-          setNeedsVerification(true);
-          return;
-        }
+        setNeedsVerification(true);
+        return;
       }
-
-      // Verification completed/not needed ->
-      await api.auth.changeEmail({ newEmail: pendingEmailChange });
 
       // Success message for email
       toast.success("Verification emails sent", {
@@ -558,9 +549,7 @@ export default function Account() {
             </DialogHeader>
             <VerifyForm
               availableMethods={emailChangeData.availableMethods}
-              onVerifyComplete={() =>
-                handleEmailChange({ skipVerificationCheck: true })
-              }
+              onVerifyComplete={() => handleEmailChange()}
             />
           </DialogContent>
         </Dialog>

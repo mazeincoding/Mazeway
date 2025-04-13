@@ -117,7 +117,6 @@ export interface TVerifyRequest {
 // /api/auth/change-email
 export interface TChangeEmailRequest {
   newEmail: string;
-  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/forgot-password

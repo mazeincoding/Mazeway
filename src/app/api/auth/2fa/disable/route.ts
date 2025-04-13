@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       ip_address: getClientIp(request),
     };
 
-    // 2. Get and validate request body
+    // Get and validate request body
     const rawBody = await request.json();
     const validation = disable2FASchema.safeParse(rawBody);
 
@@ -79,9 +79,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TDisable2FARequest = validation.data;
-    const { method, checkVerificationOnly = false, factorId } = body;
+    const { method, factorId } = body;
 
-    // 3. Get factor ID for the method
+    // Get factor ID for the method
     const factor = await getFactorForMethod({ supabase, method });
     if (!factor.success || !factor.factorId) {
       return NextResponse.json(
@@ -122,13 +122,10 @@ export async function POST(request: NextRequest) {
 
       // Return available methods for verification
       if (has2FA) {
-        // If we're just checking, return the methods
-        if (checkVerificationOnly) {
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods: factors,
-          }) satisfies NextResponse<TDisable2FAResponse>;
-        }
+        return NextResponse.json({
+          requiresVerification: true,
+          availableMethods: factors,
+        }) satisfies NextResponse<TDisable2FAResponse>;
       } else {
         // Return available non-2FA methods
         const availableMethods = methods.map((method) => ({
@@ -143,42 +140,27 @@ export async function POST(request: NextRequest) {
           ) satisfies NextResponse<TApiErrorResponse>;
         }
 
-        // If we're just checking, return the methods
-        if (checkVerificationOnly) {
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods,
-          }) satisfies NextResponse<TDisable2FAResponse>;
-        }
-      }
-    } else {
-      // No verification needed
-      if (checkVerificationOnly) {
         return NextResponse.json({
-          requiresVerification: false,
+          requiresVerification: true,
+          availableMethods,
         }) satisfies NextResponse<TDisable2FAResponse>;
       }
     }
 
-    // If we're just checking requirements, we've already returned.
-    // If we get here, we're actually performing the disable operation.
-
     // Log sensitive action verification if it didn't need verification
-    if (!needsVerification) {
-      await logAccountEvent({
-        user_id: user.id,
-        event_type: "SENSITIVE_ACTION_VERIFIED",
-        device_session_id: deviceSessionId,
-        metadata: {
-          device: deviceInfo,
-          action: "disable_2fa",
-          category: "warning",
-          description: `2FA disabling (${method}) verified via grace period`,
-        },
-      });
-    }
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "SENSITIVE_ACTION_VERIFIED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        device: deviceInfo,
+        action: "disable_2fa",
+        category: "warning",
+        description: `2FA disabling (${method}) verified via grace period`,
+      },
+    });
 
-    // 5. Disable the method or specific factor
+    // Disable the method or specific factor
     const { error: unenrollError } = await supabase.auth.mfa.unenroll({
       factorId: factorId || factor.factorId,
     });

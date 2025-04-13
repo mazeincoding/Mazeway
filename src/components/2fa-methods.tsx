@@ -168,35 +168,24 @@ export function TwoFactorMethods({
   };
 
   // Handle disabling a 2FA method
-  const disableMethod = async (
-    method: TTwoFactorMethod,
-    { skipVerificationCheck = false }: { skipVerificationCheck?: boolean } = {}
-  ) => {
+  const disableMethod = async (method: TTwoFactorMethod) => {
     try {
-      // Step 1: Check if verification is needed before disabling
-      if (!skipVerificationCheck) {
-        const data = await api.auth.disable2FA({
-          method,
-          checkVerificationOnly: true,
+      // Attempt to disable the method
+      const data = await api.auth.disable2FA({ method });
+
+      // If verification is needed, show verification dialog
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({
+          availableMethods: data.availableMethods,
+          toggleAction: { method, shouldEnable: false },
         });
-
-        // If verification is needed, show verification dialog
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({
-            availableMethods: data.availableMethods,
-            toggleAction: { method, shouldEnable: false },
-          });
-          setNeedsVerification(true);
-          return;
-        }
+        setNeedsVerification(true);
+        return;
       }
-
-      // Step 2: If no verification needed or verification skipped, proceed with disable
-      await api.auth.disable2FA({ method });
 
       // Show success message
       toast.success("2FA disabled", {
@@ -230,7 +219,7 @@ export function TwoFactorMethods({
     if (shouldEnable) {
       await enableMethod(method, { skipVerificationCheck: true });
     } else {
-      await disableMethod(method, { skipVerificationCheck: true });
+      await disableMethod(method);
     }
   };
 
@@ -376,36 +365,27 @@ function MethodCard({
   }
 
   // Handle removing a specific factor
-  const handleRemoveFactor = async ({
-    factorId,
-    skipVerificationCheck = false,
-  }: {
-    factorId: string;
-    skipVerificationCheck?: boolean;
-  }) => {
+  const handleRemoveFactor = async (factorId: string) => {
     try {
       setIsRemovingFactor(factorId);
 
-      if (!skipVerificationCheck) {
-        const data = await api.auth.disable2FA({
-          method: method.type,
-          factorId,
-          checkVerificationOnly: true,
-        });
+      const data = await api.auth.disable2FA({
+        method: method.type,
+        factorId,
+      });
 
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({
-            availableMethods: data.availableMethods,
-            pendingAction: { type: "remove", factorId },
-          });
-          setNeedsVerification(true);
-          setIsRemovingFactor(null);
-          return;
-        }
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({
+          availableMethods: data.availableMethods,
+          pendingAction: { type: "remove", factorId },
+        });
+        setNeedsVerification(true);
+        setIsRemovingFactor(null);
+        return;
       }
 
       const loadingToast = toast.loading("Removing factor...");
@@ -513,7 +493,7 @@ function MethodCard({
     const { type, factorId } = verificationData.pendingAction;
 
     if (type === "remove" && factorId) {
-      await handleRemoveFactor({ factorId, skipVerificationCheck: true });
+      await handleRemoveFactor(factorId);
     } else if (type === "add") {
       await handleAddBackup({ skipVerificationCheck: true });
     }
@@ -563,9 +543,7 @@ function MethodCard({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() =>
-                        handleRemoveFactor({ factorId: factor.factorId })
-                      }
+                      onClick={() => handleRemoveFactor(factor.factorId)}
                       disabled={isRemovingFactor === factor.factorId}
                     >
                       <TrashIcon className="h-4 w-4" />
@@ -575,7 +553,7 @@ function MethodCard({
               ))}
               <Button
                 className="justify-start text-sm"
-                onClick={() => handleAddBackup()}
+                onClick={() => handleAddBackup({})}
                 disabled={isAddingBackup}
               >
                 Add a backup{" "}

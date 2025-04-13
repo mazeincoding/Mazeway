@@ -94,7 +94,6 @@ export interface TResetPasswordRequest {
 // /api/auth/2fa/disable
 export interface TDisable2FARequest {
   method: TTwoFactorMethod;
-  checkVerificationOnly?: boolean;
   factorId?: string;
 }
 

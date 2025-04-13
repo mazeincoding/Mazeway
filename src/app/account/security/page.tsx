@@ -38,7 +38,6 @@ import { EventLog } from "@/components/event-log";
 import { SocialProviders } from "@/components/social-providers";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
 import { LogoutAllDevices } from "@/components/logout-all-devices";
 import { useDeviceSessions } from "@/hooks/use-device-sessions";
 

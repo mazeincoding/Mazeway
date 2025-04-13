@@ -90,7 +90,6 @@ export default function Security() {
           ? (values as PasswordChangeSchema).currentPassword
           : undefined,
         newPassword: values.newPassword,
-        checkVerificationOnly: true,
       };
 
       const data = await api.auth.changePassword(params);
@@ -105,42 +104,6 @@ export default function Security() {
         setNeedsVerification(true);
         return;
       }
-
-      // Verification not needed, proceed with the actual password change
-      handleFinalPasswordChange();
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error("Error", {
-          description: error.message || "Failed to update password",
-          duration: 3000,
-        });
-      } else {
-        toast.error("Error", {
-          description: "Failed to update password",
-          duration: 3000,
-        });
-      }
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
-
-  const handleFinalPasswordChange = async () => {
-    try {
-      setIsChangingPassword(true);
-
-      // Get form values
-      const values = form.getValues();
-
-      // Prepare the password change request without checkVerificationOnly
-      const params: TChangePasswordRequest = {
-        currentPassword: hasPasswordAuth
-          ? (values as PasswordChangeSchema).currentPassword
-          : undefined,
-        newPassword: values.newPassword,
-      };
-
-      const data = await api.auth.changePassword(params);
 
       // Check if re-login is required (for OAuth users adding password)
       if (data.requiresRelogin) {
@@ -379,7 +342,7 @@ export default function Security() {
             </DialogHeader>
             <VerifyForm
               availableMethods={twoFactorData.availableMethods}
-              onVerifyComplete={handleFinalPasswordChange}
+              onVerifyComplete={updatePassword}
             />
           </DialogContent>
         </Dialog>

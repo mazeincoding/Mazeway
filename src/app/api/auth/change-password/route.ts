@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     const body: TChangePasswordRequest = await request.json();
 
-    // If not a 2FA request, validate password change data
+    // Validate password change data
     const validation = (
       dbUser.has_password ? passwordChangeSchema : addPasswordSchema
     ).safeParse(body);
@@ -103,13 +103,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Type-safe way to handle both schemas
-    const { newPassword, checkVerificationOnly } = validation.data;
+    const { newPassword } = validation.data;
     const currentPassword = dbUser.has_password
       ? (validation.data as PasswordChangeSchema).currentPassword
       : undefined;
 
     // For users with password auth, verify current password
-    if (dbUser.has_password && !checkVerificationOnly) {
+    if (dbUser.has_password) {
       if (!currentPassword) {
         console.warn(
           "[Password Change] Current password missing for password change"
@@ -176,41 +176,30 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           requiresTwoFactor: true,
           availableMethods: factors,
-          newPassword: checkVerificationOnly ? undefined : newPassword,
         }) satisfies NextResponse<TChangePasswordResponse>;
       }
-
-      // Log sensitive action verification if not just checking
-      if (!checkVerificationOnly) {
-        const parser = new UAParser(request.headers.get("user-agent") || "");
-        await logAccountEvent({
-          user_id: user.id,
-          event_type: "SENSITIVE_ACTION_VERIFIED",
-          device_session_id: deviceSessionId,
-          metadata: {
-            device: {
-              device_name: parser.getDevice().model || "Unknown Device",
-              browser: parser.getBrowser().name || null,
-              os: parser.getOS().name || null,
-              ip_address: getClientIp(request),
-            },
-            action: "change_password",
-            category: "info",
-            description: "Password change request verified",
-          },
-        });
-      }
     }
 
-    // If we're just checking verification requirements, return early
-    if (checkVerificationOnly) {
-      return NextResponse.json({
-        requiresTwoFactor: needsVerification,
-      }) satisfies NextResponse<TChangePasswordResponse>;
-    }
+    // Log sensitive action verification
+    const parser = new UAParser(request.headers.get("user-agent") || "");
+    await logAccountEvent({
+      user_id: user.id,
+      event_type: "SENSITIVE_ACTION_VERIFIED",
+      device_session_id: deviceSessionId,
+      metadata: {
+        device: {
+          device_name: parser.getDevice().model || "Unknown Device",
+          browser: parser.getBrowser().name || null,
+          os: parser.getOS().name || null,
+          ip_address: getClientIp(request),
+        },
+        action: "change_password",
+        category: "info",
+        description: "Password change request verified",
+      },
+    });
 
-    // If no 2FA required or within grace period, update password
-
+    // Update password
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -243,10 +232,6 @@ export async function POST(request: NextRequest) {
     }
 
     // For OAuth users adding a password the first time, add email provider
-    // In simple: Supabase thinks it makes sense to add a password without adding the provider
-    // Which in reality, makes no fucking sense
-    // So we're just working around that crap
-    // This will require users to re-login but that's a standard practice anyways
     let requiresRelogin = false;
     if (!dbUser.has_password) {
       // Force add the email identity using admin API
@@ -286,7 +271,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the password change event
-    const parser = new UAParser(request.headers.get("user-agent") || "");
     await logAccountEvent({
       user_id: user.id,
       event_type: "PASSWORD_CHANGED",

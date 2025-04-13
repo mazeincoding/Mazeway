@@ -121,12 +121,10 @@ export type EmailChangeSchema = z.infer<typeof emailChangeSchema>;
 export const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: authSchema.shape.password,
-  checkVerificationOnly: z.boolean().optional(),
 });
 
 export const addPasswordSchema = z.object({
   newPassword: authSchema.shape.password,
-  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type PasswordChangeSchema = z.infer<typeof passwordChangeSchema>;

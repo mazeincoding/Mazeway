@@ -84,7 +84,6 @@ export interface TVerifyDeviceRequest {
 export interface TChangePasswordRequest {
   currentPassword?: string;
   newPassword: string;
-  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/reset-password

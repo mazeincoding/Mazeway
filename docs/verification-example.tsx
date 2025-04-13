@@ -21,38 +21,25 @@ export default function VerificationExample() {
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDeleteAccount = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
+  const handleDeleteAccount = async () => {
     try {
       setIsDeleting(true);
 
-      if (!skipVerificationCheck) {
-        // Check if verification is needed
-        const data = await api.auth.deleteAccount({
-          checkVerificationOnly: true,
-        });
+      // Attempt to delete account
+      const data = await api.auth.deleteAccount();
 
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({ availableMethods: data.availableMethods });
-          setNeedsVerification(true);
-          return;
-        }
+      // If verification is needed, show verification dialog
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({ availableMethods: data.availableMethods });
+        setNeedsVerification(true);
+        return;
       }
 
-      // Verification completed/not needed ->
-      await api.auth.deleteAccount();
-
       toast.success("Account deleted successfully");
-
-      setNeedsVerification(false);
-      setVerificationData(null);
     } catch (error) {
       console.error("Error during account deletion", error);
       toast.error("Error", {
@@ -63,6 +50,7 @@ export default function VerificationExample() {
     } finally {
       setIsDeleting(false);
       setNeedsVerification(false);
+      setVerificationData(null);
     }
   };
 
@@ -70,7 +58,7 @@ export default function VerificationExample() {
     <div>
       <Button
         variant="destructive"
-        onClick={() => handleDeleteAccount()}
+        onClick={handleDeleteAccount}
         disabled={isDeleting}
       >
         Delete account
@@ -86,9 +74,7 @@ export default function VerificationExample() {
             </DialogHeader>
             <VerifyForm
               availableMethods={verificationData.availableMethods}
-              onVerifyComplete={() =>
-                handleDeleteAccount({ skipVerificationCheck: true })
-              }
+              onVerifyComplete={handleDeleteAccount}
             />
           </DialogContent>
         </Dialog>

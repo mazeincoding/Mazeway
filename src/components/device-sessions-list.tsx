@@ -206,7 +206,6 @@ function DeviceItem({
       setIsVerifying(true);
       const data = await api.auth.device.revokeSession({
         sessionId,
-        checkVerificationOnly: true,
       });
 
       if (
@@ -222,7 +221,7 @@ function DeviceItem({
 
       onRevoke(sessionId);
     } catch (error) {
-      console.error("Error checking verification:", error);
+      console.error("Error during device revocation:", error);
       toast.error("Error", {
         description:
           error instanceof Error ? error.message : "An error occurred",

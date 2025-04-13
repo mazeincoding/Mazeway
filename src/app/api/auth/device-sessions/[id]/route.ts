@@ -168,74 +168,25 @@ export async function DELETE(
           availableMethods: factors,
           sessionId,
         }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
-      } else {
-        // Otherwise they can use basic verification methods
-        const availableMethods = methods.map((method) => ({
-          type: method,
-          factorId: method, // For non-2FA methods, use method name as factorId
-        }));
-
-        if (availableMethods.length === 0) {
-          console.error("No verification methods available");
-          return NextResponse.json(
-            { error: "No verification methods available" },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-
-        return NextResponse.json({
-          requiresVerification: true,
-          availableMethods,
-          sessionId,
-        }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
       }
-    }
 
-    // If we're just checking requirements, check verification status
-    if (requestBody.checkVerificationOnly) {
-      const needsVerification = await hasGracePeriodExpired({
-        deviceSessionId: currentSessionId,
-        supabase,
-      });
+      // Otherwise they can use basic verification methods
+      const availableMethods = methods.map((method) => ({
+        type: method,
+        factorId: method, // For non-2FA methods, use method name as factorId
+      }));
 
-      if (needsVerification) {
-        // Get available verification methods
-        const { has2FA, factors, methods } = await getUserVerificationMethods({
-          supabase,
-          supabaseAdmin,
-        });
-
-        // If user has 2FA, they must use it
-        if (has2FA) {
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods: factors,
-            sessionId,
-          }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
-        }
-
-        // Otherwise they can use basic verification methods
-        const availableMethods = methods.map((method) => ({
-          type: method,
-          factorId: method, // For non-2FA methods, use method name as factorId
-        }));
-
-        if (availableMethods.length === 0) {
-          return NextResponse.json(
-            { error: "No verification methods available" },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-
-        return NextResponse.json({
-          requiresVerification: true,
-          availableMethods,
-          sessionId,
-        }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
+      if (availableMethods.length === 0) {
+        console.error("No verification methods available");
+        return NextResponse.json(
+          { error: "No verification methods available" },
+          { status: 400 }
+        ) satisfies NextResponse<TApiErrorResponse>;
       }
 
       return NextResponse.json({
-        requiresVerification: false,
+        requiresVerification: true,
+        availableMethods,
         sessionId,
       }) satisfies NextResponse<TRevokeDeviceSessionResponse>;
     }

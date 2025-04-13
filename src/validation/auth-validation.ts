@@ -304,7 +304,6 @@ export const validateEmailAlert = (
 // Add schema for device session revocation
 export const revokeDeviceSessionSchema = z.object({
   sessionId: z.string().min(1, "Session ID is required"),
-  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type RevokeDeviceSessionSchema = z.infer<

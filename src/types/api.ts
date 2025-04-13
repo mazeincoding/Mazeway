@@ -134,7 +134,6 @@ export interface TUpdateUserRequest {
 // /api/auth/device-sessions/[id]
 export interface TRevokeDeviceSessionRequest {
   sessionId: string;
-  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/social/connect

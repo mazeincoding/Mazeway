@@ -178,7 +178,6 @@ export async function updateSession(request: NextRequest) {
       "Is userError an instance of AuthRetryableFetchError?",
       userError instanceof AuthRetryableFetchError
     );
-    console.log("Redirecting to login bye");
     return NextResponse.redirect(url);
   }
 

@@ -32,9 +32,6 @@ import {
 
 export function DeviceSessionsList() {
   const { sessions, isLoading, error, refresh } = useDeviceSessions();
-  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(
-    null
-  );
   const [currentSession, setCurrentSession] = useState<TDeviceSession | null>(
     null
   );
@@ -57,32 +54,6 @@ export function DeviceSessionsList() {
     if (b.id === currentSession?.id) return 1;
     return 0;
   });
-
-  const handleRevoke = async (sessionId: string) => {
-    try {
-      setRevokingSessionId(sessionId);
-
-      await api.auth.device.revokeSession({
-        sessionId,
-      });
-
-      toast.success("Device logged out", {
-        description: "The device has been logged out successfully.",
-        duration: 3000,
-      });
-
-      refresh();
-    } catch (error) {
-      console.error("Error during device revocation:", error);
-      toast.error("Error", {
-        description:
-          error instanceof Error ? error.message : "An error occurred",
-        duration: 3000,
-      });
-    } finally {
-      setRevokingSessionId(null);
-    }
-  };
 
   if (error) {
     return <div className="text-destructive w-full">{error}</div>;
@@ -119,8 +90,7 @@ export function DeviceSessionsList() {
               <LaptopMinimalIcon className="flex-shrink-0 w-6 h-6" />
             )
           }
-          onRevoke={handleRevoke}
-          isRevoking={revokingSessionId === session.id}
+          onSessionRevoked={refresh}
           isCurrentDevice={session.id === currentSession?.id}
           os={session.device.os}
           ipAddress={session.device.ip_address}
@@ -135,8 +105,7 @@ interface DeviceItemProps {
   browser: string;
   deviceIcon: React.ReactNode;
   sessionId: string;
-  onRevoke: (sessionId: string) => void;
-  isRevoking: boolean;
+  onSessionRevoked: () => void;
   isCurrentDevice?: boolean;
   os: string | null;
   ipAddress?: string;
@@ -147,8 +116,7 @@ function DeviceItem({
   browser,
   deviceIcon,
   sessionId,
-  onRevoke,
-  isRevoking,
+  onSessionRevoked,
   isCurrentDevice,
   os,
   ipAddress,
@@ -158,17 +126,16 @@ function DeviceItem({
   );
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [verificationData, setVerificationData] = useState<{
     availableMethods: TVerificationFactor[];
   } | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
-
-  const isLoading = isRevoking || isVerifying;
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     async function fetchLocation() {
-      if (!ipAddress || !dialogOpen || location || isLoadingLocation) return;
+      if (!ipAddress || !needsVerification || location || isLoadingLocation)
+        return;
 
       if (isLocalIP(ipAddress)) {
         setLocation({
@@ -197,27 +164,44 @@ function DeviceItem({
     }
 
     fetchLocation();
-  }, [ipAddress, dialogOpen, location, isLoadingLocation]);
+  }, [ipAddress, needsVerification, location, isLoadingLocation]);
 
-  const handleLogoutClick = async () => {
+  const handleLogout = async ({
+    skipVerificationCheck = false,
+  }: {
+    skipVerificationCheck?: boolean;
+  } = {}) => {
     try {
-      setIsVerifying(true);
-      const data = await api.auth.device.revokeSession({
+      setIsLoading(true);
+
+      if (!skipVerificationCheck) {
+        // Check if verification is needed
+        const data = await api.auth.device.revokeSession({
+          sessionId,
+          checkVerificationOnly: true,
+        });
+
+        if (
+          data.requiresVerification &&
+          data.availableMethods &&
+          data.availableMethods.length > 0
+        ) {
+          setVerificationData({ availableMethods: data.availableMethods });
+          setNeedsVerification(true);
+          return;
+        }
+      }
+
+      // Verification completed/not needed -> proceed with logout
+      await api.auth.device.revokeSession({
         sessionId,
       });
 
-      if (
-        data.requiresVerification &&
-        data.availableMethods &&
-        data.availableMethods.length > 0
-      ) {
-        setVerificationData({
-          availableMethods: data.availableMethods,
-        });
-        return;
-      }
+      toast.success("Device logged out successfully");
+      onSessionRevoked();
 
-      onRevoke(sessionId);
+      setNeedsVerification(false);
+      setVerificationData(null);
     } catch (error) {
       console.error("Error during device revocation:", error);
       toast.error("Error", {
@@ -226,13 +210,8 @@ function DeviceItem({
         duration: 3000,
       });
     } finally {
-      setIsVerifying(false);
+      setIsLoading(false);
     }
-  };
-
-  const handleVerifyComplete = () => {
-    onRevoke(sessionId);
-    setVerificationData(null);
   };
 
   const content = (
@@ -317,10 +296,10 @@ function DeviceItem({
                 <Button
                   variant="destructive"
                   className="w-full"
-                  onClick={handleLogoutClick}
+                  onClick={() => handleLogout()}
                   disabled={isLoading}
                 >
-                  {isRevoking ? "Logging out..." : "Log out"}
+                  {isLoading ? "Logging out..." : "Log out"}
                 </Button>
               </div>
             </PopoverContent>
@@ -337,31 +316,24 @@ function DeviceItem({
   return (
     <>
       {content}
-      <Dialog
-        open={!!verificationData}
-        onOpenChange={(open) => {
-          if (!open) {
-            setVerificationData(null);
-            setIsVerifying(false);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Verify your identity</DialogTitle>
-            <DialogDescription>
-              To log out this device, please verify your identity
-            </DialogDescription>
-          </DialogHeader>
-
-          {verificationData && (
+      {verificationData && verificationData.availableMethods && (
+        <Dialog open={needsVerification} onOpenChange={setNeedsVerification}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify your identity</DialogTitle>
+              <DialogDescription>
+                To log out this device, please verify your identity
+              </DialogDescription>
+            </DialogHeader>
             <VerifyForm
               availableMethods={verificationData.availableMethods}
-              onVerifyComplete={handleVerifyComplete}
+              onVerifyComplete={() =>
+                handleLogout({ skipVerificationCheck: true })
+              }
             />
-          )}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

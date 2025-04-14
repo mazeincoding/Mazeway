@@ -64,11 +64,6 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // We don't need to validate here because default value is false
-    // And there's no actual harm in checkVerificationOnly
-    const body: TDeleteAccountRequest = await request.json();
-    const { checkVerificationOnly = false } = body;
-
     // Check if verification is needed based on grace period
     const needsVerification = await hasGracePeriodExpired({
       deviceSessionId,
@@ -84,9 +79,8 @@ export async function POST(request: NextRequest) {
 
       const parser = new UAParser(request.headers.get("user-agent") || "");
 
-      // Send alert for deletion initiation if enabled and not just checking
+      // Send alert for deletion initiation if enabled
       if (
-        !checkVerificationOnly &&
         AUTH_CONFIG.emailAlerts.accountDeletion.enabled &&
         AUTH_CONFIG.emailAlerts.accountDeletion.alertOnInitiate
       ) {
@@ -132,52 +126,6 @@ export async function POST(request: NextRequest) {
           availableMethods,
         }) satisfies NextResponse<TDeleteAccountResponse>;
       }
-    }
-
-    // If we're just checking requirements, check verification status
-    if (checkVerificationOnly) {
-      const needsVerification = await hasGracePeriodExpired({
-        deviceSessionId,
-        supabase,
-      });
-
-      if (needsVerification) {
-        // Get available verification methods
-        const { has2FA, factors, methods } = await getUserVerificationMethods({
-          supabase,
-          supabaseAdmin,
-        });
-
-        // If user has 2FA, they must use it
-        if (has2FA) {
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods: factors,
-          }) satisfies NextResponse<TDeleteAccountResponse>;
-        }
-
-        // Otherwise they can use basic verification methods
-        const availableMethods = methods.map((method) => ({
-          type: method,
-          factorId: method, // For non-2FA methods, use method name as factorId
-        }));
-
-        if (availableMethods.length === 0) {
-          return NextResponse.json(
-            { error: "No verification methods available" },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-
-        return NextResponse.json({
-          requiresVerification: true,
-          availableMethods,
-        }) satisfies NextResponse<TDeleteAccountResponse>;
-      }
-
-      return NextResponse.json({
-        requiresVerification: false,
-      }) satisfies NextResponse<TDeleteAccountResponse>;
     }
 
     // Log sensitive action verification

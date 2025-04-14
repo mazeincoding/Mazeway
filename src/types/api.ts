@@ -148,9 +148,7 @@ export interface TDisconnectSocialProviderRequest {
 }
 
 // /api/auth/user/delete
-export interface TDeleteAccountRequest {
-  checkVerificationOnly?: boolean;
-}
+export interface TDeleteAccountRequest {}
 
 // ===== RESPONSE TYPES =====
 

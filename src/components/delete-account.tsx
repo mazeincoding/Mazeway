@@ -29,17 +29,13 @@ export function DeleteAccount({ children }: { children: React.ReactNode }) {
   const [needsVerification, setNeedsVerification] = useState(false);
 
   const handleVerifyComplete = () => {
-    deleteAccount({ skipVerificationCheck: true });
+    deleteAccount();
     setVerificationData(null);
     setNeedsVerification(false);
   };
 
-  const deleteAccount = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
-    if (!skipVerificationCheck && (!user?.name || nameInput !== user.name)) {
+  const deleteAccount = async () => {
+    if (!user?.name || nameInput !== user.name) {
       toast.error("Please enter your name correctly to confirm deletion");
       return;
     }
@@ -50,29 +46,24 @@ export function DeleteAccount({ children }: { children: React.ReactNode }) {
         description: "This may take a few moments",
       });
 
-      if (!skipVerificationCheck) {
-        // Check if verification is needed
-        const data = await api.auth.deleteAccount({
-          checkVerificationOnly: true,
-        });
+      // Attempt to delete the account
+      const data = await api.auth.deleteAccount();
 
-        // Check if verification is required
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({
-            availableMethods: data.availableMethods,
-          });
-          setNeedsVerification(true);
-          toast.dismiss(loadingToast);
-          return;
-        }
+      // Check if verification is required
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({
+          availableMethods: data.availableMethods,
+        });
+        setNeedsVerification(true);
+        toast.dismiss(loadingToast);
+        return;
       }
 
-      // Actually delete the account after verification or if verification not needed
-      await api.auth.deleteAccount();
+      // If we get here, deletion proceeded (or didn't require verification)
       setIsOpen(false);
       toast.dismiss(loadingToast);
       toast.success("Account deleted successfully", {

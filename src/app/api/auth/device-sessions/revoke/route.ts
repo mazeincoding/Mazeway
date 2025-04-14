@@ -59,7 +59,6 @@ export async function DELETE(request: NextRequest) {
     let requestBody: {
       sessionId?: string;
       revokeAll?: boolean;
-      checkVerificationOnly?: boolean;
     };
     try {
       const rawBody = await request.json();
@@ -123,8 +122,8 @@ export async function DELETE(request: NextRequest) {
       supabase,
     });
 
-    // If checking requirements or verification is needed, handle that first
-    if (requestBody.checkVerificationOnly || needsVerification) {
+    // If verification is needed, return requirements and stop
+    if (needsVerification) {
       const { has2FA, factors, methods } = await getUserVerificationMethods({
         supabase,
         supabaseAdmin,
@@ -142,19 +141,10 @@ export async function DELETE(request: NextRequest) {
         ) satisfies NextResponse<TApiErrorResponse>;
       }
 
-      if (requestBody.checkVerificationOnly) {
-        return NextResponse.json({
-          requiresVerification: needsVerification,
-          availableMethods: needsVerification ? availableMethods : undefined,
-        }) satisfies NextResponse<TRevokeDeviceSessionsResponse>;
-      }
-
-      if (needsVerification) {
-        return NextResponse.json({
-          requiresVerification: true,
-          availableMethods,
-        }) satisfies NextResponse<TRevokeDeviceSessionsResponse>;
-      }
+      return NextResponse.json({
+        requiresVerification: true,
+        availableMethods,
+      }) satisfies NextResponse<TRevokeDeviceSessionsResponse>;
     }
 
     // --- Verification passed or not required ---

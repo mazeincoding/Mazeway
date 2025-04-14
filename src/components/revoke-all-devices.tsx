@@ -23,37 +23,27 @@ export function LogoutAllDevices() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogoutAllDevices = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
+  const handleLogoutAllDevices = async () => {
     try {
       setIsLoading(true);
 
-      if (!skipVerificationCheck) {
-        // Check if verification is needed
-        const data = await api.auth.device.revokeSession({
-          revokeAll: true,
-          checkVerificationOnly: true,
-        });
-
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({ availableMethods: data.availableMethods });
-          setNeedsVerification(true);
-          return;
-        }
-      }
-
-      // Verification completed/not needed -> proceed with logout
-      await api.auth.device.revokeSession({
+      // Attempt to revoke all sessions
+      const data = await api.auth.device.revokeSession({
         revokeAll: true,
       });
 
+      // If verification is needed, show dialog
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({ availableMethods: data.availableMethods });
+        setNeedsVerification(true);
+        return;
+      }
+
+      // Verification completed/not needed -> proceed with logout
       toast.success("Successfully logged out all other devices");
       refresh();
 
@@ -93,9 +83,7 @@ export function LogoutAllDevices() {
             </DialogHeader>
             <VerifyForm
               availableMethods={verificationData.availableMethods}
-              onVerifyComplete={() =>
-                handleLogoutAllDevices({ skipVerificationCheck: true })
-              }
+              onVerifyComplete={() => handleLogoutAllDevices()}
             />
           </DialogContent>
         </Dialog>

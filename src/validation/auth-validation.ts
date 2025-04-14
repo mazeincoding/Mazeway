@@ -306,7 +306,6 @@ export const revokeDeviceSessionsSchema = z
   .object({
     sessionId: z.string().min(1, "Session ID is required").optional(),
     revokeAll: z.boolean().optional(),
-    checkVerificationOnly: z.boolean().optional(),
   })
   .refine((data) => data.sessionId || data.revokeAll, {
     message: "Must provide either sessionId or revokeAll",

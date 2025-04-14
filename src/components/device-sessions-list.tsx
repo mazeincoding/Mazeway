@@ -166,37 +166,27 @@ function DeviceItem({
     fetchLocation();
   }, [ipAddress, needsVerification, location, isLoadingLocation]);
 
-  const handleLogout = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
+  const handleLogout = async () => {
     try {
       setIsLoading(true);
 
-      if (!skipVerificationCheck) {
-        // Check if verification is needed
-        const data = await api.auth.device.revokeSession({
-          sessionId,
-          checkVerificationOnly: true,
-        });
-
-        if (
-          data.requiresVerification &&
-          data.availableMethods &&
-          data.availableMethods.length > 0
-        ) {
-          setVerificationData({ availableMethods: data.availableMethods });
-          setNeedsVerification(true);
-          return;
-        }
-      }
-
-      // Verification completed/not needed -> proceed with logout
-      await api.auth.device.revokeSession({
+      // Attempt to revoke session
+      const data = await api.auth.device.revokeSession({
         sessionId,
       });
 
+      // If verification is needed, show dialog
+      if (
+        data.requiresVerification &&
+        data.availableMethods &&
+        data.availableMethods.length > 0
+      ) {
+        setVerificationData({ availableMethods: data.availableMethods });
+        setNeedsVerification(true);
+        return;
+      }
+
+      // Verification completed/not needed -> proceed with logout
       toast.success("Device logged out successfully");
       onSessionRevoked();
 
@@ -327,9 +317,7 @@ function DeviceItem({
             </DialogHeader>
             <VerifyForm
               availableMethods={verificationData.availableMethods}
-              onVerifyComplete={() =>
-                handleLogout({ skipVerificationCheck: true })
-              }
+              onVerifyComplete={() => handleLogout()}
             />
           </DialogContent>
         </Dialog>

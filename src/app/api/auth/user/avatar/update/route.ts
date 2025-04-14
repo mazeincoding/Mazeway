@@ -3,8 +3,8 @@ import { createClient } from "@/utils/supabase/server";
 import { TApiErrorResponse, TUpdateAvatarResponse } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { getUser } from "@/utils/auth";
-import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
 import { logAccountEvent } from "@/utils/account-events/server";
+import { getCurrentDeviceSession } from "@/utils/auth/device-sessions/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,32 +29,23 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get device session ID from cookie
-    const deviceSessionId = getCurrentDeviceSessionId(request);
-    if (!deviceSessionId) {
+    const {
+      deviceSession,
+      isValid,
+      error: sessionError,
+    } = await getCurrentDeviceSession({ request, supabase, user });
+
+    if (!isValid || !deviceSession) {
+      console.error("Invalid device session for avatar update", {
+        userId: user.id,
+        error: sessionError?.message,
+      });
       return NextResponse.json(
-        { error: "No device session found" },
+        { error: sessionError?.message || "Invalid or expired device session" },
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Verify device session is valid and belongs to user
-    const { data: deviceSession, error: sessionError } = await supabase
-      .from("device_sessions")
-      .select("id")
-      .eq("id", deviceSessionId)
-      .eq("user_id", user.id)
-      .gt("expires_at", new Date().toISOString())
-      .single();
-
-    if (sessionError || !deviceSession) {
-      return NextResponse.json(
-        { error: "Invalid or expired device session" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    // Get the form data with the file
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
@@ -65,7 +56,6 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
         { error: "File must be an image" },
@@ -73,7 +63,6 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Validate file size (5MB max)
     const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
       return NextResponse.json(
@@ -82,12 +71,10 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Create a unique filename
     const timestamp = Date.now();
     const fileExt = file.name.split(".").pop();
     const fileName = `${user.id}/${timestamp}.${fileExt}`;
 
-    // Upload file to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from("profile-pics")
       .upload(fileName, file, {
@@ -103,14 +90,12 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get the public URL for the uploaded file
     const { data: publicUrlData } = supabase.storage
       .from("profile-pics")
       .getPublicUrl(fileName);
 
     const avatarUrl = publicUrlData.publicUrl;
 
-    // Update user profile with new avatar URL
     const { error: updateError } = await supabase
       .from("users")
       .update({
@@ -127,11 +112,10 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Log the avatar update
     await logAccountEvent({
       user_id: user.id,
       event_type: "PROFILE_UPDATED",
-      device_session_id: deviceSessionId,
+      device_session_id: deviceSession.id,
       metadata: {
         fields: ["avatar_url"],
         category: "info",

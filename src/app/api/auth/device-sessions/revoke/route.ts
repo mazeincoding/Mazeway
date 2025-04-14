@@ -12,7 +12,7 @@ import { revokeDeviceSessionsSchema } from "@/validation/auth-validation";
 import { AUTH_CONFIG } from "@/config/auth";
 import { sendEmailAlert } from "@/utils/email-alerts";
 import { logAccountEvent } from "@/utils/account-events/server";
-import { TDeviceInfo } from "@/types/auth";
+import { getCurrentDeviceSession } from "@/utils/auth/device-sessions/server";
 
 /**
  * Deletes one or all device sessions. Security is enforced through multiple layers:
@@ -94,31 +94,28 @@ export async function DELETE(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Verify current device session is valid and get its info
-    const { data: currentSession, error: currentSessionError } = (await supabase
-      .from("device_sessions")
-      .select(
-        `
-        *,
-        device:devices(*)
-      `
-      )
-      .eq("id", currentSessionId)
-      .eq("user_id", user.id)
-      .gt("expires_at", new Date().toISOString())
-      .single()) as unknown as { data: { device: TDeviceInfo }; error: Error };
+    // Verify current device session using the utility
+    const {
+      deviceSession: currentSession,
+      isValid,
+      error: currentSessionError,
+    } = await getCurrentDeviceSession({ request, supabase, user });
 
-    if (currentSessionError || !currentSession) {
+    if (!isValid || !currentSession) {
       console.error("Current device session invalid or expired", {
-        error: currentSessionError,
-        session: currentSession,
+        userId: user.id,
+        error: currentSessionError?.message,
       });
-      throw new Error("Current device session is invalid or expired");
+      // Let the generic error handler catch this to return 500 or 401 appropriately
+      throw new Error(
+        currentSessionError?.message ||
+          "Current device session is invalid or expired"
+      );
     }
 
     // Check if verification is needed based on grace period
     const needsVerification = await hasGracePeriodExpired({
-      deviceSessionId: currentSessionId,
+      deviceSessionId: currentSession.id,
       supabase,
     });
 
@@ -153,7 +150,7 @@ export async function DELETE(request: NextRequest) {
     await logAccountEvent({
       user_id: user.id,
       event_type: "SENSITIVE_ACTION_VERIFIED",
-      device_session_id: currentSessionId,
+      device_session_id: currentSession.id,
       metadata: {
         device: {
           device_name: currentSession.device.device_name,
@@ -176,7 +173,7 @@ export async function DELETE(request: NextRequest) {
       console.log("[DEBUG] Attempting to revoke session", {
         sessionId: requestBody.sessionId,
         userId: user.id,
-        currentSessionId,
+        currentSessionId: currentSession.id,
       });
 
       // Verify session ownership and get device info for alert
@@ -301,7 +298,7 @@ export async function DELETE(request: NextRequest) {
       }
 
       // If we're revoking our own session, clear cookies and logout
-      if (requestBody.sessionId === currentSessionId) {
+      if (requestBody.sessionId === currentSession.id) {
         // Clear device session cookie
         const response = NextResponse.json({});
         response.cookies.delete("device_session_id");
@@ -331,7 +328,7 @@ export async function DELETE(request: NextRequest) {
         `
         )
         .eq("user_id", user.id)
-        .neq("id", currentSessionId); // Exclude the current session
+        .neq("id", currentSession.id); // Exclude the current session
 
       if (fetchError) {
         console.error("Failed to fetch other device sessions", { fetchError });

@@ -8,7 +8,7 @@ import {
 } from "@/types/api";
 import { apiRateLimit, getClientIp } from "@/utils/rate-limit";
 import { getUser } from "@/utils/auth";
-import { getCurrentDeviceSessionId } from "@/utils/auth/device-sessions";
+import { getCurrentDeviceSession } from "@/utils/auth/device-sessions/server";
 import { logAccountEvent } from "@/utils/account-events/server";
 
 export async function POST(request: NextRequest) {
@@ -34,32 +34,23 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Get device session ID from cookie
-    const deviceSessionId = getCurrentDeviceSessionId(request);
-    if (!deviceSessionId) {
+    const {
+      deviceSession,
+      isValid,
+      error: sessionError,
+    } = await getCurrentDeviceSession({ request, supabase, user });
+
+    if (!isValid || !deviceSession) {
+      console.error("Invalid device session for user update", {
+        userId: user.id,
+        error: sessionError?.message,
+      });
       return NextResponse.json(
-        { error: "No device session found" },
+        { error: sessionError?.message || "Invalid or expired device session" },
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Verify device session is valid and belongs to user
-    const { data: deviceSession, error: sessionError } = await supabase
-      .from("device_sessions")
-      .select("id")
-      .eq("id", deviceSessionId)
-      .eq("user_id", user.id)
-      .gt("expires_at", new Date().toISOString())
-      .single();
-
-    if (sessionError || !deviceSession) {
-      return NextResponse.json(
-        { error: "Invalid or expired device session" },
-        { status: 401 }
-      ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    // Validate request body
     const body = await request.json();
     const validation = profileUpdateSchema.safeParse(body) as {
       success: boolean;
@@ -85,7 +76,6 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Update user profile in database
     const { error: updateError } = await supabase
       .from("users")
       .update({
@@ -102,11 +92,10 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Log which fields were updated
     await logAccountEvent({
       user_id: user.id,
       event_type: "PROFILE_UPDATED",
-      device_session_id: deviceSessionId,
+      device_session_id: deviceSession.id,
       metadata: {
         fields: Object.keys(updateData),
         category: "info",

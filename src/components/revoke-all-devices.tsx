@@ -13,8 +13,10 @@ import { TVerificationFactor } from "@/types/auth";
 import { api } from "@/utils/api";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useDeviceSessions } from "@/hooks/use-device-sessions";
 
 export function LogoutAllDevices() {
+  const { refresh } = useDeviceSessions();
   const [needsVerification, setNeedsVerification] = useState(false);
   const [verificationData, setVerificationData] = useState<{
     availableMethods: TVerificationFactor[];
@@ -53,6 +55,7 @@ export function LogoutAllDevices() {
       });
 
       toast.success("Successfully logged out all other devices");
+      refresh();
 
       setNeedsVerification(false);
       setVerificationData(null);

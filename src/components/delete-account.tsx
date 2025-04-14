@@ -23,6 +23,7 @@ export function DeleteAccount({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [verificationData, setVerificationData] = useState<{
     availableMethods: TVerificationFactor[];
   } | null>(null);
@@ -36,9 +37,10 @@ export function DeleteAccount({ children }: { children: React.ReactNode }) {
 
   const deleteAccount = async () => {
     if (!user?.name || nameInput !== user.name) {
-      toast.error("Please enter your name correctly to confirm deletion");
+      setNameError("Please enter your name correctly to confirm deletion");
       return;
     }
+    setNameError(null);
 
     try {
       setIsDeleting(true);
@@ -116,9 +118,19 @@ export function DeleteAccount({ children }: { children: React.ReactNode }) {
                 type="text"
                 placeholder="Enter your name"
                 value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
+                onChange={(e) => {
+                  setNameInput(e.target.value);
+                  setNameError(null);
+                }}
                 disabled={isDeleting}
+                aria-invalid={!!nameError}
+                aria-describedby={nameError ? "name-error" : undefined}
               />
+              {nameError && (
+                <p id="name-error" className="text-sm text-destructive mt-1">
+                  {nameError}
+                </p>
+              )}
             </div>
             <DialogFooter>
               <Button

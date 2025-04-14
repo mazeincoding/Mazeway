@@ -301,22 +301,19 @@ export const validateEmailAlert = (
   };
 };
 
-// Add schema for device session revocation
-export const revokeDeviceSessionSchema = z.object({
-  sessionId: z.string().min(1, "Session ID is required"),
-});
+// Schema for device session revocation
+export const revokeDeviceSessionsSchema = z
+  .object({
+    sessionId: z.string().min(1, "Session ID is required").optional(),
+    revokeAll: z.boolean().optional(),
+    checkVerificationOnly: z.boolean().optional(),
+  })
+  .refine((data) => data.sessionId || data.revokeAll, {
+    message: "Must provide either sessionId or revokeAll",
+  });
 
-export type RevokeDeviceSessionSchema = z.infer<
-  typeof revokeDeviceSessionSchema
->;
-
-// Schema for revoking all device sessions
-export const revokeAllDeviceSessionsSchema = z.object({
-  checkVerificationOnly: z.boolean().optional(),
-});
-
-export type RevokeAllDeviceSessionsSchema = z.infer<
-  typeof revokeAllDeviceSessionsSchema
+export type RevokeDeviceSessionsSchema = z.infer<
+  typeof revokeDeviceSessionsSchema
 >;
 
 export const dataExportTokenSchema = z.object({

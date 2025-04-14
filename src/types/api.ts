@@ -131,9 +131,11 @@ export interface TUpdateUserRequest {
   data: Partial<ProfileSchema>;
 }
 
-// /api/auth/device-sessions/[id]
-export interface TRevokeDeviceSessionRequest {
-  sessionId: string;
+// /api/auth/device-sessions/revoke
+export interface TRevokeDeviceSessionsRequest {
+  sessionId?: string;
+  revokeAll?: boolean;
+  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/social/connect
@@ -150,11 +152,6 @@ export interface TDisconnectSocialProviderRequest {
 
 // /api/auth/user/delete
 export interface TDeleteAccountRequest {
-  checkVerificationOnly?: boolean;
-}
-
-// /api/auth/device-sessions/revoke-all
-export interface TRevokeAllDeviceSessionsRequest {
   checkVerificationOnly?: boolean;
 }
 
@@ -233,10 +230,10 @@ export interface TChangeEmailResponse extends TGeneralVerificationRequirement {
   newEmail?: string;
 }
 
-// /api/auth/device-sessions/[id]
-export interface TRevokeDeviceSessionResponse
+// /api/auth/device-sessions/revoke
+export interface TRevokeDeviceSessionsResponse
   extends TGeneralVerificationRequirement {
-  sessionId: string;
+  sessionId?: string;
 }
 
 // /api/auth/user

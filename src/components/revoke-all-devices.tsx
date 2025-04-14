@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +31,8 @@ export function LogoutAllDevices() {
 
       if (!skipVerificationCheck) {
         // Check if verification is needed
-        const data = await api.auth.device.revokeAllDeviceSessions({
+        const data = await api.auth.device.revokeSession({
+          revokeAll: true,
           checkVerificationOnly: true,
         });
 
@@ -45,7 +48,9 @@ export function LogoutAllDevices() {
       }
 
       // Verification completed/not needed -> proceed with logout
-      await api.auth.device.revokeAllDeviceSessions({});
+      await api.auth.device.revokeSession({
+        revokeAll: true,
+      });
 
       toast.success("Successfully logged out all other devices");
 

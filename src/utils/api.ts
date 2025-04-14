@@ -27,12 +27,10 @@ import type {
   TDeleteAccountRequest,
   TGetDeviceSessionsResponse,
   TGetTrustedDeviceSessionsResponse,
-  TRevokeDeviceSessionResponse,
   TGetUserResponse,
   TGetDeviceSessionResponse,
   TGeolocationResponse,
   TUpdateUserRequest,
-  TRevokeDeviceSessionRequest,
   TGetEventsResponse,
   TCreateDataExportResponse,
   TGetDataExportStatusResponse,
@@ -42,9 +40,9 @@ import type {
   TDisable2FAResponse,
   TDisconnectSocialProviderRequest,
   TConnectSocialProviderRequest,
-  TRevokeAllDeviceSessionsRequest,
-  TRevokeAllDeviceSessionsResponse,
   TUpdateAvatarResponse,
+  TRevokeDeviceSessionsRequest,
+  TRevokeDeviceSessionsResponse,
 } from "@/types/api";
 import type { ProfileSchema } from "@/validation/auth-validation";
 import { mutate } from "swr";
@@ -258,31 +256,13 @@ export const api = {
         return handleResponse<TGeolocationResponse>(response);
       },
 
-      revokeSession: async (params: TRevokeDeviceSessionRequest) => {
-        const response = await fetch(
-          `/api/auth/device-sessions/${params.sessionId}`,
-          {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(params),
-          }
-        );
-        const data =
-          await handleResponse<TRevokeDeviceSessionResponse>(response);
-        return data;
-      },
-
-      revokeAllDeviceSessions: async (
-        params: TRevokeAllDeviceSessionsRequest
-      ) => {
-        const response = await fetch(`/api/auth/device-sessions/revoke-all`, {
+      revokeSession: async (params: TRevokeDeviceSessionsRequest) => {
+        const response = await fetch("/api/auth/device-sessions/revoke", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(params),
         });
-        const data =
-          await handleResponse<TRevokeAllDeviceSessionsResponse>(response);
-        return data;
+        return handleResponse<TRevokeDeviceSessionsResponse>(response);
       },
     },
 

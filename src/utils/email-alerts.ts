@@ -12,6 +12,9 @@ import { TSendEmailAlertRequest } from "@/types/api";
  *
  * Won't throw if alert fails - logs error and continues.
  * This is because alerts shouldn't block the main action.
+ *
+ * In development, only logs the alert details.
+ * In production, sends actual email alerts.
  */
 export async function sendEmailAlert({
   request,
@@ -29,18 +32,28 @@ export async function sendEmailAlert({
   origin: string;
   user: { id: string; email: string };
 }) {
-  try {
-    const body: TSendEmailAlertRequest = {
-      email: user.email,
-      title,
-      message,
-      device,
-      // Only include optional fields if they exist
-      ...(method ? { method } : {}),
-      ...(oldEmail && newEmail ? { oldEmail, newEmail } : {}),
-      ...(revokedDevice ? { revokedDevice } : {}),
-    };
+  const body: TSendEmailAlertRequest = {
+    email: user.email,
+    title,
+    message,
+    device,
+    // Only include optional fields if they exist
+    ...(method ? { method } : {}),
+    ...(oldEmail && newEmail ? { oldEmail, newEmail } : {}),
+    ...(revokedDevice ? { revokedDevice } : {}),
+  };
 
+  // In development, just log the alert details
+  if (process.env.NODE_ENV === "development") {
+    console.log("[DEV] Email alert would be sent:", {
+      ...body,
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  // In production, actually send the email
+  try {
     const emailAlertResponse = await fetch(
       `${origin}/api/auth/send-email-alert`,
       {
@@ -55,7 +68,7 @@ export async function sendEmailAlert({
 
     if (!emailAlertResponse.ok) {
       console.error("Failed to send email alert", {
-        type: title, // Log alert type for better debugging
+        type: title,
         status: emailAlertResponse.status,
         statusText: emailAlertResponse.statusText,
       });

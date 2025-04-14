@@ -140,13 +140,11 @@ export interface TRevokeDeviceSessionsRequest {
 // /api/auth/social/connect
 export interface TConnectSocialProviderRequest {
   provider: TSocialProvider;
-  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/social/disconnect
 export interface TDisconnectSocialProviderRequest {
   provider: TSocialProvider;
-  checkVerificationOnly?: boolean;
 }
 
 // /api/auth/user/delete

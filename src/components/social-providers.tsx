@@ -71,18 +71,14 @@ function SocialProvider({
     setIsLoading(parentLoading ?? false);
   }, [parentLoading]);
 
-  const handleSocialProviderAction = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
+  const handleSocialProviderAction = async () => {
     try {
       setIsLoading(true);
 
       if (isConnected) {
-        await handleDisconnect({ skipVerificationCheck });
+        await handleDisconnect();
       } else {
-        await handleConnect({ skipVerificationCheck });
+        await handleConnect();
       }
     } catch (error) {
       toast.error("Error", {
@@ -92,94 +88,61 @@ function SocialProvider({
       });
     } finally {
       setIsLoading(false);
+      setVerificationData(null);
+      setNeedsVerification(false);
     }
   };
 
-  const handleConnect = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
-    if (!skipVerificationCheck) {
-      const data = await api.auth.connectSocialProvider({
-        provider,
-        checkVerificationOnly: true,
-      });
-
-      console.log("Connect social provider", { data });
-
-      if (
-        data.requiresVerification &&
-        data.availableMethods &&
-        data.availableMethods.length > 0
-      ) {
-        setVerificationData({
-          availableMethods: data.availableMethods,
-        });
-        setNeedsVerification(true);
-        return;
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-    }
-
+  const handleConnect = async () => {
     const data = await api.auth.connectSocialProvider({
       provider,
     });
+
+    console.log("Connect social provider", { data });
+
+    if (
+      data.requiresVerification &&
+      data.availableMethods &&
+      data.availableMethods.length > 0
+    ) {
+      setVerificationData({
+        availableMethods: data.availableMethods,
+      });
+      setNeedsVerification(true);
+      return;
+    }
+
     if (data.url) {
       window.location.href = data.url;
     }
   };
 
-  const handleDisconnect = async ({
-    skipVerificationCheck = false,
-  }: {
-    skipVerificationCheck?: boolean;
-  } = {}) => {
-    if (!skipVerificationCheck) {
-      console.log("Checking verification only");
-      const data = await api.auth.disconnectSocialProvider({
-        provider,
-        checkVerificationOnly: true,
-      });
-
-      console.log("Verification check complete", { data });
-
-      if (
-        data.requiresVerification &&
-        data.availableMethods &&
-        data.availableMethods.length > 0
-      ) {
-        setVerificationData({
-          availableMethods: data.availableMethods,
-        });
-        setNeedsVerification(true);
-        return;
-      }
-    }
-
-    console.log("Disconnecting social provider");
-
-    const result = await api.auth.disconnectSocialProvider({
+  const handleDisconnect = async () => {
+    const data = await api.auth.disconnectSocialProvider({
       provider,
     });
 
+    console.log("Verification check complete", { data });
+
+    if (
+      data.requiresVerification &&
+      data.availableMethods &&
+      data.availableMethods.length > 0
+    ) {
+      setVerificationData({
+        availableMethods: data.availableMethods,
+      });
+      setNeedsVerification(true);
+      return;
+    }
+
     const providerTitle = provider.charAt(0).toUpperCase() + provider.slice(1);
-
-    console.log("Disconnection complete", { result });
-
     toast.success(`${providerTitle} account disconnected`);
-
     await refresh();
   };
 
   const handleVerifyComplete = () => {
-    handleSocialProviderAction({ skipVerificationCheck: true });
-    setVerificationData(null);
-    setNeedsVerification(false);
+    handleSocialProviderAction();
   };
 
   const Icon = provider === "google" ? FaGoogle : FaGithub;

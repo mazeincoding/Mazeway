@@ -332,7 +332,6 @@ export const validateDataExportToken = (token: string) => {
 // Social provider validation schemas
 export const socialProviderSchema = z.object({
   provider: z.enum(["google", "github"] as const),
-  checkVerificationOnly: z.boolean().optional(),
 });
 
 export type SocialProviderSchema = z.infer<typeof socialProviderSchema>;

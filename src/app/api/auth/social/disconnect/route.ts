@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TDisconnectSocialProviderRequest = validation.data;
-    const { provider, checkVerificationOnly = false } = body;
+    const { provider } = body;
 
     // 4. Get device session ID
     const deviceSessionId = getCurrentDeviceSessionId(request);
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       ) satisfies NextResponse<TApiErrorResponse>;
     }
 
-    // Check if verification is needed
+    // 8. Check if verification is needed
     const needsVerification = await hasGracePeriodExpired({
       deviceSessionId,
       supabase,
@@ -151,52 +151,6 @@ export async function POST(request: NextRequest) {
           availableMethods,
         }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
       }
-    }
-
-    if (checkVerificationOnly) {
-      const needsVerification = await hasGracePeriodExpired({
-        deviceSessionId,
-        supabase,
-      });
-
-      if (needsVerification) {
-        // Get available verification methods
-        const { has2FA, factors, methods } = await getUserVerificationMethods({
-          supabase,
-          supabaseAdmin,
-        });
-
-        // If user has 2FA, they must use it
-        if (has2FA) {
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods: factors,
-          }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
-        }
-
-        // Otherwise they can use basic verification methods
-        const availableMethods = methods.map((method) => ({
-          type: method,
-          factorId: method, // For non-2FA methods, use method name as factorId
-        }));
-
-        if (availableMethods.length === 0) {
-          return NextResponse.json(
-            { error: "No verification methods available" },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-
-        return NextResponse.json({
-          requiresVerification: true,
-          availableMethods,
-        }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
-      }
-
-      return NextResponse.json({
-        requiresVerification: false,
-        success: true,
-      }) satisfies NextResponse<TDisconnectSocialProviderResponse>;
     }
 
     // 9. Unlink identity

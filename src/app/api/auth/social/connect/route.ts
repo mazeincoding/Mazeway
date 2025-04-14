@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: TConnectSocialProviderRequest = validation.data;
-    const { provider, checkVerificationOnly = false } = body;
+    const { provider } = body;
 
     // 4. Get device session ID
     const deviceSessionId = getCurrentDeviceSessionId(request);
@@ -69,52 +69,6 @@ export async function POST(request: NextRequest) {
         { error: "No device session found" },
         { status: 401 }
       ) satisfies NextResponse<TApiErrorResponse>;
-    }
-
-    // If we're just checking requirements, check and return early
-    if (checkVerificationOnly) {
-      const needsVerification = await hasGracePeriodExpired({
-        deviceSessionId,
-        supabase,
-      });
-
-      if (needsVerification) {
-        // Get available verification methods
-        const { has2FA, factors, methods } = await getUserVerificationMethods({
-          supabase,
-          supabaseAdmin,
-        });
-
-        // If user has 2FA, they must use it
-        if (has2FA) {
-          return NextResponse.json({
-            requiresVerification: true,
-            availableMethods: factors,
-          }) satisfies NextResponse<TConnectSocialProviderResponse>;
-        }
-
-        // Otherwise they can use basic verification methods
-        const availableMethods = methods.map((method) => ({
-          type: method,
-          factorId: method, // For non-2FA methods, use method name as factorId
-        }));
-
-        if (availableMethods.length === 0) {
-          return NextResponse.json(
-            { error: "No verification methods available" },
-            { status: 400 }
-          ) satisfies NextResponse<TApiErrorResponse>;
-        }
-
-        return NextResponse.json({
-          requiresVerification: true,
-          availableMethods,
-        }) satisfies NextResponse<TConnectSocialProviderResponse>;
-      }
-
-      return NextResponse.json({
-        requiresVerification: false,
-      }) satisfies NextResponse<TConnectSocialProviderResponse>;
     }
 
     // 5. Check if verification is needed
@@ -157,7 +111,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get the referer to return to after OAuth
+    // 6. Get the referer to return to after OAuth
     const referer = request.headers.get("referer");
 
     const { data, error: linkError } = await supabase.auth.linkIdentity({
@@ -226,6 +180,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Send back the OAuth URL
     return NextResponse.json(
       data
     ) satisfies NextResponse<TConnectSocialProviderResponse>;

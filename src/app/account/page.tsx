@@ -35,7 +35,13 @@ import { AUTH_CONFIG } from "@/config/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
-import { Check, X, Upload, Loader2 } from "lucide-react";
+import { Check, X, Loader2, InfoIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function getConnectedProvidersMessage(
   identities: Array<{ provider: string }> | undefined
@@ -455,19 +461,39 @@ export default function Account() {
               </Button>
             </div>
           ) : (
-            <span className="text-base text-muted-foreground">
-              {user?.email || "Not set"}
-            </span>
+            <>
+              <span className="text-base text-muted-foreground">
+                {user?.email || "Not set"}
+              </span>
+            </>
           )}
         </div>
         {!isEditingEmail && (
-          <Button
-            variant="outline"
-            onClick={handleEmailEdit}
-            disabled={isUpdating || isUserLoading || !user?.has_password}
-          >
-            Edit
-          </Button>
+          <TooltipProvider>
+            <Tooltip delayDuration={500}>
+              <TooltipTrigger asChild>
+                <div className="inline-block">
+                  <Button
+                    variant="outline"
+                    onClick={handleEmailEdit}
+                    disabled={
+                      isUpdating || isUserLoading || !user?.has_password
+                    }
+                    style={{
+                      pointerEvents: !user?.has_password ? "none" : "auto",
+                    }}
+                  >
+                    Edit
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {!user?.has_password && (
+                <TooltipContent>
+                  <p>Set a password first to change your email.</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         )}
       </section>
 

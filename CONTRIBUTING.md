@@ -2,42 +2,8 @@
 
 First off, you're awesome for wanting to contribute! 🎉
 
-## Important notice - 27th December 2024
+### Found a bug?
 
-Hey there! The core authentication system is currently going through some deep architectural decisions. We're talking:
-- Device trust models
-- Session management complexity
-- Security implications
-- Confidence calculations
-- Verification flows
-
-### Why is this off-limits?
-Authentication requires a single, focused mind making interconnected decisions. Just today:
-1. I redesigned how device trust works
-2. Questioned how sessions should persist
-3. Rethought device verification
-4. Discovered new security implications
-5. Changed core approaches multiple times
-
-### What this means
-I need to keep the core auth work isolated until these decisions are final. Otherwise:
-```
-PR: "Added verification levels!"
-Me: "Actually we don't need those..."
-
-PR: "Updated session management!"
-Me: "Just realized sessions should work differently..."
-```
-
-Don't worry! Once the core auth is solid and decisions are final, there will be plenty of ways to contribute. For now, this helps avoid you working on code that might be completely different tomorrow.
-
-✅ UPDATE
-
-The core auth is finally ready! You can ignore the above warning. It will go away March 20th.
-
-Contribute away!
-
-### 3. Found a bug?
 Here's how to report it:
 1. Check if someone already reported it in [Issues](https://github.com/mazeincoding/Auth-Starter)
 2. If not, create a new one with:
